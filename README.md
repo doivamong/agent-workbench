@@ -31,12 +31,15 @@ Solo developers (or tiny teams) who:
 
 | Area | What it gives you | Path |
 |------|-------------------|------|
-| **Safety hooks** | Block dangerous shell commands; scan for secrets before they're written; auto-refine vague prompts | [`.claude/hooks/`](.claude/hooks/) |
+| **Skill system** | How to encode reusable, intent-triggered playbooks for the agent — anatomy, tiers, a registry, and two runnable example skills | [`.claude/skills/`](.claude/skills/) |
+| **Memory system** | A file-based, index-gated memory the agent carries across sessions — scaffold + example facts | [`memory/`](memory/) |
+| **Safety hooks** | Block dangerous shell commands; auto-refine vague prompts; a fail-open hook wrapper | [`.claude/hooks/`](.claude/hooks/) |
 | **Secrets at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — to keep `config`/`db` encrypted in a private backup repo | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
-| **Invariant checker** | A tiny framework for codifying "rules that must never break" as fast, greppable checks (a pre-commit/CI gate) | [`tools/invariant_framework/`](tools/invariant_framework/) |
+| **Invariant checker** | A tiny framework for codifying "rules that must never break" as fast, greppable checks (a pre-commit/CI gate) | [`tools/invariants.py`](tools/invariants.py) |
 | **Test selection** | AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
+| **Leak scanner** | A secret/identifier scanner with a private deny-list, used to verify this very export | [`tools/leak_scan.py`](tools/leak_scan.py) |
 | **Writing rules** | How to write slash-commands and keep an AI agent on-style | [`.claude/rules/`](.claude/rules/) |
-| **Memory & sessions** | A 3-layer memory governance model + session-preservation patterns for long projects | [`docs/`](docs/) |
+| **Methodology docs** | The memory-governance model + session-preservation patterns for long projects | [`docs/`](docs/) |
 | **Runnable demos** | Each tool has a `examples/` entry you can run in 30 seconds | [`examples/`](examples/) |
 
 ## Generic vs. domain-specific — read this first

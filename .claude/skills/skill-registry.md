@@ -1,0 +1,37 @@
+# Skill Registry
+
+A single, greppable index of every skill: one row per skill with its tier and its
+trigger / anti-trigger summary. The point is that a future session (or a tired you) can
+`grep` this one file to see the whole library at a glance, instead of opening 30 folders.
+
+> This is a from-first-principles index format. Keep it deliberately simple — name, tier,
+> when it fires, when it must not. Resist adding columns you won't maintain.
+
+## How to use it
+
+- Add a row the moment you create a skill; delete the row when you archive one.
+- When two skills feel like they overlap, the **Do-not-trigger** column is where you write
+  the boundary that separates them.
+- Treat this file as the source of truth; if a skill's `SKILL.md` description drifts from
+  its row here, fix one to match the other.
+
+## Conflict resolution (write your rule down)
+
+When more than one skill could match a request:
+
+1. **Workflow > Guard > Feature > Audit** (tier precedence).
+2. A **domain-specific rule beats a general one** when they disagree.
+3. If still ambiguous, the agent should ask rather than guess.
+
+## Registry
+
+| Skill | Tier | Fires when (triggers) | Does NOT fire when |
+|-------|------|------------------------|--------------------|
+| `example-plan-then-code` | workflow | "implement X", "add feature", anything multi-file that needs a plan first | a one-line fix; a pure question; a code review |
+| `example-review` | guard | "review my changes", before a commit/merge of a non-trivial change | general "is my whole codebase good?" audits; research questions |
+| _your-config-guard_ | guard | code that reads/writes configuration | reading config just to understand it |
+| _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
+| _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
+
+Replace the placeholder rows with your real skills. The two `example-*` rows correspond to
+the runnable example skills in this folder.
