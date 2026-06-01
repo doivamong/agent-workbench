@@ -1,0 +1,293 @@
+"""
+secrets_guard.py — Encrypt/decrypt sensitive files for safe git storage.
+========================================================================
+Stdlib only (zero external dependencies). HMAC-CTR stream cipher.
+
+Configure TARGETS below to point at your project's sensitive files.
+Example defaults assume two common cases:
+  - a config file containing secrets  (e.g. config.json)
+  - a local database with secrets     (e.g. db/sensitive.db)
+
+Usage:
+  python secrets_guard.py encrypt              # Interactive password prompt
+  python secrets_guard.py decrypt              # Interactive password prompt
+  python secrets_guard.py encrypt --password X # Non-interactive
+  python secrets_guard.py status               # Show encryption state
+
+Developer workflow:
+  1. Work normally with plaintext sensitive files (gitignored)
+  2. Before commit: python secrets_guard.py encrypt
+  3. git add <file>.enc ...
+  4. git commit + push (only .enc files go to repo)
+
+Restore workflow (after clone):
+  1. git clone -> has *.enc files
+  2. python secrets_guard.py decrypt -> restores plaintext
+  3. Continue with normal setup
+
+Crypto:
+  - Key derivation: PBKDF2-HMAC-SHA256 (200,000 iterations)
+  - Encryption: HMAC-based keystream in CTR mode (XOR)
+  - Integrity: HMAC-SHA256 authentication tag
+  - Format: salt(16) || hmac_tag(32) || ciphertext
+
+Copyright: <YOUR NAME>
+"""
+
+import argparse
+import getpass
+import hashlib
+import hmac
+import os
+import sys
+
+# Resolve project root relative to this script (assumed to live in a 'scripts/' subdir).
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# ---------------------------------------------------------------------------
+# CONFIGURE: list the (plaintext_path, encrypted_path) pairs you want to
+# protect.  Paths are relative to BASE_DIR.  Adjust to match your project.
+# ---------------------------------------------------------------------------
+TARGETS = [
+    (
+        os.path.join(BASE_DIR, "config.json"),
+        os.path.join(BASE_DIR, "config.json.enc"),
+    ),
+    (
+        os.path.join(BASE_DIR, "db", "sensitive.db"),
+        os.path.join(BASE_DIR, "db", "sensitive.db.enc"),
+    ),
+]
+
+PBKDF2_ITERATIONS = 200_000
+SALT_LEN = 16
+HMAC_LEN = 32  # SHA-256 output length
+
+
+# ── Crypto primitives (stdlib only) ─────────────────────────────────────────
+
+
+def _derive_key(password: str, salt: bytes) -> bytes:
+    """Derive a 32-byte encryption key from a password and salt using PBKDF2."""
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS)
+
+
+def _hmac_ctr_crypt(data: bytes, key: bytes, nonce: bytes) -> bytes:
+    """HMAC-CTR stream cipher: generate keystream via HMAC(key, nonce||counter).
+
+    XOR-based — the same function is used for both encryption and decryption.
+    Each block uses the full 32-byte HMAC-SHA256 output as its keystream chunk.
+    """
+    out = bytearray(len(data))
+    block_size = 32  # SHA-256 output length
+    for i in range(0, len(data), block_size):
+        counter = i // block_size
+        keystream = hmac.new(key, nonce + counter.to_bytes(8, "big"), "sha256").digest()
+        chunk = data[i : i + block_size]
+        for j, b in enumerate(chunk):
+            out[i + j] = b ^ keystream[j]
+    return bytes(out)
+
+
+def encrypt_bytes(plaintext: bytes, password: str) -> bytes:
+    """Encrypt plaintext bytes with the given password.
+
+    Returns: salt(16) || hmac_tag(32) || ciphertext
+    """
+    salt = os.urandom(SALT_LEN)
+    key = _derive_key(password, salt)
+
+    # Derive a deterministic nonce from the salt so that the nonce is
+    # never reused across independent encryptions.
+    nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
+    ciphertext = _hmac_ctr_crypt(plaintext, key, nonce)
+
+    # Compute an HMAC authentication tag over salt + ciphertext for integrity.
+    tag = hmac.new(key, salt + ciphertext, "sha256").digest()
+
+    return salt + tag + ciphertext
+
+
+def decrypt_bytes(encrypted: bytes, password: str) -> bytes:
+    """Decrypt encrypted bytes with the given password.
+
+    Input format: salt(16) || hmac_tag(32) || ciphertext
+    Returns the original plaintext bytes.
+    Raises ValueError on wrong password or tampered data.
+    """
+    if len(encrypted) < SALT_LEN + HMAC_LEN:
+        raise ValueError("File too short — not a valid encrypted format")
+
+    salt = encrypted[:SALT_LEN]
+    stored_tag = encrypted[SALT_LEN : SALT_LEN + HMAC_LEN]
+    ciphertext = encrypted[SALT_LEN + HMAC_LEN :]
+
+    key = _derive_key(password, salt)
+
+    # Verify the HMAC authentication tag (integrity + authentication).
+    expected_tag = hmac.new(key, salt + ciphertext, "sha256").digest()
+    if not hmac.compare_digest(stored_tag, expected_tag):
+        raise ValueError("Wrong password or tampered data (HMAC mismatch)")
+
+    nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
+    return _hmac_ctr_crypt(ciphertext, key, nonce)
+
+
+# ── File operations ──────────────────────────────────────────────────────────
+
+
+def encrypt_file(src: str, dst: str, password: str) -> bool:
+    """Encrypt a single file.  Returns True on success."""
+    if not os.path.isfile(src):
+        print(f"  [SKIP] {os.path.basename(src)} — file not found")
+        return False
+
+    plaintext = open(src, "rb").read()
+    encrypted = encrypt_bytes(plaintext, password)
+
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    with open(dst, "wb") as f:
+        f.write(encrypted)
+
+    src_kb = len(plaintext) / 1024
+    dst_kb = len(encrypted) / 1024
+    print(
+        f"  [OK] {os.path.basename(src)} ({src_kb:.1f} KB)"
+        f" -> {os.path.basename(dst)} ({dst_kb:.1f} KB)"
+    )
+    return True
+
+
+def decrypt_file(src: str, dst: str, password: str) -> bool:
+    """Decrypt a single file.  Returns True on success."""
+    if not os.path.isfile(src):
+        print(f"  [SKIP] {os.path.basename(src)} — file not found")
+        return False
+
+    encrypted = open(src, "rb").read()
+    try:
+        plaintext = decrypt_bytes(encrypted, password)
+    except ValueError as e:
+        print(f"  [FAIL] {os.path.basename(src)}: {e}")
+        return False
+
+    os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+    with open(dst, "wb") as f:
+        f.write(plaintext)
+
+    print(
+        f"  [OK] {os.path.basename(src)} -> {os.path.basename(dst)}"
+        f" ({len(plaintext) / 1024:.1f} KB)"
+    )
+    return True
+
+
+# ── Commands ─────────────────────────────────────────────────────────────────
+
+
+def cmd_encrypt(password: str) -> int:
+    """Encrypt all target files listed in TARGETS."""
+    print("\n  Encrypting sensitive files...")
+    ok = 0
+    for plain, enc in TARGETS:
+        if encrypt_file(plain, enc, password):
+            ok += 1
+    print(f"\n  Done: {ok}/{len(TARGETS)} file(s) encrypted.")
+    if ok > 0:
+        print("  Git: stage the *.enc files, commit, and push.")
+        print("  Plaintext files should be gitignored — keep them out of version control.")
+    return 0 if ok > 0 else 1
+
+
+def cmd_decrypt(password: str) -> int:
+    """Decrypt all target files listed in TARGETS."""
+    print("\n  Decrypting sensitive files...")
+    ok = 0
+    for plain, enc in TARGETS:
+        if decrypt_file(enc, plain, password):
+            ok += 1
+    print(f"\n  Done: {ok}/{len(TARGETS)} file(s) decrypted.")
+    return 0 if ok > 0 else 1
+
+
+def cmd_status() -> int:
+    """Show encryption state of all targets.  Exits with code 1 if any .enc file is stale."""
+    print("\n  Secrets Guard — Status")
+    print(f"  {'=' * 50}")
+    stale = False
+    for plain, enc in TARGETS:
+        name = os.path.basename(plain)
+        has_plain = os.path.isfile(plain)
+        has_enc = os.path.isfile(enc)
+        if has_plain and has_enc:
+            plain_mtime = os.path.getmtime(plain)
+            enc_mtime = os.path.getmtime(enc)
+            if plain_mtime > enc_mtime:
+                delta_hours = (plain_mtime - enc_mtime) / 3600
+                state = f"STALE — plaintext is {delta_hours:.0f}h newer than .enc (run: encrypt)"
+                stale = True
+            else:
+                state = "OK (encrypted file is up-to-date)"
+        elif has_plain:
+            state = "PLAINTEXT only — not yet encrypted (run: encrypt)"
+            stale = True
+        elif has_enc:
+            state = "ENCRYPTED only — needs decrypt"
+        else:
+            state = "MISSING (neither plaintext nor .enc exists)"
+        print(f"  {name:30s} {state}")
+    if stale:
+        print("\n  [WARN] One or more .enc files are stale.")
+        print("  Run: python scripts/secrets_guard.py encrypt")
+        # Exit 1 so a pre-commit hook can block commits when .enc is out of date.
+        return 1
+    print("  All .enc files are up-to-date.")
+    return 0
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────────
+
+
+def _get_password(args) -> str:
+    """Obtain the master password from CLI args or an interactive prompt."""
+    if args.password:
+        return args.password
+    try:
+        pw = getpass.getpass("  Master password: ")
+    except Exception:
+        pw = input("  Master password: ")
+    if not pw:
+        print("  [!!] Password must not be empty.")
+        sys.exit(1)
+    return pw
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(
+        description="Secrets Guard — Encrypt/decrypt sensitive files for git storage",
+    )
+    ap.add_argument(
+        "command",
+        choices=["encrypt", "decrypt", "status"],
+        help="encrypt: plaintext -> .enc | decrypt: .enc -> plaintext | status: show state",
+    )
+    ap.add_argument(
+        "--password",
+        metavar="PASS",
+        help="Master password (non-interactive mode)",
+    )
+    args = ap.parse_args()
+
+    if args.command == "status":
+        sys.exit(cmd_status())
+
+    password = _get_password(args)
+
+    if args.command == "encrypt":
+        sys.exit(cmd_encrypt(password))
+    elif args.command == "decrypt":
+        sys.exit(cmd_decrypt(password))
+
+
+if __name__ == "__main__":
+    main()

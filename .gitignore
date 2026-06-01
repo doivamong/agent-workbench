@@ -1,0 +1,38 @@
+# --- Defensive: never let project secrets/data leak into THIS public repo ---
+# (mirrors the source project's exclusions, kept strict on purpose)
+config.json
+config.*.json
+*.enc
+*.key
+.env
+db/
+*.db
+*.db-wal
+*.db-shm
+*.xlsx
+*.xlsm
+excel_samples/
+excel_data/
+plans/
+handovers/
+*.bat
+known_violations.json
+**/.cache/
+*_ref_meta.md
+secret*.txt
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
