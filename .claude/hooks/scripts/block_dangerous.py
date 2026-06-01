@@ -82,30 +82,37 @@ from hook_logger import hook_main  # noqa: E402
 
 @hook_main("block_dangerous")
 def main():
+    # Claude Code delivers the hook payload as JSON on stdin.
     try:
-        input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    except (json.JSONDecodeError, IndexError):
+        event = json.load(sys.stdin)
+    except Exception:
+        sys.exit(0)  # can't parse -> fail open, let the action proceed
+
+    # Only act on Bash commands (settings.json matcher should already scope this).
+    if event.get("tool_name") not in (None, "", "Bash"):
         sys.exit(0)
 
-    command = input_data.get("command", "").strip()
+    command = (event.get("tool_input") or {}).get("command", "").strip()
     if not command:
         sys.exit(0)
 
     hit = check_command(command)
     if hit:
-        pattern, reason = hit
+        _pattern, reason = hit
+        # Documented PreToolUse output: deny the action with a human-readable reason.
         print(json.dumps({
-            "decision": "block",
-            "reason": (
-                f"Dangerous command blocked: `{pattern}`\n"
-                f"Reason: {reason}\n"
-                f"Command: {command[:100]}\n"
-                f"-> Confirm manually if this action is truly required."
-            )
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    f"Blocked a dangerous command ({reason}). "
+                    f"Run it manually outside the agent if this is genuinely intended."
+                ),
+            }
         }))
         return
 
-    sys.exit(0)
+    sys.exit(0)  # safe -> no decision, default flow continues
 
 
 if __name__ == "__main__":

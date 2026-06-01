@@ -1,0 +1,28 @@
+# Real pre-commit gates for this kit (and a template for your own project).
+# Install:  pip install pre-commit && pre-commit install
+# Run now:  pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: leak-scan
+        name: leak scan (no secrets / identifiers committed)
+        entry: python tools/leak_scan.py . --fail-on-find
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: tests
+        name: pytest
+        entry: python -m pytest -q
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Enable this once you've replaced the SAMPLE_INVARIANTS in tools/invariants.py
+      # with your project's real rules (and optionally a known_violations.json baseline):
+      # - id: invariants
+      #   name: codebase invariants
+      #   entry: python tools/invariants.py . --allow known_violations.json
+      #   language: system
+      #   pass_filenames: false
+      #   always_run: true

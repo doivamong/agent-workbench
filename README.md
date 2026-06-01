@@ -62,15 +62,38 @@ git clone <this-repo>
 cd claude-code-methodology-kit
 python -m pip install -r requirements.txt   # stdlib-only core; deps are for examples/tests
 
-# 1. Encrypt a file with the stdlib crypto
-python examples/secrets_demo.py
+# See it work (each runs in seconds):
+python examples/secrets_demo.py     # encrypt/decrypt round-trip + tamper detection
+python examples/hook_block_demo.py  # dangerous-command classifier
+python examples/invariant_demo.py   # the invariant gate
 
-# 2. Run the dangerous-command hook against sample input
-python examples/hook_block_demo.py
-
-# 3. Run the invariant framework against the sample project
-python examples/invariant_demo.py
+# Prove the tools actually work:
+python -m pytest -q                 # 37 tests
 ```
+
+## Install it into your own project
+
+This is the part that makes it real, not a reference. Point the installer at any
+project and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory
+scaffold in, then prints the exact `settings.json` snippet that activates the hooks:
+
+```bash
+python install.py /path/to/your/project --with-git-hook
+# --dry-run to preview first; --force to overwrite existing files
+```
+
+After installing and merging the printed `settings.json` snippet, opening that project in
+Claude Code gives you, working immediately:
+
+- **Dangerous `Bash` commands get blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) via a
+  real `PreToolUse` hook — verified against the documented hook I/O contract.
+- **Vague prompts get flagged** to be refined first, via a `UserPromptSubmit` hook.
+- **A git pre-commit gate** (`--with-git-hook`) that refuses to commit a leaked secret.
+- **Drop-in skills** under `.claude/skills/` and a **working memory folder** under `memory/`.
+
+Then make it yours: replace the example skills with your own, put your real rules in
+`tools/invariants.py`, and list your project's identifiers in a private deny-list for
+`tools/leak_scan.py`.
 
 ## Status & honesty
 

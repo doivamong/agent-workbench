@@ -1,0 +1,28 @@
+{
+  "$comment": "Drop this into your project's .claude/settings.json (or merge the 'hooks' block into your existing one). It wires the two hooks in this kit so they actually fire. Paths use $CLAUDE_PROJECT_DIR so they are portable.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/block_dangerous.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-refiner-inject.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
