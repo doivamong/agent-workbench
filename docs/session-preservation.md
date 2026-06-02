@@ -69,6 +69,36 @@ let older ones age out.
 
 ---
 
+## Make the handover survive a cold read
+
+A handover is only worth writing if the next session can *act* on it without you. Two checks keep
+it honest.
+
+**The Cold Reader Test.** Before you rely on a handover, read it as if you've never seen this work —
+no memory of the session, only the file. If a fresh reader would need **more than one** clarifying
+question to take the next step, the handover has a gap — fix it now, while you still have the context
+to. Passing this test is the bar for "done"; failing it means it's still a draft.
+
+**A severity-graded integrity check.** Not every gap costs the same. Grade a missing piece by what
+it does to the next reader:
+
+| Missing | Severity | Why it hurts |
+|---|---|---|
+| the **next concrete step** ("start here") | blocking | the reader doesn't know where to begin |
+| a **decision's WHY** | high | the reader re-litigates a settled call, or silently undoes it |
+| a **failed approach** | high | the reader burns time re-trying a dead end |
+| file paths / branch / test state | medium | recoverable from git, but slows the restart |
+| wording, formatting | low | cosmetic |
+
+Block on the blocking row; fix the high rows before you stop; let the low ones go.
+
+**Update by merging, not regenerating.** When you revise a handover mid-work, edit its existing
+sections in place — don't regenerate the whole file from the current context. A regenerate quietly
+drops the hard-won detail (an early decision, a failed approach) that the live context has already
+compacted away. Anchor on the sections and accumulate into them.
+
+---
+
 ## Restore tiers — the depth/speed trade-off
 
 Reading everything every time is wasteful; match the restore depth to the situation.

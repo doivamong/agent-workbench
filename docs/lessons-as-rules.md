@@ -38,6 +38,21 @@ promotion model (how many recurrences, over how many sessions) is defined once i
 [`memory-governance.md` §4](memory-governance.md). Promotion is a deliberate human call, not an
 automatic one (see the honest lessons in that same doc for why auto-promotion was abandoned).
 
+## Before you capture a lesson — dare to report zero
+
+The cull pass below trims rules that already exist. There's a matching discipline at the *other*
+end — when you mine a just-finished session for what's worth keeping:
+
+- **Default to zero.** Most sessions produce no durable lesson, and "none this time" is an honest,
+  correct answer. A retro that always finds "three key learnings" is manufacturing them to look
+  productive — and that noise is exactly what buries the rare lesson that mattered.
+- **Capture only what clears the same gate** (non-obvious · reusable · not-a-cliché). If a candidate
+  fails it, it isn't a lesson — let it go.
+- **Severity rescue.** One exception to "reusable": a trap that's borderline on recurrence but
+  **catastrophic when it does recur** (data loss, a security hole, a silent corruption) is worth a
+  rule on a single sighting — the cost of meeting it twice dwarfs the cost of one rule. Score on
+  value *and* severity, not value alone.
+
 ## Keeping the set honest (the anti-bloat pass)
 
 A rules folder accretes. Periodically — not every session — review it and score each rule on three
