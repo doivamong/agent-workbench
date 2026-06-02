@@ -201,7 +201,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **227**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **232**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **8** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`) |
@@ -230,7 +230,7 @@ python examples/memory_snapshot_demo.py  # snapshot/restore a memory dir
 python examples/context_budget_demo.py   # audit this repo's context budget
 
 # Prove the tools actually work:
-python -m pytest -q                 # 227 tests
+python -m pytest -q                 # 232 tests
 ```
 
 ## Install it into your own project
@@ -269,6 +269,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
 | **Blueprint** | [`docs/memory-governance.md`](docs/memory-governance.md) | Reference design for cross-session memory — the repo ships the `memory/` scaffold; the governance tooling is a model you implement |
 | **Design + hooks** | [`docs/session-preservation.md`](docs/session-preservation.md) | Context handover on long projects — the automatic layers ship as hooks (PreCompact backup, post-compact restore, context-budget nudge); the `/session-save` commands and the HANDOVER you write stay manual |
+| **Guide** | [`docs/sub-agents.md`](docs/sub-agents.md) | The sub-agent convention + the shipped `silent-failure-hunter` (an error-handling reviewer you spawn on demand; adapted from Anthropic's pr-review-toolkit, Apache-2.0) |
 | **Blueprint** | [`docs/skills-as-cli.md`](docs/skills-as-cli.md) | Pattern for running a skill's playbook outside Claude Code (Cursor/Copilot/raw API) |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
@@ -300,7 +301,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 227 tests · MIT
+**Agent Workbench** · stdlib-only core · 232 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

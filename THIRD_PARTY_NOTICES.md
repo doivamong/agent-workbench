@@ -1,8 +1,9 @@
 # Third-Party Notices
 
-The code in this repository is **original** (MIT, see `LICENSE`) or **independently
-re-implemented**. To the best of the author's knowledge it does **not include substantial
-verbatim source code** from third-party projects.
+Most code here is **original** (MIT, see `LICENSE`) or **independently re-implemented**. The one
+exception is a single **adapted** file noted under "Adapted source" below, redistributed under its
+original permissive license with attribution. Apart from that file, to the best of the author's
+knowledge this repo does **not include substantial verbatim source code** from third-party projects.
 
 The projects below influenced the *design* (patterns and ideas, not code). They are credited
 here as a courtesy, and where a specific file adapts an upstream idea it also cites it inline
@@ -25,6 +26,20 @@ These are MIT-licensed; MIT requires preserving the copyright/permission notice 
 redistribute the licensed *code*. Since no substantial code from these projects is included
 here, this courtesy attribution is provided in good faith. If you later vendor any upstream
 file verbatim, add its full `LICENSE` text under `licenses/` at that time.
+
+## Adapted source — included with attribution (Apache-2.0)
+
+One file is a genuine adaptation of an upstream file (not just a design influence), redistributed
+under the upstream's permissive license:
+
+| File here | Upstream | License | What was modified |
+|---|---|---|---|
+| `.claude/agents/silent-failure-hunter.md` | `anthropics/claude-plugins-official` → `pr-review-toolkit/agents/silent-failure-hunter.md` (© Anthropic) | **Apache-2.0** | Kept the 5-dimension error-handling audit structure, severity rubric, output format, and tone; genericized project-specific references (error-id constants, Sentry/Statsig logging names, named examples) into language-neutral guidance. |
+
+The full Apache-2.0 license text is vendored at
+[`licenses/claude-plugins-official-pr-review-toolkit-APACHE-2.0.txt`](licenses/claude-plugins-official-pr-review-toolkit-APACHE-2.0.txt).
+Apache-2.0 §4 is satisfied: the license is retained, the file carries an attribution header, and the
+modifications are stated (here and in the file).
 
 ## ⛔ Non-commercial source — deliberately NOT redistributed
 
