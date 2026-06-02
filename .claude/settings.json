@@ -76,6 +76,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/session_start.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

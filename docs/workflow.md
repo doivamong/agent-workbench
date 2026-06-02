@@ -11,6 +11,7 @@ These run automatically — you don't invoke them. They're the ambient layer the
 
 | Event | Hook | What it does |
 |---|---|---|
+| At session start (not after a compaction) | [`session_start.py`](../.claude/hooks/scripts/session_start.py) | Injects the project primer (`.claude/session-primer.md`) so the skill system is in context from turn one |
 | You submit a vague prompt | [`prompt-refiner-inject.py`](../.claude/hooks/prompt-refiner-inject.py) | Nudges you to sharpen the request first (see the `prompt-refiner` skill) |
 | Before a `Bash` command | [`block_dangerous.py`](../.claude/hooks/scripts/block_dangerous.py) | Blocks obviously destructive shell commands (a seatbelt, not a security boundary) |
 | After a burst of `Edit`/`Write` | [`post_edit_simplify.py`](../.claude/hooks/scripts/post_edit_simplify.py) | Reminds you to run a simplify pass |

@@ -33,6 +33,7 @@ COPY_MAP = [
     (".claude/hooks", ".claude/hooks"),
     (".claude/skills", ".claude/skills"),
     (".claude/rules", ".claude/rules"),
+    (".claude/session-primer.md", ".claude/session-primer.md"),
     ("tools/leak_scan.py", "tools/leak_scan.py"),
     ("tools/invariants.py", "tools/invariants.py"),
     ("tools/affected_tests.py", "tools/affected_tests.py"),
@@ -109,7 +110,17 @@ SETTINGS_SNIPPET = {
                         "timeout": 10,
                     }
                 ],
-            }
+            },
+            {
+                "matcher": "startup|resume|clear",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/session_start.py"',
+                        "timeout": 10,
+                    }
+                ],
+            },
         ],
     }
 }
