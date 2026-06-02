@@ -57,6 +57,11 @@ jobs:
       - name: Context budget (cap skill bloat)
         run: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
 
+      # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
+      # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
+      - name: Manifest sync (file-set drift)
+        run: python tools/sync_manifest.py --check
+
       # --cov-fail-under is a regression ratchet, not a completeness claim: lines run
       # through a subprocess (the hook e2e tests) are not counted, so true coverage is
       # higher than the floor.

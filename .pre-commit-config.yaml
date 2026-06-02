@@ -43,3 +43,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
+      # .claude/manifest.json fails the commit (run `sync_manifest.py --write` to update it).
+      - id: manifest-sync
+        name: manifest sync (file-set drift)
+        entry: python tools/sync_manifest.py --check
+        language: system
+        pass_filenames: false
+        always_run: true

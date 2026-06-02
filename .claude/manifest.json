@@ -1,0 +1,166 @@
+{
+  "roots": [
+    ".claude/skills",
+    ".claude/hooks",
+    ".claude/rules",
+    "tools",
+    "scripts"
+  ],
+  "files": {
+    ".claude/hooks/lib/handover_utils.py": {
+      "category": ".claude/hooks",
+      "lines": 42,
+      "bytes": 1491
+    },
+    ".claude/hooks/lib/hook_logger.py": {
+      "category": ".claude/hooks",
+      "lines": 76,
+      "bytes": 2491
+    },
+    ".claude/hooks/prompt-refiner-inject.py": {
+      "category": ".claude/hooks",
+      "lines": 223,
+      "bytes": 8996
+    },
+    ".claude/hooks/scripts/block_dangerous.py": {
+      "category": ".claude/hooks",
+      "lines": 218,
+      "bytes": 9295
+    },
+    ".claude/hooks/scripts/compact_restore.py": {
+      "category": ".claude/hooks",
+      "lines": 94,
+      "bytes": 3439
+    },
+    ".claude/hooks/scripts/context_tracker.py": {
+      "category": ".claude/hooks",
+      "lines": 146,
+      "bytes": 5283
+    },
+    ".claude/hooks/scripts/post_edit_simplify.py": {
+      "category": ".claude/hooks",
+      "lines": 160,
+      "bytes": 5969
+    },
+    ".claude/hooks/scripts/precompact_backup.py": {
+      "category": ".claude/hooks",
+      "lines": 80,
+      "bytes": 2710
+    },
+    ".claude/hooks/scripts/skill_routing_inject.py": {
+      "category": ".claude/hooks",
+      "lines": 141,
+      "bytes": 5518
+    },
+    ".claude/hooks/scripts/sync_guard.py": {
+      "category": ".claude/hooks",
+      "lines": 106,
+      "bytes": 3971
+    },
+    ".claude/rules/command-writing-style.md": {
+      "category": ".claude/rules",
+      "lines": 250,
+      "bytes": 8659
+    },
+    ".claude/skills/README.md": {
+      "category": ".claude/skills",
+      "lines": 108,
+      "bytes": 6096
+    },
+    ".claude/skills/SKILL_TEMPLATE.md": {
+      "category": ".claude/skills",
+      "lines": 47,
+      "bytes": 1677
+    },
+    ".claude/skills/example-debug/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 55,
+      "bytes": 2784
+    },
+    ".claude/skills/example-output-guard/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 60,
+      "bytes": 3053
+    },
+    ".claude/skills/example-plan-then-code/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 47,
+      "bytes": 2207
+    },
+    ".claude/skills/example-research/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 57,
+      "bytes": 3206
+    },
+    ".claude/skills/example-review/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 62,
+      "bytes": 2575
+    },
+    ".claude/skills/example-using-skills/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 71,
+      "bytes": 3924
+    },
+    ".claude/skills/prompt-refiner/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 59,
+      "bytes": 2695
+    },
+    ".claude/skills/skill-registry.md": {
+      "category": ".claude/skills",
+      "lines": 43,
+      "bytes": 3077
+    },
+    "scripts/secrets_guard.py": {
+      "category": "scripts",
+      "lines": 383,
+      "bytes": 16005
+    },
+    "tools/affected_tests.py": {
+      "category": "tools",
+      "lines": 373,
+      "bytes": 13508
+    },
+    "tools/check_context_budget.py": {
+      "category": "tools",
+      "lines": 451,
+      "bytes": 20203
+    },
+    "tools/check_requirements_diff.py": {
+      "category": "tools",
+      "lines": 98,
+      "bytes": 3964
+    },
+    "tools/invariants.py": {
+      "category": "tools",
+      "lines": 188,
+      "bytes": 7035
+    },
+    "tools/leak_scan.py": {
+      "category": "tools",
+      "lines": 321,
+      "bytes": 15748
+    },
+    "tools/memory_audit.py": {
+      "category": "tools",
+      "lines": 182,
+      "bytes": 8193
+    },
+    "tools/memory_snapshot.py": {
+      "category": "tools",
+      "lines": 200,
+      "bytes": 8447
+    },
+    "tools/skill_lint.py": {
+      "category": "tools",
+      "lines": 227,
+      "bytes": 10676
+    },
+    "tools/sync_manifest.py": {
+      "category": "tools",
+      "lines": 149,
+      "bytes": 7063
+    }
+  }
+}
