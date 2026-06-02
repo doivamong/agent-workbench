@@ -53,3 +53,45 @@ def test_unsupported_version_rejected():
     blob[len(secrets_guard.MAGIC)] = 0xFF  # bump version to an unsupported value
     with pytest.raises(ValueError):
         decrypt_bytes(bytes(blob), "pw")
+
+
+# --- file operations & CLI helpers ------------------------------------------
+
+from argparse import Namespace
+
+from secrets_guard import _get_password, decrypt_file, encrypt_file
+
+
+def test_encrypt_then_decrypt_file_roundtrip(tmp_path):
+    src = tmp_path / "config.json"
+    enc = tmp_path / "config.json.enc"
+    restored = tmp_path / "restored.json"
+    src.write_bytes(b'{"token": "shhh"}')
+
+    assert encrypt_file(str(src), str(enc), "pw") is True
+    assert enc.is_file() and enc.read_bytes()[: len(secrets_guard.MAGIC)] == secrets_guard.MAGIC
+    assert decrypt_file(str(enc), str(restored), "pw") is True
+    assert restored.read_bytes() == b'{"token": "shhh"}'
+
+
+def test_encrypt_missing_source_returns_false(tmp_path):
+    assert encrypt_file(str(tmp_path / "nope"), str(tmp_path / "out.enc"), "pw") is False
+
+
+def test_decrypt_with_wrong_password_returns_false(tmp_path):
+    src = tmp_path / "f.bin"
+    enc = tmp_path / "f.bin.enc"
+    src.write_bytes(b"payload")
+    encrypt_file(str(src), str(enc), "right")
+    # wrong password: decrypt_file catches the ValueError and reports failure, not a crash
+    assert decrypt_file(str(enc), str(tmp_path / "out"), "wrong") is False
+
+
+def test_get_password_precedence_flag_beats_env(monkeypatch):
+    monkeypatch.setenv("SECRETS_GUARD_PASSWORD", "from-env")
+    assert _get_password(Namespace(password="from-flag")) == "from-flag"  # leak-scan: ignore (test fixture, not a real secret)
+
+
+def test_get_password_falls_back_to_env(monkeypatch):
+    monkeypatch.setenv("SECRETS_GUARD_PASSWORD", "from-env")
+    assert _get_password(Namespace(password=None)) == "from-env"

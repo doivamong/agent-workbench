@@ -3,5 +3,6 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-for _p in ("scripts", "tools", ".claude/hooks/scripts", ".claude/hooks/lib"):
+# "" so ``import install`` (a repo-root module) resolves, plus the kit's source dirs.
+for _p in ("", "scripts", "tools", ".claude/hooks/scripts", ".claude/hooks/lib"):
     sys.path.insert(0, str(ROOT / _p))
