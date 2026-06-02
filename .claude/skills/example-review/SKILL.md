@@ -53,8 +53,10 @@ few dozen lines that don't touch auth, payments, or data integrity). Everything 
 
 ## Output
 
-Report findings ranked by severity (blocking / important / nit), each with a `file:line`
-and a concrete fix. Don't soften a real problem to be polite — technical rigor over comfort.
+Report findings ranked by severity (blocking / important / nit) **and tagged with a confidence**
+(high / medium / low), each with a `file:line` and a concrete fix. Mark a low-confidence finding
+*"verify"*, not *"fix"* — the adversarial pass throws plausible-but-wrong hits; labelling them
+honestly keeps real issues from drowning in speculation. Don't soften a real problem to be polite.
 
 ## References
 

@@ -22,13 +22,17 @@ The cheapest place to fix a misunderstanding is *before* the work starts. This s
 
 1. **Classify intent.** Is this a fix, a feature, a review, research, or a question? If two or
    more at once, that's a sign the request needs splitting.
-2. **Spot the ambiguity.** What's missing that changes what you'd build — scope, target files,
-   expected output, constraints, the definition of done?
-3. **Decide the path:**
-   - *Already clear* → restate it in one line and proceed (no friction).
+2. **Spot the ambiguity — and don't trust the premises.** What's missing that changes what you'd
+   build — scope, target files, expected output, constraints, the definition of done? If the
+   request asserts "X already does Y" or names a file, grep/read to **verify the claim** first — a
+   confident wrong premise is the most expensive ambiguity.
+3. **Decide the path by clarity (a 4-tier scale):**
+   - *Crystal* → restate it in one line and proceed (no friction).
    - *One missing piece* → ask exactly one focused question, then proceed.
    - *Several intents / wide-open scope* → propose a concrete interpretation (scope + acceptance
      criteria) and get a yes before building.
+   - *Claims-heavy or high-stakes* → **grill mode**: interview one focused question at a time,
+     verifying each load-bearing claim against the code, until the spec is airtight.
 4. **Restate, don't expand.** The rewrite must preserve the original intent — never quietly add
    scope the user didn't ask for. Shorter and sharper, not longer.
 
@@ -46,9 +50,9 @@ Open question (if any): <the single thing you need answered>
 
 | You'll think | Reality |
 |---|---|
-| "I get the gist, I'll just start" | The gist is where wrong assumptions hide. One sentence of restatement catches them. |
-| "Asking looks slow" | A 10-second question beats a 10-minute wrong build. |
+| "I get the gist, I'll just start" | The gist is where wrong assumptions hide. One sentence of restatement catches them — a 10-second question beats a 10-minute wrong build. |
 | "I'll infer the missing scope" | Inferring scope the user didn't state is how scope creep and rework begin. State it and confirm. |
+| "The request says it works that way, so it does" | Premises are claims, not facts. Grep before you build on one. |
 
 ## Note
 

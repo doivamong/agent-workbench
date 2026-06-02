@@ -99,8 +99,8 @@
     },
     ".claude/skills/example-debug/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 61,
-      "bytes": 3447
+      "lines": 64,
+      "bytes": 3652
     },
     ".claude/skills/example-external-ref/SKILL.md": {
       "category": ".claude/skills",
@@ -134,8 +134,8 @@
     },
     ".claude/skills/example-review/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 62,
-      "bytes": 2575
+      "lines": 64,
+      "bytes": 2783
     },
     ".claude/skills/example-stress-test/SKILL.md": {
       "category": ".claude/skills",
@@ -154,8 +154,8 @@
     },
     ".claude/skills/prompt-refiner/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 59,
-      "bytes": 2695
+      "lines": 63,
+      "bytes": 3198
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
