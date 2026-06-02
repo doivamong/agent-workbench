@@ -6,7 +6,7 @@ repos:
     hooks:
       - id: leak-scan
         name: leak scan (no secrets / identifiers committed)
-        entry: python tools/leak_scan.py . --fail-on-find
+        entry: python tools/leak_scan.py . --entropy --fail-on-find
         language: system
         pass_filenames: false
         always_run: true

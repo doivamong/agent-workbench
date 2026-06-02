@@ -26,7 +26,7 @@ Then confirm the tools are actually trustworthy:
 
 ```bash
 python -m pytest -q                 # the test suite
-python tools/leak_scan.py . --fail-on-find   # this repo scans itself: 0 findings
+python tools/leak_scan.py . --entropy --fail-on-find   # this repo scans itself: 0 findings
 ```
 
 ## 2. Install into your project

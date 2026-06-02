@@ -22,7 +22,12 @@ SAFE = [
     'find . -name "*.py"',       # find without -delete/-exec rm
     "chmod 644 file.txt",        # not recursive 777
     "delete from users where id = 1",  # has WHERE
-    "truncate -s 0 log.txt",     # coreutils truncate, not SQL
+    "truncate -s 1M sparse.img", # grows a file; not the empty-it form, and not SQL
+    # writes that produce output are normal, not destructive truncation
+    "echo done > status.txt",    # command writes to a file
+    "cat > config.json",         # heredoc-style write (agents do this constantly)
+    "cat src.txt > dst.txt",     # copy/overwrite via command output
+    "ls >> build.log",           # append, not truncate
 ]
 DANGEROUS = [
     "git push origin main --force",
@@ -46,6 +51,10 @@ DANGEROUS = [
     ":(){ :|:& };:",             # fork bomb
     "chmod -R 777 /",            # recursive perms
     "delete from users;",        # DELETE without WHERE
+    "truncate -s 0 prod.db",     # coreutils truncate that empties a file
+    "> config.json",             # content-less truncating redirect
+    ": > prod.db",               # : > file idiom — empties a file
+    "echo hi; > important.log",  # truncating redirect after a separator
 ]
 
 
@@ -80,3 +89,16 @@ def test_hook_allows_safe_via_stdin():
     code, out = _run_hook({"tool_name": "Bash", "tool_input": {"command": "git status"}})
     assert code == 0
     assert out == ""  # no decision -> default flow continues
+
+
+def test_hook_fails_closed_on_malformed_payload():
+    """An unparseable payload must DENY (fail-closed), not silently allow."""
+    proc = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input="this is not json",
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0
+    decision = json.loads(proc.stdout.strip())["hookSpecificOutput"]["permissionDecision"]
+    assert decision == "deny"

@@ -37,7 +37,12 @@ DANGEROUS_REGEX = [
     (r"\bmkfs(?:\.\w+)?\b", "mkfs — formats a filesystem"),
     (r"\bchmod\s+-[a-z]*r[a-z]*\s+0?[0-7]{3,4}\b", "Recursive chmod (mass permission change)"),
     (r"\bchown\s+-[a-z]*r[a-z]*\b[^|;&]*\s/\s*$", "Recursive chown on /"),
+    (r"\btruncate\b[^|;&]*(?:-s\s*0\b|--size[ =]0\b)", "truncate -s 0 — empties a file"),
     (r">\s*/dev/(?:sd|hd|nvme|disk|mmcblk)", "Redirect to a raw block device"),
+    # Content-less truncating redirect: '> file' / ': > file' at command start or after a
+    # separator (empties/clobbers a file). Deliberately NOT matched when a command produces
+    # the output ('echo x > f', 'cat > f') — those are normal writes, not truncation.
+    (r"(?:^|[;&|]\s*):?\s*>\s*[^\s>&|]", "Truncating redirect (> file) — empties/overwrites a file"),
     (r":\s*\(\s*\)\s*\{\s*:\s*\|\s*:", "Fork bomb"),
     # --- Windows ---
     (r"\brmdir\s+/s\b", "Windows recursive directory delete"),
@@ -111,13 +116,32 @@ sys.path.insert(0, str(_HookLoggerPath(__file__).parent.parent / "lib"))
 from hook_logger import hook_main  # noqa: E402
 
 
+def _emit_deny(reason):
+    """Emit the documented PreToolUse deny decision with a human-readable reason."""
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+
+
 @hook_main("block_dangerous")
 def main():
     # Claude Code delivers the hook payload as JSON on stdin.
     try:
         event = json.load(sys.stdin)
     except Exception:
-        sys.exit(0)  # can't parse -> fail open, let the action proceed
+        # Fail CLOSED: an unparseable payload means we cannot confirm the command is
+        # safe, so we deny by default rather than silently letting it through. A
+        # security guardrail must not become a no-op on malformed input.
+        _emit_deny(
+            "block_dangerous could not parse the tool payload, so it cannot verify "
+            "the command is safe. Denying by default (fail-closed). If this is a "
+            "false positive, run the command manually outside the agent."
+        )
+        return
 
     # Only act on Bash commands (settings.json matcher should already scope this).
     if event.get("tool_name") not in (None, "", "Bash"):
@@ -130,17 +154,10 @@ def main():
     hit = check_command(command)
     if hit:
         _pattern, reason = hit
-        # Documented PreToolUse output: deny the action with a human-readable reason.
-        print(json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"Blocked a dangerous command ({reason}). "
-                    f"Run it manually outside the agent if this is genuinely intended."
-                ),
-            }
-        }))
+        _emit_deny(
+            f"Blocked a dangerous command ({reason}). "
+            f"Run it manually outside the agent if this is genuinely intended."
+        )
         return
 
     sys.exit(0)  # safe -> no decision, default flow continues

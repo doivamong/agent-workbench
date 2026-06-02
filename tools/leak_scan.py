@@ -13,6 +13,11 @@ It is a line-based *tripwire*, not a vault: pass --entropy for an extra (opt-in,
 higher-false-positive) pass that flags high-entropy base64/hex tokens a keyword
 scan would miss — useful for a deeper sweep before publishing.
 
+Opt-out: a trailing `# leak-scan: ignore` silences soft/heuristic detectors on that
+line. High-confidence secrets (private keys, AWS/Slack/Telegram tokens) are NOT
+silenced by a bare marker — those require a named opt-out (`# leak-scan: ignore[aws_access_key]`)
+so a real credential can never be hidden by an accidental or blanket comment.
+
 Usage:
     python tools/leak_scan.py .                       # generic patterns only
     python tools/leak_scan.py . --denylist private.txt
@@ -47,6 +52,19 @@ GENERIC_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # Emails that are fine in a public repo (examples, noreply, placeholders).
 EMAIL_ALLOW = re.compile(r"@(?:example\.(?:com|org|net)|test\.|localhost|noreply\.)", re.I)
 
+# High-confidence "real secret" detectors. A *bare* `leak-scan: ignore` must NOT be
+# able to silence these — there is no legitimate reason to commit a real one with a
+# blanket opt-out. Suppressing one requires naming it explicitly, e.g.
+# `# leak-scan: ignore[aws_access_key]`, which is a conscious, greppable, reviewable
+# act (used only for intentional test fixtures). This closes the hole where any line
+# could hide an AWS key / private key behind a trailing comment.
+HARD_PATTERNS = frozenset({
+    "private_key_block", "aws_access_key", "telegram_bot_token", "slack_token",
+})
+
+# Inline opt-out: "leak-scan: ignore" (bare) or "leak-scan: ignore[name1,name2]" (scoped).
+_IGNORE_RE = re.compile(r"leak-scan:\s*ignore(?:\[([^\]]*)\])?")
+
 DEFAULT_SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules", ".pytest_cache",
                      ".mypy_cache", ".porting"}
 TEXT_SUFFIXES = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".ini",
@@ -77,6 +95,33 @@ def iter_text_files(root: Path):
             yield p
 
 
+def _parse_ignore(line: str) -> tuple[bool, set[str]]:
+    """Parse an inline opt-out comment.
+
+    Returns ``(suppress_soft, named)`` where:
+      - "# leak-scan: ignore"            -> (True, set())       silence soft detectors
+      - "# leak-scan: ignore[a, b]"      -> (False, {"a","b"})  silence only the named ones
+      - (no marker)                      -> (False, set())
+    A bare marker never silences a HARD_PATTERNS detector; a scoped marker can, but only
+    when it names it explicitly.
+    """
+    m = _IGNORE_RE.search(line)
+    if not m:
+        return False, set()
+    scoped = m.group(1)
+    if scoped is not None:
+        return False, {n.strip() for n in scoped.split(",") if n.strip()}
+    return True, set()
+
+
+def _suppressed(name: str, suppress_soft: bool, named: set[str]) -> bool:
+    """Decide whether a finding of detector ``name`` is silenced by the line's opt-out."""
+    explicit = name in named or any(name.startswith(n) for n in named)
+    if name in HARD_PATTERNS:
+        return explicit  # hard secrets: only a named opt-out can silence them
+    return suppress_soft or explicit
+
+
 def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]],
               entropy: bool = False) -> list[tuple[int, str, str]]:
     findings: list[tuple[int, str, str]] = []
@@ -85,18 +130,21 @@ def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]],
     except OSError:
         return findings
     for lineno, line in enumerate(text.splitlines(), 1):
-        if "leak-scan: ignore" in line:
-            continue  # explicit opt-out for intentional samples (like noqa)
+        suppress_soft, named = _parse_ignore(line)
         for name, pat in patterns:
             m = pat.search(line)
             if not m:
                 continue
             if name == "email_address" and EMAIL_ALLOW.search(m.group(0)):
                 continue
+            if _suppressed(name, suppress_soft, named):
+                continue
             # Redact the matched value in output — never echo the secret itself.
             findings.append((lineno, name, _redact(m.group(0))))
         if entropy:
             for name, redacted in _entropy_findings(line):
+                if _suppressed(name, suppress_soft, named):
+                    continue
                 findings.append((lineno, name, redacted))
     return findings
 

@@ -3,7 +3,7 @@ import leak_scan
 
 def test_detects_private_key(tmp_path):
     f = tmp_path / "x.py"
-    f.write_text("k = '''-----BEGIN PRIVATE KEY-----'''\n", encoding="utf-8")  # leak-scan: ignore
+    f.write_text("k = '''-----BEGIN PRIVATE KEY-----'''\n", encoding="utf-8")  # leak-scan: ignore[private_key_block]
     assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
 
 
@@ -16,6 +16,25 @@ def test_detects_password_assignment(tmp_path):
 def test_ignore_marker_suppresses(tmp_path):
     f = tmp_path / "x.py"
     f.write_text('password = "hunter2hunter2"  # leak-scan: ignore\n', encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
+
+
+# Split so this test's own source line is not itself flagged by a --entropy self-scan.
+_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"
+
+
+def test_bare_ignore_cannot_hide_hard_secret(tmp_path):
+    """A bare `leak-scan: ignore` must NOT silence a real AWS key."""
+    f = tmp_path / "x.py"
+    f.write_text(f'aws = "{_AWS_KEY}"  # leak-scan: ignore\n', encoding="utf-8")
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
+    assert any(name == "aws_access_key" for _, name, _ in found)
+
+
+def test_scoped_ignore_silences_named_hard_secret(tmp_path):
+    """A named opt-out is the only way to silence a hard secret (intentional fixtures)."""
+    f = tmp_path / "x.py"
+    f.write_text(f'aws = "{_AWS_KEY}"  # leak-scan: ignore[aws_access_key]\n', encoding="utf-8")
     assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
 
 

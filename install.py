@@ -65,7 +65,7 @@ SETTINGS_SNIPPET = {
 GIT_PRE_COMMIT = """#!/bin/sh
 # Installed by agent-workbench. Blocks commits that leak secrets/identifiers.
 if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
-"$PY" tools/leak_scan.py . --fail-on-find || {
+"$PY" tools/leak_scan.py . --entropy --fail-on-find || {
     echo "leak_scan found a potential secret/identifier. Fix it or add '# leak-scan: ignore'." >&2
     exit 1
 }

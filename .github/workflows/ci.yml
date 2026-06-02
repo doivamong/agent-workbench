@@ -37,8 +37,9 @@ jobs:
         run: pip install -r requirements.txt
 
       # This kit gates itself with its own tools (dogfooding).
+      # --entropy adds the high-entropy token sweep so keyless secrets are caught too.
       - name: Leak scan (no secrets / identifiers committed)
-        run: python tools/leak_scan.py . --fail-on-find
+        run: python tools/leak_scan.py . --entropy --fail-on-find
 
       - name: Invariants
         run: python tools/invariants.py .

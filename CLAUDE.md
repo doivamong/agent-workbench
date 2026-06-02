@@ -15,7 +15,7 @@ consistently on a long-lived codebase. The reusable core is stdlib-only. See [RE
 ## Golden rules (the few that must never break)
 
 1. **No secrets, identifiers, or absolute machine paths** in committed files. The leak scanner
-   gates this (`python tools/leak_scan.py . --fail-on-find`).
+   gates this (`python tools/leak_scan.py . --entropy --fail-on-find`).
 2. **The reusable core stays stdlib-only** (`scripts/`, `tools/`, `.claude/hooks/`). Dependencies
    live in `examples/` and tests.
 3. **Every tool ships a runnable `examples/` entry** and has tests.
