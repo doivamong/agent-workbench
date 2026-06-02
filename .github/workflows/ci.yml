@@ -62,6 +62,11 @@ jobs:
       - name: Manifest sync (file-set drift)
         run: python tools/sync_manifest.py --check
 
+      # Gate the README "At a glance" counts so two branches can't drift or conflict on hand-typed
+      # numbers — `--write` recomputes them from the tree; this `--check` fails when they're stale.
+      - name: README metrics (count drift)
+        run: python tools/readme_metrics.py --check
+
       # --cov-fail-under is a regression ratchet, not a completeness claim: lines run
       # through a subprocess (the hook e2e tests) are not counted, so true coverage is
       # higher than the floor.
