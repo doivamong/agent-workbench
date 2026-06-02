@@ -63,7 +63,7 @@ SETTINGS_SNIPPET = {
 }
 
 GIT_PRE_COMMIT = """#!/bin/sh
-# Installed by claude-code-methodology-kit. Blocks commits that leak secrets/identifiers.
+# Installed by agent-workbench. Blocks commits that leak secrets/identifiers.
 python tools/leak_scan.py . --fail-on-find || {
     echo "leak_scan found a potential secret/identifier. Fix it or add '# leak-scan: ignore'." >&2
     exit 1

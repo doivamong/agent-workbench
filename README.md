@@ -1,4 +1,4 @@
-# Claude Code Methodology Kit
+# Agent Workbench
 
 > A battle-tested set of **skills, rules, hooks, and tooling** distilled from running
 > Claude Code as a **solo developer** on a real production codebase for months.
@@ -59,7 +59,7 @@ about what's transferable and what was intentionally left behind:
 
 ```bash
 git clone <this-repo>
-cd claude-code-methodology-kit
+cd agent-workbench
 python -m pip install -r requirements.txt   # stdlib-only core; deps are for examples/tests
 
 # See it work (each runs in seconds):
