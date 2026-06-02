@@ -50,6 +50,20 @@ It is deliberately **domain-stripped**. Every business identifier, secret, machi
 piece of customer data has been removed and verified with a leak scanner (see
 [`docs/SANITIZATION.md`](docs/SANITIZATION.md)). What remains is methodology you can lift.
 
+> **Why it's public — and why it isn't about stars.** The codebase this came from can never be
+> public; the methodology inside it is too useful to stay buried there for good. So it's shared
+> for one plain reason: *let whoever needs it lift it, and skip the stumbling, the guesswork, and
+> the avoidable mistakes it already cost to learn.* Success here isn't traction or attention — it
+> is that the kit is **available, correct, and honest** the day someone reaches for it. If it
+> spares one person an avoidable wrong turn — a stranger, or its own author starting the next
+> codebase — it has done its job, counted or not.
+
+> **Honesty is the deal, not decoration.** Because the point is to spare you avoidable pain, every
+> tool states plainly what it does *not* do (see [Status & honesty](#status--honesty) and
+> [`docs/SECURITY.md`](docs/SECURITY.md)). A guardrail that oversold itself would cause the exact
+> stumble it is meant to prevent. The standard everywhere here: **best-fit, honest about limits,
+> not gospel.**
+
 **Who it's for** — solo developers (or tiny teams) who use an AI agent as their primary
 pair-programmer, maintain code long enough that **consistency** and **guardrails** matter
 more than raw speed, and want concrete copy-pasteable patterns instead of abstract advice.
