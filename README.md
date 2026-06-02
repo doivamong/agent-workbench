@@ -174,15 +174,16 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **78**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **82**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **3** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
 
 <!-- END GENERATED:metrics -->
 
-> The count of tests is a hard-coded figure mirrored in the Quickstart comment — keep both in
-> step (or wire the marked block to your pre-commit gate) when you add tests.
+> The test count is mirrored in three places (this row, the Quickstart comment, the footer).
+> `tests/test_readme_metrics.py` guards against drift — it collects the suite and fails CI if any
+> advertised number is stale, so the figure can't silently rot when you add tests.
 
 ## Quickstart (5 minutes)
 
@@ -197,7 +198,7 @@ python examples/hook_block_demo.py  # dangerous-command classifier
 python examples/invariant_demo.py   # the invariant gate
 
 # Prove the tools actually work:
-python -m pytest -q                 # 78 tests
+python -m pytest -q                 # 82 tests
 ```
 
 ## Install it into your own project
@@ -262,7 +263,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 78 tests · MIT
+**Agent Workbench** · stdlib-only core · 82 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

@@ -99,3 +99,26 @@ def test_entropy_ignores_short_sha(tmp_path):
     f = tmp_path / "x.py"
     f.write_text("# see commit 6e69b60 and d656ead for details\n", encoding="utf-8")
     assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, entropy=True) == []
+
+
+# --- fail-closed denylist (--require-denylist), for private->public port runs ---
+
+def test_require_denylist_errors_when_file_missing(tmp_path):
+    rc = leak_scan.main([str(tmp_path), "--denylist", str(tmp_path / "nope.txt"), "--require-denylist"])
+    assert rc == 2
+
+
+def test_require_denylist_errors_on_empty_denylist(tmp_path):
+    dl = tmp_path / "deny.txt"
+    dl.write_text("# only comments, no effective patterns\n", encoding="utf-8")
+    rc = leak_scan.main([str(tmp_path), "--denylist", str(dl), "--require-denylist"])
+    assert rc == 2
+
+
+def test_require_denylist_passes_with_terms(tmp_path):
+    dl = tmp_path / "deny.txt"
+    dl.write_text("SomeInternalProjectName\n", encoding="utf-8")
+    target = tmp_path / "clean.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+    rc = leak_scan.main([str(target), "--denylist", str(dl), "--require-denylist", "--fail-on-find"])
+    assert rc == 0

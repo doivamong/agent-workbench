@@ -191,11 +191,28 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fail-on-find", action="store_true", help="Exit non-zero if any finding")
     ap.add_argument("--entropy", action="store_true",
                     help="Also flag high-entropy base64/hex tokens (opt-in; noisier, good for a pre-publish sweep)")
+    ap.add_argument("--require-denylist", action="store_true",
+                    help="Fail (exit 2) if --denylist is missing or has zero effective patterns. "
+                         "Use in private->public port runs so the project-specific gate cannot silently no-op.")
     args = ap.parse_args(argv)
 
-    patterns = list(GENERIC_PATTERNS)
-    if args.denylist:
-        patterns += load_denylist(args.denylist)
+    # Fail CLOSED on the project-specific gate: in a port run a missing/empty denylist
+    # must error, not silently degrade to generic-only patterns (which would yield a
+    # falsely reassuring green scan on exactly the identifiers that matter most).
+    denylist_patterns: list[tuple[str, re.Pattern[str]]] = []
+    if args.denylist and args.denylist.exists():
+        denylist_patterns = load_denylist(args.denylist)
+    elif args.denylist and args.require_denylist:
+        print(f"error: --denylist {args.denylist} not found (required by --require-denylist).",
+              file=sys.stderr)
+        return 2
+    if args.require_denylist and not denylist_patterns:
+        print("error: --require-denylist set but no effective denylist patterns were loaded "
+              f"(file: {args.denylist}). Refusing to run with the project gate disabled.",
+              file=sys.stderr)
+        return 2
+
+    patterns = list(GENERIC_PATTERNS) + denylist_patterns
 
     root = args.root
     files = [root] if root.is_file() else list(iter_text_files(root))
