@@ -8,6 +8,19 @@ since you copied — not a published package.
 
 ## [Unreleased]
 
+### Added
+- **Hook** `post_edit_simplify.py` (`PostToolUse`, Edit/Write): after a burst of edits, injects
+  a one-line nudge to do a simplification pass. Advisory only (never blocks), fail-open,
+  throttled by a cooldown and a session TTL; threshold/state/on-off are env-configurable. Wired
+  into the example `settings.json` and the installer snippet. The injected text carries only the
+  file *count*, not paths, so a crafted filename has no route into the agent's context.
+
+### Changed
+- **Docs overhaul.** Corrected stale counts (demos, tools, skill tiers, hook list). Added a
+  "why it's public" manifesto to the README. Reframed `docs/memory-governance.md` and
+  `docs/session-preservation.md` as reference **blueprints** — the governance tooling and the
+  session commands they describe are designs you implement, not features shipped in this repo.
+
 ## [0.1.0] — 2026-06-02
 
 First tagged reference point. The reusable core is stdlib-only; `pytest` is the only

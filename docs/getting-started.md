@@ -17,9 +17,10 @@ python -m pip install -r requirements.txt
 ## 1. See it work (each runs in seconds)
 
 ```bash
-python examples/secrets_demo.py     # encrypt/decrypt round-trip + tamper detection
-python examples/hook_block_demo.py  # classifies safe vs dangerous shell commands
-python examples/invariant_demo.py   # the invariant gate catching rule violations
+python examples/secrets_demo.py             # encrypt/decrypt round-trip + tamper detection
+python examples/hook_block_demo.py          # classifies safe vs dangerous shell commands
+python examples/post_edit_simplify_demo.py  # the post-edit simplify-nudge classifier
+python examples/invariant_demo.py           # the invariant gate catching rule violations
 ```
 
 Then confirm the tools are actually trustworthy:

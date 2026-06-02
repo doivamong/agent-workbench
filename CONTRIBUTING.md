@@ -22,6 +22,6 @@ the ones that make a solo dev using Claude Code think differently.
 ## Before opening a PR
 
 ```bash
-python -m pytest                      # if you touched code
-python tools/leak_scan.py .           # must report 0 findings
+python -m pytest                                       # if you touched code
+python tools/leak_scan.py . --entropy --fail-on-find   # must report 0 findings
 ```
