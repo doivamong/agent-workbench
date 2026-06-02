@@ -42,6 +42,9 @@ the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you 
 
 ## Why this exists
 
+> **Canonical statement:** the four tenets and the "what would betray this" review checklist live
+> in [`PHILOSOPHY.md`](PHILOSOPHY.md) — the source of truth. This section is their narrative form.
+
 This kit is the **generic, reusable layer** extracted from a real single-developer project —
 the parts that have nothing to do with the original business domain and everything to do with
 **making an AI coding agent reliable, safe, and consistent over a long-lived codebase.**

@@ -9,9 +9,9 @@
 
 **Agent Workbench** — a kit of tools + methodology for running an AI coding agent safely and
 consistently on a long-lived codebase. It is the generic layer distilled from a private
-codebase and shared so whoever needs it (a stranger, or future-you on a new project) skips
-avoidable mistakes — which only holds if every tool stays **honest about what it does NOT do**.
-The reusable core is stdlib-only. See [README](README.md).
+codebase, shared so whoever needs it skips avoidable mistakes. **Why it exists and how it must
+behave is canonical in [PHILOSOPHY.md](PHILOSOPHY.md).** The reusable core is stdlib-only.
+See [README](README.md).
 
 *Lead with one or two sentences. The agent should know what it's working on before any rule.*
 
@@ -22,8 +22,8 @@ The reusable core is stdlib-only. See [README](README.md).
 2. **The reusable core stays stdlib-only** (`scripts/`, `tools/`, `.claude/hooks/`). Dependencies
    live in `examples/` and tests.
 3. **Every tool ships a runnable `examples/` entry** and has tests.
-4. **Best-fit, honest about limits, not gospel.** State what each tool does *not* do — an
-   oversold guard causes the very stumble it should prevent. This kit is one developer's context.
+4. **Best-fit, honest about limits, not gospel** — every tool states what it does *not* do. The
+   four tenets are canonical in [PHILOSOPHY.md](PHILOSOPHY.md); this kit is one developer's context.
 
 *Keep this list to ~5 items. If everything is a golden rule, nothing is. Put the rest in
 path-scoped rule files (see `.claude/rules/`).*

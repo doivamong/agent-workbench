@@ -17,7 +17,9 @@ the ones that make a solo dev using Claude Code think differently.
    belong in `examples/` and tests, not the reusable core.
 3. **Every tool needs a runnable `examples/` entry.** "Readable but unrunnable" is the failure
    mode we're fighting.
-4. **Frame conclusions as best-fit, not gospel.** This whole kit is one developer's context.
+4. **Frame conclusions as best-fit, not gospel.** This whole kit is one developer's context. The
+   tenets it holds itself to — and the "what would betray this" review checklist — are canonical
+   in [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
 ## Before opening a PR
 

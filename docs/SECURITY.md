@@ -6,7 +6,8 @@ the *accidental* footgun and the *obvious* mistake. None of them is an enforced 
 boundary against a motivated adversary. This page states, per component, what each one **does**
 and **does not** defend against, so you adopt them with the right expectations.
 
-The guiding principle (same as the rest of the repo): *best-fit, honest about limits, not gospel.*
+The guiding principle (same as the rest of the repo): *best-fit, honest about limits, not gospel*
+— see [`../PHILOSOPHY.md`](../PHILOSOPHY.md).
 
 ---
 
