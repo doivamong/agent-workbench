@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 <YOUR NAME OR HANDLE>
+Copyright (c) 2026 doivamong
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-----------------------------------------------------------------------------
-NOTE BEFORE PUBLISHING: replace "<YOUR NAME OR HANDLE>" above with the name or
-GitHub handle you want to claim copyright under. Portions of this repository
-are derived from other projects under their own licenses — see
-THIRD_PARTY_NOTICES.md. Do not publish until that file is complete.
-----------------------------------------------------------------------------

@@ -31,7 +31,7 @@ Crypto:
   - Integrity: HMAC-SHA256 authentication tag
   - Format: salt(16) || hmac_tag(32) || ciphertext
 
-Copyright: <YOUR NAME>
+Copyright: (c) 2026 doivamong
 """
 
 import argparse

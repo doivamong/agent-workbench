@@ -1,35 +1,41 @@
 # Third-Party Notices
 
-This repository contains original code (MIT, see `LICENSE`) **and** code/ideas that are
-ports or derivatives of other open-source projects. This file tracks those obligations.
+The code in this repository is **original** (MIT, see `LICENSE`) or **independently
+re-implemented**. To the best of the author's knowledge it does **not include substantial
+verbatim source code** from third-party projects.
 
-> ⚠️ **Maintainer checklist before publishing** — do not push public until every row
-> below is verified. Some upstream sources carry constraints (attribution, non-commercial)
-> that a downstream "waiver self-acknowledgement" **cannot** legally override.
+The projects below influenced the *design* (patterns and ideas, not code). They are credited
+here as a courtesy, and where a specific file adapts an upstream idea it also cites it inline
+(e.g. `tools/affected_tests.py` notes it was inspired by `codegraph` and re-implemented from
+scratch with no code copied).
 
-## MIT-licensed sources (attribution required, redistribution OK)
+## Design influences — courtesy attribution
 
-Each of these requires preserving the original copyright + permission notice. Paste the
-upstream `LICENSE` text into `licenses/<name>-LICENSE.txt` and confirm before shipping.
-
-| Upstream project | Used for | Status |
+| Project | License | What it influenced (idea / pattern only) |
 |---|---|---|
-| `claudekit` / claudekit-engineer | Workflow rules, command-writing patterns | ⬜ verify license text + that no "commercial-license" variant code was copied |
-| `mattpocock/skills` | Prompt-refiner "grill" pattern, TDD slice ideas | ⬜ add LICENSE |
-| `colbymchenry/codegraph` (© Colby McHenry) | Tool-budget split pattern (concept only) | ⬜ add LICENSE |
-| `anthropics/claude-plugins-official` | Command-development guidance | ⬜ add LICENSE |
-| `Lum1104/Understand-Anything` (© Lum1104) | Disk-intermediate output protocol (concept) | ⬜ add LICENSE |
-| taste-skill | Doc-only cherry-picks | ⬜ add LICENSE |
+| `claudekit` / claudekit-engineer | MIT | Workflow-rule and command-writing structure |
+| `mattpocock/skills` | MIT | The "grill / iterative-refine" prompt pattern; TDD slice idea |
+| `colbymchenry/codegraph` (© Colby McHenry) | MIT | The "affected tests" selection idea (re-implemented in stdlib `ast`) |
+| `anthropics/claude-plugins-official` | MIT | Command-development guidance |
+| `Lum1104/Understand-Anything` (© Lum1104) | MIT | Disk-intermediate output protocol (concept) |
 
-## ⛔ Non-commercial / restricted sources — DO NOT redistribute as-is
+These are MIT-licensed; MIT requires preserving the copyright/permission notice only when you
+redistribute the licensed *code*. Since no substantial code from these projects is included
+here, this courtesy attribution is provided in good faith. If you later vendor any upstream
+file verbatim, add its full `LICENSE` text under `licenses/` at that time.
 
-| Upstream | Issue | Required action |
+## ⛔ Non-commercial source — deliberately NOT redistributed
+
+| Upstream | License | How it was handled |
 |---|---|---|
-| `academic-research-skills` (CC BY-NC 4.0) | The MODE_REGISTRY / spectrum+oversight / failure-mode-catalog **formats** are derivative of a **non-commercial** work. A self-claimed "waiver" by a downstream user has **no legal effect** — only the original author can waive. | Pick one: (1) obtain a written waiver from the upstream author; (2) **re-implement from first principles** — your own naming/columns/format; ideas aren't protected, specific expression is; or (3) exclude entirely. **This repo currently chooses (2)+(3): the registry-style index here was re-authored from scratch, and the verbatim catalog is excluded.** |
-| Any file that carried a "commercial license — do not redistribute" comment in the source codebase (e.g. a vendored logger, an orchestration rule) | Cannot be shipped verbatim. | Rewrite the functionality independently, or omit. This repo **omits** those and ships clean re-implementations where valuable. |
+| `academic-research-skills` | **CC BY-NC 4.0** | Its mode-registry / spectrum+oversight / failure-mode-catalog **expression** is a non-commercial work. A downstream "waiver self-acknowledgement" has **no legal effect** — only the original author can waive. This repo therefore **excludes the verbatim catalog** and **re-authored `skill-registry.md` from first principles** (own naming/columns/format; ideas aren't protected, specific expression is). |
 
-## What was intentionally excluded for license safety
+## What was intentionally excluded for license / safety reasons
 
-- The verbatim non-commercial mode-registry / failure-mode catalog.
-- Any vendored file bearing a commercial-license header.
-- All project-specific config, data, and secrets (see `docs/SANITIZATION.md`).
+- The verbatim non-commercial mode-registry / failure-mode catalog (CC BY-NC).
+- Any file that carried a "commercial license — do not redistribute" header in the source
+  codebase (e.g. a vendored logger): re-implemented cleanly or omitted.
+- All project-specific config, data, secrets, and identifiers (see `docs/SANITIZATION.md`).
+
+If you believe something here under-credits your work, please open an issue — attribution
+fixes are welcome.
