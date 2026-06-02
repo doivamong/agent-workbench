@@ -47,6 +47,16 @@ jobs:
       - name: Invariants
         run: python tools/invariants.py .
 
+      # The skill registry is the single source of truth; gate it so a folder/row mismatch
+      # can't ship green (previously skill_lint only ran via its own unit tests).
+      - name: Skill registry lint
+        run: python tools/skill_lint.py
+
+      # Enforce a deliberate ceiling on the skill set's session-start cost. These are tunable
+      # caps you bump on purpose (today: 5 skills / ~2.7k tok) — not a measured truth.
+      - name: Context budget (cap skill bloat)
+        run: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
+
       # --cov-fail-under is a regression ratchet, not a completeness claim: lines run
       # through a subprocess (the hook e2e tests) are not counted, so true coverage is
       # higher than the floor.

@@ -112,3 +112,54 @@ def test_oversize_skill_warns(tmp_path):
     _skills(tmp_path, _REGISTRY, {"alpha": big})
     assert any(sev == "warn" and "lines" in msg
                for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+# --- Wave 0 additions: registry tiers, archive field, guard honesty, cross-references ---
+
+_ARCHIVED = """---
+name: beta
+archived: 2026-06-03
+description: >
+  WHAT: an old thing. USE WHEN: never. DO NOT TRIGGER: always.
+tier: guard
+---
+This skill is retired; it does not run anymore.
+"""
+
+
+def test_registry_tiers_maps_name_to_tier():
+    assert skill_lint.registry_tiers(_REGISTRY) == {"alpha": "guard"}
+
+
+def test_archived_skill_without_row_is_not_error(tmp_path):
+    # 'beta' has no registry row, but `archived:` exempts it from the no-row error.
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL, "beta": _ARCHIVED})
+    findings = skill_lint.lint(tmp_path)
+    assert not any(sev == "error" and "no row" in msg for sev, _, msg in findings)
+    assert any(sev == "warn" and "archived" in msg for sev, _, msg in findings)
+
+
+def test_guard_without_honesty_line_warns(tmp_path):
+    # _SKILL is tier guard with body 'body' — no 'does not' phrase.
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL})
+    assert any(sev == "warn" and "honesty" in msg for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_guard_with_honesty_line_is_clean(tmp_path):
+    honest = _SKILL.replace("body", "It does not catch everything.")
+    _skills(tmp_path, _REGISTRY, {"alpha": honest})
+    assert not any("honesty" in msg for _, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_dangling_skill_reference_warns(tmp_path):
+    # `alpha-ghost`: family 'alpha' matches the real skill, but the slug has no folder/row.
+    body = _SKILL.replace("body", "see `alpha-ghost` for details")
+    _skills(tmp_path, _REGISTRY, {"alpha": body})
+    assert any(sev == "warn" and "alpha-ghost" in msg for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_unrelated_hyphenated_token_does_not_warn(tmp_path):
+    # 'post-edit-simplify' is a hook; family 'post' matches no skill → not flagged (precision).
+    body = _SKILL.replace("body", "the `post-edit-simplify` hook runs after edits")
+    _skills(tmp_path, _REGISTRY, {"alpha": body})
+    assert not any("post-edit-simplify" in msg for _, _, msg in skill_lint.lint(tmp_path))

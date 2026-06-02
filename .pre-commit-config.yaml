@@ -27,3 +27,19 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # Keep the skill registry and SKILL.md files in sync (folder/row drift fails the commit).
+      - id: skill-lint
+        name: skill registry lint
+        entry: python tools/skill_lint.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Cap the skill set's session-start context cost. Tunable ceilings, bumped on purpose.
+      - id: context-budget
+        name: context budget (cap skill bloat)
+        entry: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
+        language: system
+        pass_filenames: false
+        always_run: true
