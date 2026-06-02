@@ -31,6 +31,11 @@ understand, then change.
    Note if you find sibling bugs — don't silently expand scope.
 5. **Prove it.** Add a test that **fails before** the fix and **passes after**. Re-run the
    reproduction. A bug fix without a regression test invites the bug back.
+6. **Prevent the class — when it's cheap.** Ask whether the *whole class* of this bug can be
+   made to fail loudly instead of silently: a guard or assertion at the boundary where the bad
+   value first appears, a type that makes the invalid state unrepresentable, validation at the
+   trust edge. Do this only where it's cheap and targeted — don't bolt defensive checks onto
+   every layer (that just hides the next bug). If prevention isn't cheap here, say so and move on.
 
 ## Anti-rationalization
 
@@ -40,6 +45,7 @@ understand, then change.
 | "I'll add a null-check and move on" | A null-check on a value that should never be null hides the real cause. Ask why it's null. |
 | "It's fixed, it works now" | Works *once*? Re-run the reproduction, and write the test that proves it. |
 | "No time for a test" | The test is how you (and CI) know it stays fixed. It's the cheapest insurance you'll buy. |
+| "I'll harden every layer so this never happens again" | Over-hardening hides the next bug behind redundant checks. One guard at the right boundary beats five scattered ones. |
 
 ## Tip
 
