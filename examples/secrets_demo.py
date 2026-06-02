@@ -24,7 +24,7 @@ def main() -> int:
     print("Plaintext :", secret.decode())
 
     blob = encrypt_bytes(secret, password)
-    print(f"Encrypted : {len(blob)} bytes (magic header + salt + nonce + ciphertext + HMAC tag)")
+    print(f"Encrypted : {len(blob)} bytes (magic+version + salt + HMAC tag + ciphertext; nonce derived from salt)")
 
     back = decrypt_bytes(blob, password)
     assert back == secret, "round-trip failed!"

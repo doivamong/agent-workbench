@@ -29,8 +29,10 @@ Restore workflow (after clone):
 Crypto:
   - Key derivation: PBKDF2-HMAC-SHA256 (200,000 iterations)
   - Encryption: HMAC-based keystream in CTR mode (XOR)
-  - Integrity: HMAC-SHA256 authentication tag
-  - Format: salt(16) || hmac_tag(32) || ciphertext
+  - Integrity: HMAC-SHA256 authentication tag (authenticates the header too)
+  - Format: magic(3) || version(1) || salt(16) || hmac_tag(32) || ciphertext
+            (the magic+version header makes the format self-identifying and
+             cleanly migratable: bump FORMAT_VERSION and branch in decrypt_bytes)
 
 CAVEAT — read before relying on this:
   This is a CUSTOM construction built from stdlib primitives, NOT an audited crypto
@@ -74,6 +76,15 @@ PBKDF2_ITERATIONS = 200_000
 SALT_LEN = 16
 HMAC_LEN = 32  # SHA-256 output length
 
+# Format header: a 3-byte magic + 1-byte version, so the on-disk format is
+# self-identifying and a future construction change can be migrated cleanly
+# (bump FORMAT_VERSION and branch in decrypt_bytes). The header is authenticated
+# by the HMAC tag, so the magic/version cannot be silently altered or downgraded.
+MAGIC = b"AWB"
+FORMAT_VERSION = 1
+HEADER = MAGIC + bytes([FORMAT_VERSION])
+HEADER_LEN = len(HEADER)  # 4
+
 
 # ── Crypto primitives (stdlib only) ─────────────────────────────────────────
 
@@ -103,7 +114,7 @@ def _hmac_ctr_crypt(data: bytes, key: bytes, nonce: bytes) -> bytes:
 def encrypt_bytes(plaintext: bytes, password: str) -> bytes:
     """Encrypt plaintext bytes with the given password.
 
-    Returns: salt(16) || hmac_tag(32) || ciphertext
+    Returns: magic(3) || version(1) || salt(16) || hmac_tag(32) || ciphertext
     """
     salt = os.urandom(SALT_LEN)
     key = _derive_key(password, salt)
@@ -113,30 +124,41 @@ def encrypt_bytes(plaintext: bytes, password: str) -> bytes:
     nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
     ciphertext = _hmac_ctr_crypt(plaintext, key, nonce)
 
-    # Compute an HMAC authentication tag over salt + ciphertext for integrity.
-    tag = hmac.new(key, salt + ciphertext, "sha256").digest()
+    # Authenticate the header + salt + ciphertext, so the magic/version cannot be
+    # tampered with or downgraded without failing verification.
+    tag = hmac.new(key, HEADER + salt + ciphertext, "sha256").digest()
 
-    return salt + tag + ciphertext
+    return HEADER + salt + tag + ciphertext
 
 
 def decrypt_bytes(encrypted: bytes, password: str) -> bytes:
     """Decrypt encrypted bytes with the given password.
 
-    Input format: salt(16) || hmac_tag(32) || ciphertext
+    Input format: magic(3) || version(1) || salt(16) || hmac_tag(32) || ciphertext
     Returns the original plaintext bytes.
-    Raises ValueError on wrong password or tampered data.
+    Raises ValueError on a bad/unsupported format, wrong password, or tampered data.
     """
-    if len(encrypted) < SALT_LEN + HMAC_LEN:
+    if len(encrypted) < HEADER_LEN + SALT_LEN + HMAC_LEN:
         raise ValueError("File too short — not a valid encrypted format")
 
-    salt = encrypted[:SALT_LEN]
-    stored_tag = encrypted[SALT_LEN : SALT_LEN + HMAC_LEN]
-    ciphertext = encrypted[SALT_LEN + HMAC_LEN :]
+    header = encrypted[:HEADER_LEN]
+    if header[:len(MAGIC)] != MAGIC:
+        raise ValueError("Not an agent-workbench encrypted file (bad magic)")
+    version = header[len(MAGIC)]
+    if version != FORMAT_VERSION:
+        raise ValueError(
+            f"Unsupported encrypted-format version {version} "
+            f"(this build supports v{FORMAT_VERSION})"
+        )
+
+    salt = encrypted[HEADER_LEN : HEADER_LEN + SALT_LEN]
+    stored_tag = encrypted[HEADER_LEN + SALT_LEN : HEADER_LEN + SALT_LEN + HMAC_LEN]
+    ciphertext = encrypted[HEADER_LEN + SALT_LEN + HMAC_LEN :]
 
     key = _derive_key(password, salt)
 
-    # Verify the HMAC authentication tag (integrity + authentication).
-    expected_tag = hmac.new(key, salt + ciphertext, "sha256").digest()
+    # Verify the HMAC authentication tag (integrity + authentication), header included.
+    expected_tag = hmac.new(key, header + salt + ciphertext, "sha256").digest()
     if not hmac.compare_digest(stored_tag, expected_tag):
         raise ValueError("Wrong password or tampered data (HMAC mismatch)")
 

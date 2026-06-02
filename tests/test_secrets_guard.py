@@ -1,5 +1,6 @@
 import pytest
 
+import secrets_guard
 from secrets_guard import decrypt_bytes, encrypt_bytes
 
 
@@ -32,3 +33,23 @@ def test_nondeterministic_ciphertext():
     b = encrypt_bytes(b"same plaintext", "pw")
     assert a != b
     assert decrypt_bytes(a, "pw") == decrypt_bytes(b, "pw") == b"same plaintext"
+
+
+def test_blob_carries_magic_and_version():
+    blob = encrypt_bytes(b"x", "pw")
+    assert blob[: len(secrets_guard.MAGIC)] == secrets_guard.MAGIC
+    assert blob[len(secrets_guard.MAGIC)] == secrets_guard.FORMAT_VERSION
+
+
+def test_bad_magic_rejected():
+    blob = bytearray(encrypt_bytes(b"x", "pw"))
+    blob[0] ^= 0x01  # corrupt the magic
+    with pytest.raises(ValueError):
+        decrypt_bytes(bytes(blob), "pw")
+
+
+def test_unsupported_version_rejected():
+    blob = bytearray(encrypt_bytes(b"x", "pw"))
+    blob[len(secrets_guard.MAGIC)] = 0xFF  # bump version to an unsupported value
+    with pytest.raises(ValueError):
+        decrypt_bytes(bytes(blob), "pw")

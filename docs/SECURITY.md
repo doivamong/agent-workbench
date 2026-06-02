@@ -60,18 +60,24 @@ encryption. It round-trips correctly and rejects tampering and wrong passwords. 
 keeping a **private backup encrypted at rest**.
 
 **Does NOT:** stand in for an audited cryptographic library. This construction has had **no
-third-party cryptographic review**, has no algorithm-versioning field for future migration, and
-derives the cipher key and MAC key from the same PBKDF2 output (no HKDF separation). The kit is
+third-party cryptographic review** and derives the cipher key and MAC key from the same PBKDF2
+output (no HKDF separation). It does carry a self-identifying `magic + version` header
+(authenticated by the HMAC tag), so the on-disk format can be migrated cleanly if the
+construction ever changes. The kit is
 **stdlib-only by golden rule**, so it cannot depend on a vetted library — that is a deliberate
 scope trade-off, not an endorsement of rolling your own crypto. **If you have a real adversarial
 threat model, use [`age`](https://github.com/FiloSottile/age), [`sops`](https://github.com/getsops/sops),
 or libsodium and accept the dependency.**
 
-Password handling, in precedence order:
-1. **Interactive prompt** (default; `getpass`) — preferred.
-2. **`SECRETS_GUARD_PASSWORD` env var** — for non-interactive/CI use.
-3. **`--password` flag** — **avoid**: it is visible in shell history and the process list
-   (`ps`, Task Manager). Use the prompt or the env var instead.
+Password resolution — **first one set wins**: `--password` flag → `SECRETS_GUARD_PASSWORD`
+env var → interactive prompt (the default). (An explicit flag beats an env var beats the
+prompt — the conventional order.)
+
+Recommended usage, in order of preference: the **interactive prompt** (default; `getpass`),
+or the **`SECRETS_GUARD_PASSWORD` env var** for non-interactive/CI runs. **Avoid `--password`** —
+it is visible in shell history and the process list (`ps`, Task Manager). The recommendation
+order is the reverse of the resolution order on purpose: `--password` resolves first if you
+pass it, but you should prefer not to.
 
 ---
 
