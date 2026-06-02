@@ -13,7 +13,9 @@ Git destructive patterns use regex word-boundary (NOT substring) to:
 """
 import sys
 import json
+import os
 import re
+from pathlib import Path
 
 # IMPORTANT — scope and honesty:
 # This catches *common, obvious* destructive forms (the accidental footgun and the
@@ -95,16 +97,48 @@ def _is_dangerous_rm(norm):
     return False
 
 
-def check_command(command):
+def _patterns_file():
+    """Locate an optional project patterns file, or None. Env override wins."""
+    env = os.environ.get("BLOCK_DANGEROUS_PATTERNS")
+    if env:
+        return Path(env)
+    base = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    return Path(base) / ".claude" / "dangerous-patterns.json"
+
+
+def load_extra_patterns():
+    """Load project-defined (regex, reason) rules from .claude/dangerous-patterns.json.
+
+    Lets a project extend the seatbelt without forking this hook (mirrors how
+    leak_scan takes a project denylist). JSON shape: a list of objects with a
+    "pattern" (regex, matched on the normalized command) and an optional "reason".
+    Fail-open: a missing or malformed file yields no extra rules, never a crash.
+    """
+    path = _patterns_file()
+    if not path or not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        out = []
+        for item in data:
+            out.append((re.compile(item["pattern"]),
+                        item.get("reason", "project-defined dangerous pattern")))
+        return out
+    except (OSError, ValueError, re.error, KeyError, TypeError):
+        return []  # a broken patterns file must not break the hook
+
+
+def check_command(command, extra=None):
     """Return (matched, reason) if the command looks destructive; None if it looks safe.
 
     Separated from main() so it can be unit-tested directly. Operates on a normalized
-    form so spacing/casing variants are treated identically.
+    form so spacing/casing variants are treated identically. ``extra`` is an optional
+    list of (compiled_regex, reason) from a project patterns file.
     """
     norm = _normalize(command)
     if _is_dangerous_rm(norm):
         return "rm -r -f", "Recursive force delete"
-    for rx, reason in _COMPILED_REGEX:
+    for rx, reason in _COMPILED_REGEX + list(extra or []):
         if rx.search(norm):
             return rx.pattern, reason
     return None
@@ -151,7 +185,7 @@ def main():
     if not command:
         sys.exit(0)
 
-    hit = check_command(command)
+    hit = check_command(command, extra=load_extra_patterns())
     if hit:
         _pattern, reason = hit
         _emit_deny(
@@ -163,5 +197,21 @@ def main():
     sys.exit(0)  # safe -> no decision, default flow continues
 
 
+def _explain(command):
+    """Audit mode for adopters: show whether a command would be blocked and why,
+    without acting as a hook. Run: python block_dangerous.py --explain "<cmd>"."""
+    hit = check_command(command, extra=load_extra_patterns())
+    if hit:
+        pattern, reason = hit
+        print(f"BLOCKED: {reason}")
+        print(f"  matched rule: {pattern}")
+        return 1
+    print("ALLOWED: no dangerous pattern matched.")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--explain" in sys.argv:
+        rest = [a for a in sys.argv[1:] if a != "--explain"]
+        raise SystemExit(_explain(rest[0] if rest else ""))
     main()

@@ -102,3 +102,62 @@ def test_hook_fails_closed_on_malformed_payload():
     assert proc.returncode == 0
     decision = json.loads(proc.stdout.strip())["hookSpecificOutput"]["permissionDecision"]
     assert decision == "deny"
+
+
+# --- project-defined (data-driven) patterns ---------------------------------
+
+import os
+
+from block_dangerous import load_extra_patterns
+
+
+def _write_patterns(tmp_path, data) -> dict:
+    pf = tmp_path / "dangerous-patterns.json"
+    pf.write_text(json.dumps(data), encoding="utf-8")
+    return dict(os.environ, BLOCK_DANGEROUS_PATTERNS=str(pf))
+
+
+def test_extra_patterns_extend_check_command(tmp_path, monkeypatch):
+    pf = tmp_path / "p.json"
+    pf.write_text(json.dumps([{"pattern": r"\breset_db\b", "reason": "wipes the dev database"}]),
+                  encoding="utf-8")
+    monkeypatch.setenv("BLOCK_DANGEROUS_PATTERNS", str(pf))
+    extra = load_extra_patterns()
+    assert check_command("reset_db --yes", extra=extra)[1] == "wipes the dev database"
+    # built-in safe command still passes with the extra rules loaded
+    assert check_command("git status", extra=extra) is None
+
+
+def test_malformed_patterns_file_fails_open(tmp_path, monkeypatch):
+    pf = tmp_path / "bad.json"
+    pf.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setenv("BLOCK_DANGEROUS_PATTERNS", str(pf))
+    assert load_extra_patterns() == []  # no crash, no rules
+
+
+def test_hook_blocks_project_pattern_via_env(tmp_path):
+    env = _write_patterns(tmp_path, [{"pattern": r"\bnuke_prod\b", "reason": "prod wipe"}])
+    proc = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "nuke_prod now"}}),
+        capture_output=True, text=True, env=env,
+    )
+    assert proc.returncode == 0
+    decision = json.loads(proc.stdout.strip())["hookSpecificOutput"]["permissionDecision"]
+    assert decision == "deny"
+
+
+# --- --explain audit mode ----------------------------------------------------
+
+def test_explain_reports_blocked():
+    proc = subprocess.run([sys.executable, str(HOOK), "--explain", "rm -rf /"],
+                          capture_output=True, text=True)
+    assert proc.returncode == 1
+    assert "BLOCKED" in proc.stdout
+
+
+def test_explain_reports_allowed():
+    proc = subprocess.run([sys.executable, str(HOOK), "--explain", "git status"],
+                          capture_output=True, text=True)
+    assert proc.returncode == 0
+    assert "ALLOWED" in proc.stdout

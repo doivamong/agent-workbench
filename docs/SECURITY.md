@@ -26,6 +26,12 @@ here-docs, variable indirection, or piping through another interpreter all evade
 circumvention. Do not grant an agent destructive ambient authority and rely on this as the only
 control.
 
+**Extending / auditing it.** A project can add its own destructive shapes (e.g. `reset_db`,
+`nuke_prod`) in `.claude/dangerous-patterns.json` — a list of `{"pattern": <regex>, "reason":
+<text>}` — without forking the hook (a malformed file is ignored, fail-open). Before enabling
+enforcement, audit any command with `python .claude/hooks/scripts/block_dangerous.py --explain
+"<cmd>"`, which prints whether it would be blocked and which rule matched.
+
 ## `prompt-refiner-inject.py` — UserPromptSubmit advisory
 
 **Does:** flags vague, multi-part prompts so they get refined before work starts. **Does NOT:**
