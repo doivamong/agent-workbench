@@ -28,11 +28,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 # ─── Skip patterns ──────────────────────────────────────────────────────────
 STRUCTURED_PATTERNS = [
     r"^\d+\.\s",          # numbered list "1. do X"
@@ -140,7 +135,11 @@ def _update_dedupe_state(scope_key: str) -> None:
 # Requires hook_logger.py in the same hooks/lib/ directory.
 # hook_main() wraps the entry point with fail-open error handling and crash logging.
 sys.path.insert(0, str(Path(__file__).parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 
 @hook_main("prompt-refiner-inject")

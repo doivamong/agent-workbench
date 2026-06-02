@@ -29,13 +29,12 @@ import os
 import sys
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 PRIMER_REL = Path(".claude") / "session-primer.md"
 # A primer longer than this is almost certainly content that belongs in CLAUDE.md or a

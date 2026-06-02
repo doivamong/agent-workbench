@@ -22,11 +22,6 @@ import sys
 import time
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 SESSION_TTL = 4 * 60 * 60     # a session older than this resets to zero
 MESSAGE_COOLDOWN = 5 * 60     # seconds between two reminders
 # Thresholds are tunable starting points, not measured truths.
@@ -113,7 +108,11 @@ def register_tool(state: dict, tool_name: str, now: float, *,
 
 # Fail-open wrapper from the sibling lib/ directory.
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 
 @hook_main("context-tracker")

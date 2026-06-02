@@ -27,11 +27,6 @@ import sys
 import time
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 EDIT_THRESHOLD = 5
 REMINDER_COOLDOWN = 10 * 60   # seconds between two reminders
 SESSION_TTL = 2 * 60 * 60     # a session older than this resets to zero
@@ -118,7 +113,11 @@ def register_edit(session: dict, file_path: str, now: float, *,
 # Hook logger — fail-open wrapper from the shared lib directory (sibling of scripts/).
 from pathlib import Path as _HookLoggerPath
 sys.path.insert(0, str(_HookLoggerPath(__file__).parent.parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 
 @hook_main("post-edit-simplify")

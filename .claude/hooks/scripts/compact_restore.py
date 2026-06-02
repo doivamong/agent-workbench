@@ -18,13 +18,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 MAX_EXCERPT_LINES = 50
 SIGNAL_MAX_AGE = 300  # seconds — only inject if the compaction was very recent

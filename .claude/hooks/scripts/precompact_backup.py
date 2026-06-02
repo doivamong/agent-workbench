@@ -20,15 +20,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-if hasattr(sys.stdin, "reconfigure"):
-    sys.stdin.reconfigure(encoding="utf-8")
-
 # Shared helpers + fail-open wrapper from the sibling lib/ directory.
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from handover_utils import cleanup_old_files, get_handovers_dir  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
+
+# UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
+ensure_utf8_io()
 
 
 @hook_main("precompact-backup")
