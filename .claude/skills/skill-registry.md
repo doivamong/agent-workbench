@@ -34,6 +34,7 @@ When more than one skill could match a request:
 | `example-research` | workflow | "how should we / what's the best way", comparing approaches, understanding a module before a non-trivial change | a vague request to clarify (that's prompt-refiner); executing an already-chosen approach; a one-line fix |
 | `example-handover` | workflow | ending a session, "hand this off / package for next session / write a handover", research-done-move-to-execution | work not finished enough to hand off; a quick mid-task note; starting fresh implementation now |
 | `example-stress-test` | workflow | "stress test this / poke holes in this plan / what could go wrong / edge cases / is this design sound", before building or testing something non-trivial | a one-line / low-risk change; comparing approaches (research); reviewing code already written (review); a known bug (debug) |
+| `example-output-guard` | guard | generating a whole file / large template / big refactor | a small edit to an existing file; a question; prose-only output |
 | _your-config-guard_ | guard | code that reads/writes configuration | reading config just to understand it |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 | _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
