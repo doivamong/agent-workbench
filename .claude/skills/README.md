@@ -103,3 +103,4 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`prompt-refiner/SKILL.md`](prompt-refiner/SKILL.md) | A **workflow** skill: sharpen a vague request before work starts (wired to the prompt hook) |
 | [`example-review/SKILL.md`](example-review/SKILL.md) | A **guard** skill: three-pass review with progressive disclosure |
 | [`example-debug/SKILL.md`](example-debug/SKILL.md) | A **guard** skill: reproduce → find root cause → fix → prove |
+| [`example-stress-test/SKILL.md`](example-stress-test/SKILL.md) | A **workflow** skill: pressure-test a change through fixed lenses before building — design verdict + edge-case list |
