@@ -56,3 +56,59 @@ def test_name_mismatch_is_warning(tmp_path):
 def test_main_exit_code(tmp_path):
     _skills(tmp_path, _REGISTRY, {"alpha": _SKILL})
     assert skill_lint.main([str(tmp_path)]) == 0
+
+
+# --- block-scalar parser + structural-convention checks (N5) ---
+
+_SKILL_BLOCK = """---
+name: alpha
+description: >
+  WHAT: does a thing.
+  USE WHEN: the user asks for a thing.
+  DO NOT TRIGGER: when they ask for a different thing.
+tier: guard
+---
+body
+"""
+
+
+def test_parse_frontmatter_reads_block_scalar():
+    fields = skill_lint.parse_frontmatter(_SKILL_BLOCK)
+    assert fields is not None
+    assert fields["name"] == "alpha"
+    # The block body is folded into one string, so its markers are visible.
+    assert "USE WHEN" in fields["description"]
+    assert "DO NOT TRIGGER" in fields["description"]
+
+
+def test_parse_frontmatter_none_without_fence():
+    assert skill_lint.parse_frontmatter("name: alpha\ndescription: x\n") is None
+
+
+def test_block_scalar_skill_is_clean(tmp_path):
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL_BLOCK})
+    findings = skill_lint.lint(tmp_path)
+    assert [f for f in findings if f[0] == "error"] == []
+    # A well-formed block-scalar description must not warn about missing markers.
+    assert not any("marker" in msg for _, _, msg in findings)
+
+
+def test_missing_markers_warn(tmp_path):
+    # _SKILL has a bare 'description: does a thing' — no USE WHEN / DO NOT TRIGGER.
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL})
+    msgs = [msg for sev, _, msg in skill_lint.lint(tmp_path) if sev == "warn"]
+    assert any("USE WHEN" in m for m in msgs)
+    assert any("DO NOT TRIGGER" in m for m in msgs)
+
+
+def test_malformed_frontmatter_is_error(tmp_path):
+    _skills(tmp_path, _REGISTRY, {"alpha": "no frontmatter here\n"})
+    assert any(sev == "error" and "frontmatter" in msg
+               for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_oversize_skill_warns(tmp_path):
+    big = _SKILL_BLOCK + ("\nfiller line" * (skill_lint.MAX_SKILL_LINES + 5))
+    _skills(tmp_path, _REGISTRY, {"alpha": big})
+    assert any(sev == "warn" and "lines" in msg
+               for sev, _, msg in skill_lint.lint(tmp_path))

@@ -196,7 +196,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **186**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **192**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **6** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `skill_lint`) |
@@ -223,7 +223,7 @@ python examples/memory_audit_demo.py  # memory hygiene tripwire
 python examples/skill_lint_demo.py    # registry/skill drift check
 
 # Prove the tools actually work:
-python -m pytest -q                 # 186 tests
+python -m pytest -q                 # 192 tests
 ```
 
 ## Install it into your own project
@@ -293,7 +293,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 186 tests · MIT
+**Agent Workbench** · stdlib-only core · 192 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

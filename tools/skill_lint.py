@@ -8,16 +8,24 @@ a skills directory:
 
   ERROR  - a skill folder (has SKILL.md) with no row in the registry
   ERROR  - a real (non-placeholder) registry row with no matching skill folder
-  ERROR  - a SKILL.md missing its frontmatter 'name' or 'description'
+  ERROR  - a SKILL.md with no/malformed YAML frontmatter, or missing 'name'/'description'
   WARN   - a SKILL.md whose frontmatter 'name' differs from its folder name
+  WARN   - a description missing a 'USE WHEN' or 'DO NOT TRIGGER' marker (the
+           convention that makes a skill fire at the right time and not the wrong one)
+  WARN   - a SKILL.md longer than MAX_SKILL_LINES (push detail into references/)
 
 Usage:
     python tools/skill_lint.py [skills_dir]        # default: .claude/skills
-Exit code is non-zero when any ERROR is found.
+Exit code is non-zero when any ERROR is found (WARN alone does not fail).
 
-Does NOT: judge whether a skill's trigger wording is *good*, or whether two skills
-truly overlap — that is the human's call in the registry's Do-NOT-trigger column.
-It checks registry/folder/frontmatter consistency only. Stdlib only.
+Does NOT: judge whether the trigger *wording* is good, or whether two skills truly
+overlap — that is the human's call in the registry's Do-NOT-trigger column. It checks
+registry/folder consistency and the *presence* of the structural conventions only.
+Stdlib only.
+
+The block-scalar frontmatter parser and the USE WHEN / DO NOT TRIGGER presence checks
+were re-implemented in stdlib from the design of `MiniMax-AI/skills` (`validate_skills.py`,
+MIT) — see THIRD_PARTY_NOTICES.md. No source was copied.
 """
 from __future__ import annotations
 
@@ -27,10 +35,15 @@ import sys
 from pathlib import Path
 
 REGISTRY = "skill-registry.md"
+# A SKILL.md beyond this is usually carrying detail that belongs in references/.
+# Soft nudge (WARN), not a hard rule — tune per project.
+MAX_SKILL_LINES = 400
 # Registry rows for unwritten skills are intentionally italicised placeholders
 # (e.g. `_your-config-guard_`); they have no folder yet, so don't demand one.
 _ROW_NAME_RE = re.compile(r"^\|\s*`?_?([A-Za-z0-9][\w-]*)_?`?\s*\|")
 _PLACEHOLDER_RE = re.compile(r"^\|\s*[_*]")
+_FIELD_RE = re.compile(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$")
+_BLOCK_SCALAR_HEADS = {"|", ">", "|+", "|-", ">+", ">-"}
 
 
 def registry_names(registry_text: str) -> set[str]:
@@ -45,9 +58,46 @@ def registry_names(registry_text: str) -> set[str]:
     return names
 
 
-def _frontmatter_field(text: str, field: str) -> str | None:
-    m = re.search(rf"(?m)^{field}:\s*(.*)$", text)
-    return m.group(1).strip() if m else None
+def parse_frontmatter(text: str) -> dict[str, str] | None:
+    """Parse a SKILL.md's YAML frontmatter into {field: value}, or None if absent.
+
+    Handles single-line ``key: value`` and YAML block scalars (``key: >`` / ``key: |``):
+    the block body is the indented continuation, joined into one string. This is why a
+    single-line regex is not enough — descriptions are written as ``description: >`` blocks,
+    so their USE WHEN / DO NOT TRIGGER markers live on indented continuation lines.
+    """
+    s = text.lstrip("﻿")
+    if not s.startswith("---"):
+        return None
+    lines = s.splitlines()
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if end is None:
+        return None
+    body = lines[1:end]
+    fields: dict[str, str] = {}
+    i = 0
+    while i < len(body):
+        line = body[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            i += 1
+            continue
+        m = _FIELD_RE.match(line)
+        if not m:
+            i += 1
+            continue
+        key, rest = m.group(1), m.group(2).strip()
+        if rest in _BLOCK_SCALAR_HEADS or rest == "":
+            # Collect indented continuation lines (and blanks within the block).
+            block: list[str] = []
+            i += 1
+            while i < len(body) and (body[i][:1] in (" ", "\t") or not body[i].strip()):
+                block.append(body[i].strip())
+                i += 1
+            fields[key] = " ".join(b for b in block if b).strip()
+            continue
+        fields[key] = rest.strip("\"'")
+        i += 1
+    return fields
 
 
 def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
@@ -63,13 +113,32 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
         folder = skill_md.parent.name
         folder_names.add(folder)
         text = skill_md.read_text(encoding="utf-8", errors="replace")
-        name = _frontmatter_field(text, "name")
-        if not name:
-            out.append(("error", f"{folder}/SKILL.md", "frontmatter missing 'name'"))
-        elif name != folder:
-            out.append(("warn", f"{folder}/SKILL.md", f"frontmatter name {name!r} != folder {folder!r}"))
-        if not _frontmatter_field(text, "description"):
-            out.append(("error", f"{folder}/SKILL.md", "frontmatter missing 'description'"))
+        loc = f"{folder}/SKILL.md"
+
+        n_lines = text.count("\n") + 1
+        if n_lines > MAX_SKILL_LINES:
+            out.append(("warn", loc, f"{n_lines} lines (>{MAX_SKILL_LINES}) — move detail into references/"))
+
+        fields = parse_frontmatter(text)
+        if fields is None:
+            out.append(("error", loc, "no/malformed YAML frontmatter (need a '---' fenced block)"))
+        else:
+            name = fields.get("name", "").strip()
+            if not name:
+                out.append(("error", loc, "frontmatter missing 'name'"))
+            elif name != folder:
+                out.append(("warn", loc, f"frontmatter name {name!r} != folder {folder!r}"))
+
+            desc = fields.get("description", "").strip()
+            if not desc:
+                out.append(("error", loc, "frontmatter missing 'description'"))
+            else:
+                upper = desc.upper()
+                if "USE WHEN" not in upper:
+                    out.append(("warn", loc, "description has no 'USE WHEN' marker (when should it fire?)"))
+                if "DO NOT TRIGGER" not in upper:
+                    out.append(("warn", loc, "description has no 'DO NOT TRIGGER' marker (when should it not?)"))
+
         if folder not in reg_names:
             out.append(("error", folder, "skill folder has no row in skill-registry.md"))
 
