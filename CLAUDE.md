@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+> Project instructions for Claude Code (and, via `AGENTS.md`, other AI coding agents).
+> This file is loaded into context every session, so keep it **short and high-signal** —
+> link out to detail instead of inlining it. The notes in *italics* explain *why* each
+> section earns its place; delete them when you adapt this for your own project.
+
+## What this project is
+
+**Agent Workbench** — a kit of tools + methodology for running an AI coding agent safely and
+consistently on a long-lived codebase. The reusable core is stdlib-only. See [README](README.md).
+
+*Lead with one or two sentences. The agent should know what it's working on before any rule.*
+
+## Golden rules (the few that must never break)
+
+1. **No secrets, identifiers, or absolute machine paths** in committed files. The leak scanner
+   gates this (`python tools/leak_scan.py . --fail-on-find`).
+2. **The reusable core stays stdlib-only** (`scripts/`, `tools/`, `.claude/hooks/`). Dependencies
+   live in `examples/` and tests.
+3. **Every tool ships a runnable `examples/` entry** and has tests.
+4. **Conclusions are framed as best-fit, not gospel** — this kit is one developer's context.
+
+*Keep this list to ~5 items. If everything is a golden rule, nothing is. Put the rest in
+path-scoped rule files (see `.claude/rules/`).*
+
+## How to work here
+
+- **Plan before non-trivial changes**, then implement, then test, then review. The example
+  skills in `.claude/skills/` encode this.
+- **Verify with evidence, don't guess** — run the demo/tests and read the output.
+- **Match the surrounding code's style** rather than importing your own conventions.
+
+## Project map
+
+| Area | Path |
+|------|------|
+| Safety hooks (+ how they're wired) | [`.claude/hooks/`](.claude/hooks/), [`.claude/settings.json`](.claude/settings.json) |
+| Reusable tools | [`tools/`](tools/), [`scripts/`](scripts/) |
+| Skill system | [`.claude/skills/README.md`](.claude/skills/README.md) |
+| Memory system | [`memory/README.md`](memory/README.md) |
+| Tests | [`tests/`](tests/) |
+
+## Commit conventions
+
+- Conventional-commit style summary (`feat:`, `fix:`, `docs:`, `chore:`, `test:`).
+- Imperative mood, explain *why* in the body when it isn't obvious.
+- Do **not** add AI-assistant co-author trailers.
+
+---
+
+*Adapt this file: replace the project description, golden rules, and map with your own. The
+shape — short always-loaded core + links to detail — is what keeps an agent consistent over
+months without paying a huge context cost every session.*

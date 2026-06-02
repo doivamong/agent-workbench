@@ -23,7 +23,7 @@ def main() -> int:
     bad_source = (
         "import logging\n"
         "\n"
-        "DATA_DIR = '/home/alice/project/data'  # absolute path -> violation\n"  # leak-scan: ignore (intentional sample)
+        "DATA_DIR = '/home/alice/project/data'  # absolute path -> violation\n"  # leak-scan: ignore  inv: ignore (intentional sample)
         "\n"
         "def handle():\n"
         "    print('debugging')        # bare print -> warn\n"

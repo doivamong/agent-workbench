@@ -8,7 +8,7 @@ def test_detects_bare_print(tmp_path):
 
 
 def test_detects_absolute_path(tmp_path):
-    (tmp_path / "m.py").write_text("P = '/home/alice/data'\n", encoding="utf-8")  # leak-scan: ignore
+    (tmp_path / "m.py").write_text("P = '/home/alice/data'\n", encoding="utf-8")  # leak-scan: ignore  inv: ignore
     found = invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS)
     assert any(v.invariant == "no-absolute-path" for v in found)
 

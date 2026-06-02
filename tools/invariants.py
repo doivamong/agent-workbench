@@ -70,6 +70,8 @@ def line_regex(invariant_id: str, pattern: str, message: str) -> CheckFn:
     def _check(path: str, text: str) -> list[Violation]:
         out: list[Violation] = []
         for i, line in enumerate(text.splitlines(), 1):
+            if "inv: ignore" in line:
+                continue  # explicit opt-out for intentional samples (like noqa)
             if rx.search(line):
                 out.append(Violation(invariant_id, path, i, message))
         return out

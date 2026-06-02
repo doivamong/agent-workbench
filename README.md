@@ -1,8 +1,13 @@
 # Agent Workbench
 
+[![CI](https://github.com/doivamong/agent-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/doivamong/agent-workbench/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 > A battle-tested set of **skills, rules, hooks, and tooling** distilled from running
 > Claude Code as a **solo developer** on a real production codebase for months.
 > Steal what's useful. Open an issue if you have a better way.
+>
+> **New here?** → [`docs/getting-started.md`](docs/getting-started.md)
 
 🇻🇳 *Bộ công cụ + phương pháp luận làm việc với Claude Code, rút ra từ một codebase production thật do một dev solo vận hành. Lấy thứ bạn cần. Góp ý nếu bạn có cách tốt hơn.*
 

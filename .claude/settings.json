@@ -1,5 +1,15 @@
 {
-  "$comment": "Drop this into your project's .claude/settings.json (or merge the 'hooks' block into your existing one). It wires the two hooks in this kit so they actually fire. Paths use $CLAUDE_PROJECT_DIR so they are portable.",
+  "$comment": "Drop this into your project's .claude/settings.json (or merge the blocks into your existing one). It wires the two hooks in this kit AND pre-allows a few safe, common commands so the agent prompts you less. Paths use $CLAUDE_PROJECT_DIR so they are portable. Tighten or extend the allow-list to fit your project — keep it to read-only / safe-by-default commands.",
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(python tools/leak_scan.py:*)",
+      "Bash(python tools/invariants.py:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
