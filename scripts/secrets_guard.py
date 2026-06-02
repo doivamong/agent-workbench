@@ -321,6 +321,8 @@ def _get_password(args) -> str:
     """Obtain the master password.
 
     Precedence: --password flag, then the SECRETS_GUARD_PASSWORD env var, then an
+    OPTIONAL system keyring (only if the third-party `keyring` package is installed —
+    the core stays stdlib-only and degrades silently when it is absent), then an
     interactive prompt. Prefer the prompt or the env var for non-interactive use:
     --password is visible in shell history and the process list (ps / Task Manager).
     """
@@ -329,6 +331,15 @@ def _get_password(args) -> str:
     env_pw = os.environ.get("SECRETS_GUARD_PASSWORD")
     if env_pw:
         return env_pw
+    # Optional convenience: a system keyring (macOS Keychain, Windows Credential
+    # Manager, Secret Service). Soft import — never a core dependency.
+    try:
+        import keyring  # type: ignore
+        kp = keyring.get_password("agent-workbench", "secrets_guard")
+        if kp:
+            return kp
+    except Exception:
+        pass  # not installed / no backend -> fall through to the prompt
     try:
         pw = getpass.getpass("  Master password: ")
     except Exception:

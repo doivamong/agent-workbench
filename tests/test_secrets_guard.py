@@ -134,3 +134,25 @@ def test_get_password_precedence_flag_beats_env(monkeypatch):
 def test_get_password_falls_back_to_env(monkeypatch):
     monkeypatch.setenv("SECRETS_GUARD_PASSWORD", "from-env")
     assert _get_password(Namespace(password=None)) == "from-env"
+
+
+def test_get_password_consults_optional_keyring(monkeypatch):
+    monkeypatch.delenv("SECRETS_GUARD_PASSWORD", raising=False)
+    import sys as _sys
+    import types
+
+    fake = types.ModuleType("keyring")
+    fake.get_password = lambda service, user: "from-keyring"
+    monkeypatch.setitem(_sys.modules, "keyring", fake)
+    assert _get_password(Namespace(password=None)) == "from-keyring"
+
+
+def test_keyring_absence_does_not_break(monkeypatch):
+    # env wins over keyring; and with no keyring installed the env path still works
+    monkeypatch.setenv("SECRETS_GUARD_PASSWORD", "from-env")
+    import sys as _sys
+
+    fake = type(_sys)("keyring")
+    fake.get_password = lambda *a: "should-not-be-used"
+    monkeypatch.setitem(_sys.modules, "keyring", fake)
+    assert _get_password(Namespace(password=None)) == "from-env"
