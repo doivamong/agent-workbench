@@ -73,9 +73,11 @@ this is a generic starting point, not a fixed law.
 | **Operability & UX** | When it fails, is the failure visible and recoverable? Are error states clear? Can an operator observe it? Is the interface understandable? |
 | **Skeptic (devil's advocate)** | What load-bearing assumption could be false? Is there a markedly simpler way? Is this even needed yet (YAGNI)? |
 
-**Process:** run the five lenses independently → list the points most lenses **agree** on →
-list the **conflicts** (lenses that pull opposite ways) and the trade-off each forces → reach a
-verdict.
+**Process:** run the five lenses independently → **debate** (let each lens challenge the others'
+conclusions, and run the *pre-mortem* prompt — *assume this shipped and failed in production; which
+lens saw it coming?* — so a risk one lens dismissed gets a second hearing) → list the points most
+lenses **agree** on → list the **conflicts** (lenses that pull opposite ways) and the trade-off each
+forces → reach a verdict.
 
 | Verdict | Meaning | Action |
 |---|---|---|
@@ -104,6 +106,8 @@ and **skip with a reason**. For each relevant axis, generate a few *concrete* sc
 | **State & lifecycle** | transitions, partial or aborted operations, idempotency, resume after failure |
 | **Failure & recovery** | a dependency is down or slow, partial failure mid-operation, resource exhaustion, rollback |
 | **Environment** | other platforms / locales, offline, caching layers, configuration differences |
+| **Integration** | an external system (webhook, third-party API, sync job, cache purge) is down, slow, changed its contract, or delivers out of order |
+| **Compliance & audit** | audit-log gaps, data retention, PII leaking into logs, secrets in config, backup / restore correctness |
 | **Integrity** | duplicates, orphans, normalization, double-counting, invariants that must always hold |
 
 **Process:** filter axes → for each kept axis generate 3–5 concrete scenarios → classify each

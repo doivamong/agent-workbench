@@ -37,8 +37,12 @@ When more than one skill could match a request:
 | `example-output-guard` | guard | generating a whole file / large template / big refactor | a small edit to an existing file; a question; prose-only output |
 | `example-using-skills` | meta | auto-injected each session; also when ≥2 skills could match, or you're unsure any applies | as a destination — it routes TO other skills, never does the work itself |
 | `example-config-guard` | guard | writing/modifying code that reads config — esp. a nested key or a cross-context read | reading config once to understand it; a single non-nested constant |
+| `example-tdd` | workflow | "do this TDD / test-first / red-green-refactor / write the test first", a regression test before a bug fix | a trivial change (<~30 lines); config/data-only edits; a spike; reviewing written code |
+| `example-optimize` | feature | "it's too slow / optimize / cut latency / reduce memory" with a measurable goal | "tidy / simplify" with no speed goal (review); a correctness bug (debug); no baseline to measure against |
+| `example-dead-code-audit` | audit | "find unused / dead code", post-refactor or pre-release prune, "is this called anywhere?" | "this function is too long" (a structural concern); bug hunting (review/debug); code already known-dead |
+| `example-cook` | workflow | "cook this / run the full workflow / build X with checkpoints / plan from a few angles", larger or higher-stakes builds | a routine single-file change (plan-then-code); a one-line fix; a question; no sub-agent fan-out wanted |
+| `example-external-ref` | workflow | about to copy/adapt outside code (GitHub/snippet/blog/LLM), "can we use this / port this / adopt this approach" | writing original code; a vetted dependency via the normal process; a licensing question with no code in play |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
-| _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
 
 Replace the placeholder rows with your real skills. The ten non-placeholder rows correspond to
 the runnable example skills in this folder (five workflows + four guards + one meta routing skill).
