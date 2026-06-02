@@ -1,5 +1,5 @@
 {
-  "$comment": "Drop this into your project's .claude/settings.json (or merge the blocks into your existing one). It wires the two hooks in this kit AND pre-allows a few safe, common commands so the agent prompts you less. Paths use $CLAUDE_PROJECT_DIR so they are portable. Tighten or extend the allow-list to fit your project — keep it to read-only / safe-by-default commands.",
+  "$comment": "Drop this into your project's .claude/settings.json (or merge the blocks into your existing one). It wires the three hooks in this kit AND pre-allows a few safe, common commands so the agent prompts you less. Paths use $CLAUDE_PROJECT_DIR so they are portable. Tighten or extend the allow-list to fit your project — keep it to read-only / safe-by-default commands.",
   "permissions": {
     "allow": [
       "Bash(python -m pytest:*)",
@@ -29,6 +29,18 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-refiner-inject.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/post_edit_simplify.py\"",
             "timeout": 10
           }
         ]

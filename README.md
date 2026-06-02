@@ -64,7 +64,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
 | **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **four** runnable example skills — one **workflow** (plan-then-code), two **guards** (review, debug), and a **prompt-refiner** (workflow-tier, wired to the prompt hook) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
-| **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
+| **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
@@ -90,6 +90,7 @@ flowchart TB
     subgraph guards["Runtime guardrails (hooks)"]
         block["block_dangerous.py<br/>PreToolUse"]
         refine["prompt-refiner-inject.py<br/>UserPromptSubmit"]
+        simplify["post_edit_simplify.py<br/>PostToolUse"]
         wrap["hook_logger<br/>fail-open + crash log"]
     end
 
@@ -106,6 +107,7 @@ flowchart TB
 
     block -.->|wrapped by| wrap
     refine -.->|wrapped by| wrap
+    simplify -.->|wrapped by| wrap
 
     classDef config fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
     classDef hook fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -113,7 +115,7 @@ flowchart TB
     classDef entry fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
 
     class cfg,skills,rules,mem config
-    class block,refine,wrap hook
+    class block,refine,simplify,wrap hook
     class inv,leak,aff,sec check
     class install entry
 ```
@@ -142,12 +144,13 @@ single grep-able index of trigger / do-not-trigger boundaries; the
 <summary><b>Deep-dive: hooks are fail-open by design</b></summary>
 
 Every hook is wrapped so that a crash **never blocks your workflow** — it logs to a JSONL
-crash file and exits cleanly, rather than wedging the agent. The two shipped hooks:
+crash file and exits cleanly, rather than wedging the agent. The three shipped hooks:
 
 | Hook | Event | What it does |
 |---|---|---|
 | `block_dangerous.py` | `PreToolUse` (Bash) | Catches common destructive command shapes — `rm -rf` (any flag order/spacing), `find -delete`, `dd`, `mkfs`, fork bombs, force-push, `DROP TABLE`, … — and denies them via the documented hook contract. A **seatbelt against accidents, not a security boundary** (a determined operator can evade any string matcher). Adversarial evasion cases are in the test suite. |
 | `prompt-refiner-inject.py` | `UserPromptSubmit` | Flags vague prompts to be refined before execution |
+| `post_edit_simplify.py` | `PostToolUse` (Edit/Write) | After a burst of edits, nudges a simplification pass (dead code, unused imports, over-long functions, DRY). Throttled by a cooldown and a session TTL so it nudges occasionally, never spams. Advisory only — never blocks. |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
 Run [`examples/hook_block_demo.py`](examples/hook_block_demo.py) to see the classifier decide.
@@ -174,7 +177,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **82**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **98**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **3** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
@@ -195,10 +198,11 @@ python -m pip install -r requirements.txt   # stdlib-only core; deps are for exa
 # See it work (each runs in seconds):
 python examples/secrets_demo.py     # encrypt/decrypt round-trip + tamper detection
 python examples/hook_block_demo.py  # dangerous-command classifier
+python examples/post_edit_simplify_demo.py  # the simplify-nudge classifier
 python examples/invariant_demo.py   # the invariant gate
 
 # Prove the tools actually work:
-python -m pytest -q                 # 82 tests
+python -m pytest -q                 # 98 tests
 ```
 
 ## Install it into your own project
@@ -263,7 +267,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 82 tests · MIT
+**Agent Workbench** · stdlib-only core · 98 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

@@ -59,6 +59,18 @@ SETTINGS_SNIPPET = {
                 ]
             }
         ],
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/post_edit_simplify.py"',
+                        "timeout": 10,
+                    }
+                ],
+            }
+        ],
     }
 }
 
