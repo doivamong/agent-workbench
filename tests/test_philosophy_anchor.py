@@ -29,7 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CANON = ROOT / "PHILOSOPHY.md"
 
 # Files that quote the philosophy and must defer to the canon (link back, never restate).
-SATELLITES = ["README.md", "CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md", "docs/SECURITY.md"]
+SATELLITES = ["README.md", "CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md", "docs/SECURITY.md",
+              "docs/development-rules.md"]
 
 MOTTO = "best-fit, honest about limits, not gospel"
 TENET_NAMES = [

@@ -203,7 +203,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **243**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **244**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **5** (3 workflow + 2 guards) |
 | Standalone tools | **9** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`) |
@@ -233,7 +233,7 @@ python examples/context_budget_demo.py   # audit this repo's context budget
 python examples/requirements_diff_demo.py # warn on a newly added dependency
 
 # Prove the tools actually work:
-python -m pytest -q                 # 243 tests
+python -m pytest -q                 # 244 tests
 ```
 
 ## Install it into your own project
@@ -275,6 +275,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Guide** | [`docs/sub-agents.md`](docs/sub-agents.md) | The sub-agent convention + the shipped `silent-failure-hunter` (an error-handling reviewer you spawn on demand; adapted from Anthropic's pr-review-toolkit, Apache-2.0) |
 | **Guide** | [`docs/orchestration.md`](docs/orchestration.md) | How to delegate to sub-agents — when it pays off, briefing one that can't see your chat, a status protocol, and writing big outputs to disk |
 | **Guide** | [`docs/lessons-as-rules.md`](docs/lessons-as-rules.md) | Turning a hard-won mistake into a path-scoped rule — the rule shape, promotion from memory, and the periodic anti-bloat cull |
+| **Guide** | [`docs/development-rules.md`](docs/development-rules.md) | Everyday coding defaults (YAGNI/KISS/DRY, error handling, testing) — guidance, not law, and what yields when a path-scoped rule disagrees |
 | **Blueprint** | [`docs/skills-as-cli.md`](docs/skills-as-cli.md) | Pattern for running a skill's playbook outside Claude Code (Cursor/Copilot/raw API) |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
@@ -306,7 +307,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 243 tests · MIT
+**Agent Workbench** · stdlib-only core · 244 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
