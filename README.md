@@ -204,7 +204,7 @@ what's transferable and what was intentionally left behind:
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **260**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **6** (`examples/`) |
+| Runnable demos | **11** (`examples/`) |
 | Example skills | **5** (3 workflow + 2 guards) |
 | Standalone tools | **9** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`) |
 
@@ -231,6 +231,7 @@ python examples/skill_lint_demo.py    # registry/skill drift check
 python examples/memory_snapshot_demo.py  # snapshot/restore a memory dir
 python examples/context_budget_demo.py   # audit this repo's context budget
 python examples/requirements_diff_demo.py # warn on a newly added dependency
+python examples/affected_tests_demo.py   # pick only the tests a change affects
 
 # Prove the tools actually work:
 python -m pytest -q                 # 260 tests
