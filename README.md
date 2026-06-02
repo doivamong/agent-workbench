@@ -29,7 +29,7 @@
 > immediately. Core is **stdlib-only**, the demos run in seconds, and CI is green.
 
 <details>
-<summary><b>New here? Start with the 5-minute tour →</b></summary>
+<summary><b>New here? Start with the guided tour →</b></summary>
 
 Read [`docs/getting-started.md`](docs/getting-started.md) for a guided walkthrough: clone,
 run the three demos, then point the installer at one of your own projects. The rest of this
@@ -56,7 +56,7 @@ piece of customer data has been removed and verified with a leak scanner (see
 > the avoidable mistakes it already cost to learn.* Success here isn't traction or attention — it
 > is that the kit is **available, correct, and honest** the day someone reaches for it. If it
 > spares one person an avoidable wrong turn — a stranger, or its own author starting the next
-> codebase — it has done its job, counted or not.
+> codebase — it has done its job. That is the only scoreboard here.
 
 > **Honesty is the deal, not decoration.** Because the point is to spare you avoidable pain, every
 > tool states plainly what it does *not* do (see [Status & honesty](#status--honesty) and
@@ -76,7 +76,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **four** runnable example skills — one **workflow** (plan-then-code), two **guards** (review, debug), and a **prompt-refiner** (workflow-tier, wired to the prompt hook) | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **four** runnable example skills — two **workflows** (plan-then-code, prompt-refiner) and two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
@@ -192,9 +192,9 @@ what's transferable and what was intentionally left behind:
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **98**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **3** (`examples/`) |
+| Runnable demos | **4** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
-| Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
+| Standalone tools | **4** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -249,8 +249,8 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 |---|---|---|
 | **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
 | **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
-| **Operating** | [`docs/memory-governance.md`](docs/memory-governance.md) | Adapting the cross-session memory model |
-| **Operating** | [`docs/session-preservation.md`](docs/session-preservation.md) | Keeping context across long projects / handovers |
+| **Blueprint** | [`docs/memory-governance.md`](docs/memory-governance.md) | Reference design for cross-session memory — the repo ships the `memory/` scaffold; the governance tooling is a model you implement |
+| **Blueprint** | [`docs/session-preservation.md`](docs/session-preservation.md) | Reference design for context handover on long projects — the commands shown are a blueprint, not shipped here |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
 
