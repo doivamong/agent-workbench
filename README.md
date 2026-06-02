@@ -91,6 +91,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
 | **Catch file-set drift** | A manifest gate over the source-of-truth dirs (skills, hooks, rules, tools, scripts): adding or removing a file without updating its dependent docs/wiring fails CI. Paired with a `PostToolUse` hook that nudges you the moment a new file lands | [`tools/sync_manifest.py`](tools/sync_manifest.py) |
+| **Keep the README counts honest** | A generator/gate for the "At a glance" numbers (tests/demos/tools/skills): `--check` fails CI when a count is stale, `--write` recomputes them from the tree — so two branches stop conflicting on hand-typed counts. Gates the numbers, not the prose lists | [`tools/readme_metrics.py`](tools/readme_metrics.py) |
 | **Watch the context budget** | An auditor for everything Claude Code loads each session (skills, agents, rules, the CLAUDE.md chain, MCP servers) — buckets each as always/sometimes/rarely and flags the heavy ones, so "short, high-signal context" gets a number (heuristic, not a real tokenizer) | [`tools/check_context_budget.py`](tools/check_context_budget.py) |
 | **Catch an un-installed dependency** | A pre-commit *seatbelt* that warns (never blocks) when a commit adds a line to `requirements.txt`, so you remember to install it where the code runs before it fails at import | [`tools/check_requirements_diff.py`](tools/check_requirements_diff.py) |
 | **See which skills actually fire** | An opt-in prompt-logger + report that surfaces which skills get used and which are dead weight — to prune them or fix their trigger text. Honest proxy: it counts name *mentions*, not true uses | [`tools/skill_usage_report.py`](tools/skill_usage_report.py) |
@@ -220,10 +221,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **355**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **14** (`examples/`) |
+| Tests | **362**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **15** (`examples/`) |
 | Example skills | **15** (8 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **12** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`) |
+| Standalone tools | **13** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -252,7 +253,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 355 tests
+python -m pytest -q                 # 362 tests
 ```
 
 ## Install it into your own project
@@ -332,7 +333,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 355 tests · MIT
+**Agent Workbench** · stdlib-only core · 362 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

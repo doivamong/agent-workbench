@@ -227,6 +227,11 @@
       "lines": 200,
       "bytes": 8447
     },
+    "tools/readme_metrics.py": {
+      "category": "tools",
+      "lines": 136,
+      "bytes": 5971
+    },
     "tools/skill_lint.py": {
       "category": "tools",
       "lines": 274,
