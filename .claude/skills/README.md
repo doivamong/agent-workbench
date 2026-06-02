@@ -45,6 +45,20 @@ The `description` is the **single most important field** — it's what the agent
 against. A vague description means the skill never fires (or fires at the wrong time). Be
 specific about both the triggers and the anti-triggers.
 
+#### Writing a description that triggers right
+
+- **Anchor on the OBJECT, not the verb.** Verbs ("help", "improve", "check") are shared by every
+  skill and disambiguate nothing; the *thing* the user is acting on ("a failing test", "a PR diff",
+  "the memory index") is what tells skills apart. Lead with the object.
+- **Keep it tight.** Aim for roughly 30–80 words. If you need far more just to list triggers, the
+  skill is probably doing several jobs — split it. An over-long description also costs context on
+  every match ([`tools/check_context_budget.py`](../../tools/check_context_budget.py) flags it).
+
+| ❌ Vague (won't fire, or fires everywhere) | ✅ Specific (fires at the right time) |
+|---|---|
+| `Helps with code review.` | `Review a code change / PR / diff in passes. USE WHEN the user says "review my changes / this PR". DO NOT TRIGGER for a broad whole-repo audit.` |
+| `Improves the codebase.` | `Cut duplication and dead code in files just edited. USE WHEN asked to clean up / simplify a change. DO NOT TRIGGER to hunt for bugs (that's a review skill).` |
+
 ### Body conventions that work
 
 - Lead with a one-line **announce** the agent says when it activates ("Using my-skill to …").
