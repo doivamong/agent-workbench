@@ -1,3 +1,4 @@
 # The reusable CORE (scripts/, tools/, .claude/hooks/) is stdlib-only by design.
 # Everything below is only for running the test-suite and a couple of examples.
 pytest>=8.0
+pytest-cov>=5.0   # coverage gate in CI (test-only; the core ships without it)

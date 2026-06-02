@@ -86,6 +86,8 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
 | **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers) and an opt-in `--entropy` sweep for random-looking tokens — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
+| **Keep memory honest** | A hygiene tripwire for the memory system — flags malformed frontmatter, dangling index links, orphan facts, broken `[[wiki-links]]`, and an oversized index | [`tools/memory_audit.py`](tools/memory_audit.py) |
+| **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps) | [`tools/skill_lint.py`](tools/skill_lint.py) |
 | **Keep the agent on-style** | Rules for writing slash-commands consistently | [`.claude/rules/`](.claude/rules/) |
 | **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
 | **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
@@ -194,10 +196,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **114**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **4** (`examples/`) |
+| Tests | **186**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **6** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
-| Standalone tools | **4** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`) |
+| Standalone tools | **6** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `skill_lint`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -217,24 +219,30 @@ python examples/secrets_demo.py     # encrypt/decrypt round-trip + tamper detect
 python examples/hook_block_demo.py  # dangerous-command classifier
 python examples/post_edit_simplify_demo.py  # the simplify-nudge classifier
 python examples/invariant_demo.py   # the invariant gate
+python examples/memory_audit_demo.py  # memory hygiene tripwire
+python examples/skill_lint_demo.py    # registry/skill drift check
 
 # Prove the tools actually work:
-python -m pytest -q                 # 114 tests
+python -m pytest -q                 # 186 tests
 ```
 
 ## Install it into your own project
 
 This is the part that makes it real, not just a reference. Point the installer at any project
-and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in,
-then prints the exact `settings.json` snippet that activates the hooks:
+and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in, then
+wires the hooks for you:
 
 ```bash
-python install.py /path/to/your/project --with-git-hook
-# --dry-run to preview first; --force to overwrite existing files
+python install.py /path/to/your/project --with-git-hook --merge-settings
+# --merge-settings deep-merges the hooks into .claude/settings.json (idempotent —
+#   safe to re-run, preserves your other settings). Omit it to print the snippet
+#   to paste yourself instead.
+# --dry-run to preview first; --force to overwrite existing copied files.
 ```
 
-After installing and merging the printed `settings.json` snippet, opening that project in your
-agent gives you, working immediately:
+With `--merge-settings` the hooks are active immediately; without it you paste the printed
+snippet into `.claude/settings.json` yourself. Either way, opening that project in your agent
+gives you, working immediately:
 
 - **Dangerous `Bash` commands get blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) via a
   real `PreToolUse` hook — verified against the documented hook I/O contract.
@@ -254,6 +262,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
 | **Blueprint** | [`docs/memory-governance.md`](docs/memory-governance.md) | Reference design for cross-session memory — the repo ships the `memory/` scaffold; the governance tooling is a model you implement |
 | **Blueprint** | [`docs/session-preservation.md`](docs/session-preservation.md) | Reference design for context handover on long projects — the commands shown are a blueprint, not shipped here |
+| **Blueprint** | [`docs/skills-as-cli.md`](docs/skills-as-cli.md) | Pattern for running a skill's playbook outside Claude Code (Cursor/Copilot/raw API) |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
 
@@ -284,7 +293,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 114 tests · MIT
+**Agent Workbench** · stdlib-only core · 186 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

@@ -1,4 +1,41 @@
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 import affected_tests
+
+_MODULE = Path(affected_tests.__file__)
+
+
+def _run_cli(*args, stdin=None):
+    proc = subprocess.run(
+        [sys.executable, str(_MODULE), *args],
+        input=stdin, capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return proc.stdout
+
+
+def test_cli_json_output_for_explicit_file():
+    out = _run_cli("tools/leak_scan.py", "--json")
+    data = json.loads(out)
+    assert data["full_suite"] is False
+    assert "tests/test_leak_scan.py" in data["tests"]
+
+
+def test_cli_full_suite_trigger_json():
+    data = json.loads(_run_cli("conftest.py", "--json"))
+    assert data["full_suite"] is True
+
+
+def test_cli_no_input_is_noop():
+    assert _run_cli("--quiet").strip() == ""
+
+
+def test_cli_stdin_input():
+    data = json.loads(_run_cli("--stdin", "--json", stdin="tools/leak_scan.py\n"))
+    assert "tests/test_leak_scan.py" in data["tests"]
 
 
 def test_is_test_file():

@@ -1,0 +1,16 @@
+# Coverage config for the CI ratchet (see .github/workflows/ci.yml).
+# Measures the reusable core + installer; excludes tests and runnable demos.
+# NOTE: lines executed inside a subprocess (the hook e2e tests) are not counted,
+# so the real figure is higher than the --cov-fail-under floor.
+[run]
+source = .
+omit =
+    tests/*
+    examples/*
+    */__pycache__/*
+    conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

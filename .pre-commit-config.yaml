@@ -18,11 +18,12 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Enable this once you've replaced the SAMPLE_INVARIANTS in tools/invariants.py
-      # with your project's real rules (and optionally a known_violations.json baseline):
-      # - id: invariants
-      #   name: codebase invariants
-      #   entry: python tools/invariants.py . --allow known_violations.json
-      #   language: system
-      #   pass_filenames: false
-      #   always_run: true
+      # The kit dogfoods its own invariant framework (CI runs this too). Replace the
+      # SAMPLE_INVARIANTS in tools/invariants.py with your project's real rules; the
+      # known_violations.json baseline grandfathers any legacy hits (empty here).
+      - id: invariants
+        name: codebase invariants
+        entry: python tools/invariants.py . --allow known_violations.json
+        language: system
+        pass_filenames: false
+        always_run: true
