@@ -20,6 +20,8 @@ known_violations.json
 **/.cache/
 *_ref_meta.md
 secret*.txt
+# Private porting workspace — references internal source paths/domain; never publish
+.porting/
 
 # --- Python ---
 __pycache__/

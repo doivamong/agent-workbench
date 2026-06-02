@@ -1,69 +1,192 @@
+<div align="center">
+
 # Agent Workbench
+
+### Skills, rules, hooks, and tooling for running an AI coding agent reliably on a long-lived codebase
+
+*Bộ công cụ + phương pháp luận làm việc với Claude Code — rút ra từ một codebase production thật, đã domain-stripped.*
 
 [![CI](https://github.com/doivamong/agent-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/doivamong/agent-workbench/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Core: stdlib-only](https://img.shields.io/badge/core-stdlib--only-blue.svg)](#at-a-glance)
 
-> A battle-tested set of **skills, rules, hooks, and tooling** distilled from running
-> Claude Code as a **solo developer** on a real production codebase for months.
-> Steal what's useful. Open an issue if you have a better way.
->
-> **New here?** → [`docs/getting-started.md`](docs/getting-started.md)
+<kbd>[Why](#why-this-exists)</kbd> · <kbd>[What's inside](#whats-inside)</kbd> · <kbd>[How it fits together](#how-it-fits-together)</kbd> · <kbd>[Quickstart](#quickstart-5-minutes)</kbd> · <kbd>[Install](#install-it-into-your-own-project)</kbd> · <kbd>[Honesty](#status--honesty)</kbd>
 
-🇻🇳 *Bộ công cụ + phương pháp luận làm việc với Claude Code, rút ra từ một codebase production thật do một dev solo vận hành. Lấy thứ bạn cần. Góp ý nếu bạn có cách tốt hơn.*
+</div>
+
+---
+
+> **The problem.** Most Claude Code advice is toy examples. The hard part of using an AI
+> agent isn't a clever one-off prompt — it's keeping the agent **consistent, safe, and
+> on-pattern** across hundreds of sessions on a codebase you actually have to maintain.
+
+> **The approach.** Encode the recurring decisions *once* — as intent-triggered skills,
+> path-scoped rules, fail-open hooks, a carried-forward memory, and greppable invariant
+> checks — so the agent re-derives them every session instead of you re-explaining them.
+
+> **The result.** A copy-pasteable kit that installs into any project in one command and
+> starts blocking dangerous shell commands, refining vague prompts, and gating commits
+> immediately. Core is **stdlib-only**, the demos run in seconds, and CI is green.
+
+<details>
+<summary><b>New here? Start with the 5-minute tour →</b></summary>
+
+Read [`docs/getting-started.md`](docs/getting-started.md) for a guided walkthrough: clone,
+run the three demos, then point the installer at one of your own projects. The rest of this
+README is the reference map — skim the [What's inside](#whats-inside) table, then dive into
+the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you care about.
+
+</details>
 
 ---
 
 ## Why this exists
 
-Most Claude Code tips are toy examples. This kit is the opposite: it's the **generic,
-reusable layer** extracted from a real single-developer project — the parts that have
-nothing to do with the original business domain and everything to do with **making an
-AI coding agent reliable, safe, and consistent over a long-lived codebase.**
+This kit is the **generic, reusable layer** extracted from a real single-developer project —
+the parts that have nothing to do with the original business domain and everything to do with
+**making an AI coding agent reliable, safe, and consistent over a long-lived codebase.**
 
-It is deliberately **domain-stripped**. Every business identifier, secret, path, and
-piece of customer data has been removed (see [`docs/SANITIZATION.md`](docs/SANITIZATION.md)).
-What remains is methodology.
+It is deliberately **domain-stripped**. Every business identifier, secret, machine path, and
+piece of customer data has been removed and verified with a leak scanner (see
+[`docs/SANITIZATION.md`](docs/SANITIZATION.md)). What remains is methodology you can lift.
 
-## Who it's for
-
-Solo developers (or tiny teams) who:
-
-- use Claude Code as their primary pair-programmer,
-- maintain a codebase long enough that **consistency** and **guardrails** matter more than speed,
-- want concrete, copy-pasteable patterns instead of abstract advice.
+**Who it's for** — solo developers (or tiny teams) who use an AI agent as their primary
+pair-programmer, maintain code long enough that **consistency** and **guardrails** matter
+more than raw speed, and want concrete copy-pasteable patterns instead of abstract advice.
 
 ## What's inside
 
-| Area | What it gives you | Path |
-|------|-------------------|------|
-| **Skill system** | How to encode reusable, intent-triggered playbooks for the agent — anatomy, tiers, a registry, and two runnable example skills | [`.claude/skills/`](.claude/skills/) |
-| **Memory system** | A file-based, index-gated memory the agent carries across sessions — scaffold + example facts | [`memory/`](memory/) |
-| **Safety hooks** | Block dangerous shell commands; auto-refine vague prompts; a fail-open hook wrapper | [`.claude/hooks/`](.claude/hooks/) |
-| **Secrets at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — to keep `config`/`db` encrypted in a private backup repo | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
-| **Invariant checker** | A tiny framework for codifying "rules that must never break" as fast, greppable checks (a pre-commit/CI gate) | [`tools/invariants.py`](tools/invariants.py) |
-| **Test selection** | AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
-| **Leak scanner** | A secret/identifier scanner with a private deny-list, used to verify this very export | [`tools/leak_scan.py`](tools/leak_scan.py) |
-| **Writing rules** | How to write slash-commands and keep an AI agent on-style | [`.claude/rules/`](.claude/rules/) |
-| **Methodology docs** | The memory-governance model + session-preservation patterns for long projects | [`docs/`](docs/) |
-| **Runnable demos** | Each tool has a `examples/` entry you can run in 30 seconds | [`examples/`](examples/) |
+A benefit-first map — *what it helps you do*, not an endpoint dump. Technical detail is
+deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
+
+| When you need to… | What this gives you | Path |
+|---|---|---|
+| **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **three** runnable example skills — one **workflow** (plan-then-code) + two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
+| **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
+| **Stop the agent doing damage** | Hooks that block dangerous shell commands, flag vague prompts, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
+| **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
+| **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
+| **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
+| **Verify nothing leaked** | A secret/identifier scanner with a private deny-list — the same tool used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
+| **Keep the agent on-style** | Rules for writing slash-commands consistently | [`.claude/rules/`](.claude/rules/) |
+| **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
+| **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
+
+## How it fits together
+
+The reusable core is a handful of small, independent pieces that the installer drops into a
+target project. Nothing here is a framework — each part stands alone and is opt-in.
+
+```mermaid
+flowchart TB
+    subgraph agent["Agent configuration (loaded every session)"]
+        cfg["CLAUDE.md / AGENTS.md<br/>project instructions"]
+        skills["Skills<br/>intent-triggered playbooks"]
+        rules["Rules<br/>path-scoped style"]
+        mem["Memory<br/>index-gated, cross-session"]
+    end
+
+    subgraph guards["Runtime guardrails (hooks)"]
+        block["block_dangerous.py<br/>PreToolUse"]
+        refine["prompt-refiner-inject.py<br/>UserPromptSubmit"]
+        wrap["hook_logger<br/>fail-open + crash log"]
+    end
+
+    subgraph gate["Commit / CI gate"]
+        inv["invariants.py"]
+        leak["leak_scan.py"]
+        aff["affected_tests.py"]
+        sec["secrets_guard.py"]
+    end
+
+    install["install.py"] -->|copies into| agent
+    install -->|wires| guards
+    install -->|"--with-git-hook"| gate
+
+    block -.->|wrapped by| wrap
+    refine -.->|wrapped by| wrap
+
+    classDef config fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    classDef hook fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef check fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef entry fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+
+    class cfg,skills,rules,mem config
+    class block,refine,wrap hook
+    class inv,leak,aff,sec check
+    class install entry
+```
+
+<details>
+<summary><b>Deep-dive: the skill system (three archetypes)</b></summary>
+
+Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
+agent knows which takes precedence when several match. Three runnable examples ship as
+working references:
+
+| Example skill | Tier | Fires when | Role |
+|---|---|---|---|
+| `example-plan-then-code` | workflow | "implement X", multi-file work needing a plan first | Orchestrates a full plan → implement → review flow |
+| `example-review` | guard | "review my changes", before a non-trivial commit | Gates quality on changed code |
+| `example-debug` | guard | "it's broken / erroring" with an unknown cause | Maps symptom → suspect files before any fix |
+
+The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
+single grep-able index of trigger / do-not-trigger boundaries; the
+[`SKILL_TEMPLATE.md`](.claude/skills/SKILL_TEMPLATE.md) is the starting point for your own.
+
+</details>
+
+<details>
+<summary><b>Deep-dive: hooks are fail-open by design</b></summary>
+
+Every hook is wrapped so that a crash **never blocks your workflow** — it logs to a JSONL
+crash file and exits cleanly, rather than wedging the agent. The two shipped hooks:
+
+| Hook | Event | What it does |
+|---|---|---|
+| `block_dangerous.py` | `PreToolUse` (Bash) | Classifies and blocks destructive commands (force-push, `rm -rf /`, `DROP TABLE`, …) against a documented hook I/O contract |
+| `prompt-refiner-inject.py` | `UserPromptSubmit` | Flags vague prompts to be refined before execution |
+
+The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
+Run [`examples/hook_block_demo.py`](examples/hook_block_demo.py) to see the classifier decide.
+
+</details>
 
 ## Generic vs. domain-specific — read this first
 
-This kit is the **GENERIC** half of a larger private codebase. The table below is honest
-about what's transferable and what was intentionally left behind:
+This kit is the **GENERIC** half of a larger private codebase. The table is honest about
+what's transferable and what was intentionally left behind:
 
 | Transferable (here) | Left behind (domain-specific, not shareable) |
 |---|---|
-| Hook architecture (fail-open, crash-logged) | Business routes, ORM-less SQL joins |
-| `secrets_guard` crypto | Profit/revenue formulas (trade secret) |
-| Invariant *framework* | The 17 concrete project invariants |
+| Hook architecture (fail-open, crash-logged) | Application routes + domain data-access code |
+| `secrets_guard` crypto | The project's domain business logic |
+| Invariant *framework* | The project's concrete invariant rules |
 | Memory governance *model* | The actual memory corpus |
-| Prompt-refiner *mechanism* | Domain prompt vocabulary |
+| Prompt-refiner *mechanism* | The project's domain prompt vocabulary |
+
+## At a glance
+
+<!-- BEGIN GENERATED:metrics (counts below are checked by CI; edit narrative around them, not the numbers) -->
+
+| Signal | Value |
+|---|---|
+| Reusable core dependencies | **0** (stdlib-only) |
+| Tests | **37**, green in CI |
+| Runnable demos | **3** (`examples/`) |
+| Example skills | **3** (1 workflow + 2 guards) |
+| Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
+
+<!-- END GENERATED:metrics -->
+
+> The count of tests is a hard-coded figure mirrored in the Quickstart comment — keep both in
+> step (or wire the marked block to your pre-commit gate) when you add tests.
 
 ## Quickstart (5 minutes)
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/doivamong/agent-workbench
 cd agent-workbench
 python -m pip install -r requirements.txt   # stdlib-only core; deps are for examples/tests
 
@@ -78,17 +201,17 @@ python -m pytest -q                 # 37 tests
 
 ## Install it into your own project
 
-This is the part that makes it real, not a reference. Point the installer at any
-project and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory
-scaffold in, then prints the exact `settings.json` snippet that activates the hooks:
+This is the part that makes it real, not just a reference. Point the installer at any project
+and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in,
+then prints the exact `settings.json` snippet that activates the hooks:
 
 ```bash
 python install.py /path/to/your/project --with-git-hook
 # --dry-run to preview first; --force to overwrite existing files
 ```
 
-After installing and merging the printed `settings.json` snippet, opening that project in
-Claude Code gives you, working immediately:
+After installing and merging the printed `settings.json` snippet, opening that project in your
+agent gives you, working immediately:
 
 - **Dangerous `Bash` commands get blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) via a
   real `PreToolUse` hook — verified against the documented hook I/O contract.
@@ -97,22 +220,44 @@ Claude Code gives you, working immediately:
 - **Drop-in skills** under `.claude/skills/` and a **working memory folder** under `memory/`.
 
 Then make it yours: replace the example skills with your own, put your real rules in
-`tools/invariants.py`, and list your project's identifiers in a private deny-list for
-`tools/leak_scan.py`.
+[`tools/invariants.py`](tools/invariants.py), and list your project's identifiers in a private
+deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
+
+## Documentation
+
+| Group | Key file | When to read |
+|---|---|---|
+| **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
+| **Operating** | [`docs/memory-governance.md`](docs/memory-governance.md) | Adapting the cross-session memory model |
+| **Operating** | [`docs/session-preservation.md`](docs/session-preservation.md) | Keeping context across long projects / handovers |
+| **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
+| **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
 
 ## Status & honesty
 
-This is **best-fit as currently known, with better approaches left open** — not gospel.
-It comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may
-differ. PRs that challenge a pattern are as welcome as PRs that extend one.
+This is **best-fit as currently known, with better approaches left open** — not gospel. It
+comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may differ.
+PRs that challenge a pattern are as welcome as PRs that extend one.
 
 ## License
 
-[MIT](LICENSE) for the original code. Several pieces are ports/derivatives of other
-open-source work — see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution
-and the obligations that come with them.
+[MIT](LICENSE) for the original code. Several pieces are ports/derivatives of other open-source
+work — see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution and the
+obligations that come with them.
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning artifact,
-so **"here's a better way" issues are the whole point.**
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning artifact, so
+**"here's a better way" issues are the whole point.**
+
+---
+
+<div align="center">
+
+**Agent Workbench** · stdlib-only core · 37 tests · MIT
+
+🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
+
+<sub>A domain-stripped methodology kit · best-fit, not gospel · MIT licensed</sub>
+
+</div>
