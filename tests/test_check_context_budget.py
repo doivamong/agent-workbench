@@ -1,5 +1,6 @@
 """Tests for tools/check_context_budget.py."""
 import json
+from pathlib import Path
 
 import check_context_budget as cb
 
@@ -54,3 +55,36 @@ def test_json_output_lists_components(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert any(c["kind"] == "skill" for c in data)
+
+
+# --- budget caps (Wave 0: give the audit teeth) ---
+
+def _skill_comps(n, tokens=100):
+    return [cb.Component(kind="skill", name=f"s{i}", path=Path("x"), tokens=tokens) for i in range(n)]
+
+
+def test_check_caps_flags_too_many_skills():
+    comps = _skill_comps(5)
+    assert cb.check_caps(comps, max_skills=3, max_skill_tokens=None)      # 5 > 3 → breach
+    assert cb.check_caps(comps, max_skills=5, max_skill_tokens=None) == []  # 5 == 5 → ok
+
+
+def test_check_caps_flags_skill_tokens():
+    comps = _skill_comps(1, tokens=500)
+    assert cb.check_caps(comps, max_skills=None, max_skill_tokens=400)       # 500 > 400 → breach
+    assert cb.check_caps(comps, max_skills=None, max_skill_tokens=600) == []  # 500 < 600 → ok
+
+
+def test_check_caps_ignores_non_skill_components():
+    comps = [cb.Component(kind="rule", name="r", path=Path("x"), tokens=9999)]
+    assert cb.check_caps(comps, max_skills=0, max_skill_tokens=0) == []  # no skills → no breach
+
+
+def test_main_exits_1_when_skill_cap_exceeded(tmp_path):
+    _project(tmp_path)  # one skill
+    assert cb.main(["--root", str(tmp_path), "--max-skills", "0"]) == 1
+
+
+def test_main_exits_0_when_under_cap(tmp_path):
+    _project(tmp_path)
+    assert cb.main(["--root", str(tmp_path), "--max-skills", "10", "--max-skill-tokens", "100000"]) == 0

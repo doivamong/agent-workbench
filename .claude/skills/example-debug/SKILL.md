@@ -52,3 +52,9 @@ understand, then change.
 If the symptom is far from the cause (a wrong value surfacing three layers up), bisect: confirm
 the value is correct at the boundary, then halfway, narrowing until the divergence point is
 found. Guessing scales linearly; bisecting scales logarithmically.
+
+## Honest limit
+
+This is a *method*, not a debugger: it does **not** locate the bug for you or guarantee the named
+root cause is the right one — it forces you to name and prove it before changing code. A green
+regression test proves the one symptom is gone, not that a sibling bug doesn't remain.

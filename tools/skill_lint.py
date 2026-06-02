@@ -21,15 +21,25 @@ a skills directory:
   WARN   - a SKILL.md longer than MAX_SKILL_LINES (push detail into references/)
   WARN   - a relative markdown link in a SKILL.md whose target file doesn't exist
            (a reference deleted/renamed out from under the link)
+  WARN   - a guard-tier skill whose body states no limit (no 'does NOT …' honesty line)
+  WARN   - a body that references `another-skill` slug with no folder/registry row (a
+           dangling cross-reference left by a rename or archive)
+
+A skill may be retired with an `archived: <date>` frontmatter field: it is then exempt from the
+"folder has no registry row" error (so you can drop its row without deleting the folder) and is
+reported as an archived WARN instead.
 
 Usage:
     python tools/skill_lint.py [skills_dir]        # default: .claude/skills
 Exit code is non-zero when any ERROR is found (WARN alone does not fail).
 
-Does NOT: judge whether the trigger *wording* is good, or whether two skills truly
-overlap — that is the human's call in the registry's Do-NOT-trigger column. It checks
-registry/folder consistency and the *presence* of the structural conventions only.
-Stdlib only.
+Does NOT: judge whether the trigger *wording* is good, or whether two skills truly overlap — that
+is the human's call in the registry's Do-NOT-trigger column. The guard-honesty and cross-reference
+checks are presence heuristics, not semantic guarantees: the honesty check only greps for a 'does
+not' phrase (it cannot tell a real caveat from the words), and the cross-ref check only catches
+backtick-wrapped kebab-case slugs whose name-family matches an existing skill (a reference written
+in prose without backticks slips through). It checks registry/folder consistency and the *presence*
+of the structural conventions only. Stdlib only.
 
 The block-scalar frontmatter parser and the USE WHEN / DO NOT TRIGGER presence checks
 were re-implemented in stdlib from the design of `MiniMax-AI/skills` (`validate_skills.py`,
@@ -62,6 +72,10 @@ _BLOCK_SCALAR_HEADS = {"|", ">", "|+", "|-", ">+", ">-"}
 # Markdown inline link target: the bit inside ](...). Used to find local file links
 # whose target no longer exists (a SKILL.md pointing at a deleted references/ file).
 _MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
+# A guard skill should state what it does NOT do (PHILOSOPHY tenet 3). Greppable presence check.
+_HONESTY_RE = re.compile(r"does\s*not|doesn't", re.IGNORECASE)
+# A cross-reference to another skill: a backtick-wrapped kebab-case slug (>= 1 hyphen).
+_SKILL_REF_RE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
 
 
 def dangling_links(skill_md: Path, text: str) -> list[str]:
@@ -89,6 +103,21 @@ def registry_names(registry_text: str) -> set[str]:
         if m and m.group(1).lower() not in ("skill",):  # skip the header row
             names.add(m.group(1))
     return names
+
+
+def registry_tiers(registry_text: str) -> dict[str, str]:
+    """Map each real (non-placeholder) skill name to its tier (lowercased) from the registry."""
+    tiers: dict[str, str] = {}
+    for line in registry_text.splitlines():
+        if not line.startswith("|") or _PLACEHOLDER_RE.match(line):
+            continue
+        m = _ROW_NAME_RE.match(line)
+        if not m or m.group(1).lower() == "skill":
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) > 1:
+            tiers[m.group(1)] = cells[1].strip("`").lower()
+    return tiers
 
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
@@ -133,20 +162,35 @@ def parse_frontmatter(text: str) -> dict[str, str] | None:
     return fields
 
 
+def _body_after_frontmatter(text: str) -> str:
+    """The SKILL.md content after the closing frontmatter '---' (or all of it if unfenced)."""
+    s = text.lstrip("﻿")
+    if not s.startswith("---"):
+        return s
+    lines = s.splitlines()
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    return "\n".join(lines[end + 1:]) if end is not None else s
+
+
 def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
     out: list[tuple[str, str, str]] = []
     registry = skills_dir / REGISTRY
-    reg_names = registry_names(registry.read_text(encoding="utf-8", errors="replace")) \
-        if registry.exists() else set()
+    reg_text = registry.read_text(encoding="utf-8", errors="replace") if registry.exists() else ""
+    reg_names = registry_names(reg_text)
+    reg_tiers = registry_tiers(reg_text)
     if not registry.exists():
         out.append(("error", REGISTRY, "no skill-registry.md found"))
 
-    folder_names: set[str] = set()
-    for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
+    skill_mds = sorted(skills_dir.glob("*/SKILL.md"))
+    folder_names = {p.parent.name for p in skill_mds}
+    known = reg_names | folder_names
+    families = {n.split("-", 1)[0] for n in known}  # leading segment of every known skill slug
+
+    for skill_md in skill_mds:
         folder = skill_md.parent.name
-        folder_names.add(folder)
         text = skill_md.read_text(encoding="utf-8", errors="replace")
         loc = f"{folder}/SKILL.md"
+        body = _body_after_frontmatter(text)
 
         n_lines = text.count("\n") + 1
         if n_lines > MAX_SKILL_LINES:
@@ -156,6 +200,7 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
             out.append(("warn", loc, f"link target not found: {missing!r}"))
 
         fields = parse_frontmatter(text)
+        archived = bool((fields or {}).get("archived", "").strip())
         if fields is None:
             out.append(("error", loc, "no/malformed YAML frontmatter (need a '---' fenced block)"))
         else:
@@ -186,7 +231,18 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
                                              f"(outside {DESC_MIN_CHARS}-{DESC_MAX_CHARS}; "
                                              "too thin to route on, or bloats the listing)"))
 
-        if folder not in reg_names:
+            if archived:
+                out.append(("warn", loc, f"archived ({fields['archived'].strip()}) — folder kept, registry row not required"))
+
+            tier = (reg_tiers.get(folder) or fields.get("tier", "")).strip().lower()
+            if tier == "guard" and not _HONESTY_RE.search(body):
+                out.append(("warn", loc, "guard skill states no limit — add a 'does NOT …' honesty line (tenet 3)"))
+
+        for ref in sorted(set(_SKILL_REF_RE.findall(body))):
+            if ref != folder and ref not in known and ref.split("-", 1)[0] in families:
+                out.append(("warn", loc, f"references `{ref}` — no such skill folder or registry row (renamed/archived?)"))
+
+        if folder not in reg_names and not archived:
             out.append(("error", folder, "skill folder has no row in skill-registry.md"))
 
     for name in sorted(reg_names - folder_names):
