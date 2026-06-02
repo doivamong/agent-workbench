@@ -225,16 +225,20 @@ python -m pytest -q                 # 114 tests
 ## Install it into your own project
 
 This is the part that makes it real, not just a reference. Point the installer at any project
-and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in,
-then prints the exact `settings.json` snippet that activates the hooks:
+and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in, then
+wires the hooks for you:
 
 ```bash
-python install.py /path/to/your/project --with-git-hook
-# --dry-run to preview first; --force to overwrite existing files
+python install.py /path/to/your/project --with-git-hook --merge-settings
+# --merge-settings deep-merges the hooks into .claude/settings.json (idempotent —
+#   safe to re-run, preserves your other settings). Omit it to print the snippet
+#   to paste yourself instead.
+# --dry-run to preview first; --force to overwrite existing copied files.
 ```
 
-After installing and merging the printed `settings.json` snippet, opening that project in your
-agent gives you, working immediately:
+With `--merge-settings` the hooks are active immediately; without it you paste the printed
+snippet into `.claude/settings.json` yourself. Either way, opening that project in your agent
+gives you, working immediately:
 
 - **Dangerous `Bash` commands get blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) via a
   real `PreToolUse` hook — verified against the documented hook I/O contract.
