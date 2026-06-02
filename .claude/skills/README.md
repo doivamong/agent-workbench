@@ -99,6 +99,7 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`SKILL_TEMPLATE.md`](SKILL_TEMPLATE.md) | Blank, annotated skill to copy |
 | [`skill-registry.md`](skill-registry.md) | A machine-greppable index of all skills (single source of truth for triggers) |
 | [`example-plan-then-code/SKILL.md`](example-plan-then-code/SKILL.md) | A **workflow** skill: plan → implement → test → review |
+| [`example-research/SKILL.md`](example-research/SKILL.md) | A **workflow** skill: understand → compare ≥2 approaches → recommend, before building |
 | [`prompt-refiner/SKILL.md`](prompt-refiner/SKILL.md) | A **workflow** skill: sharpen a vague request before work starts (wired to the prompt hook) |
 | [`example-review/SKILL.md`](example-review/SKILL.md) | A **guard** skill: three-pass review with progressive disclosure |
 | [`example-debug/SKILL.md`](example-debug/SKILL.md) | A **guard** skill: reproduce → find root cause → fix → prove |

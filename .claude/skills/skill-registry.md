@@ -31,9 +31,10 @@ When more than one skill could match a request:
 | `example-review` | guard | "review my changes", before a commit/merge of a non-trivial change | general "is my whole codebase good?" audits; research questions |
 | `example-debug` | guard | "it's broken / erroring / wrong / crashing" with an unknown cause | a known one-line fix; a feature; a code review |
 | `prompt-refiner` | workflow | a vague, multi-part request (the `prompt-refiner-inject.py` hook flags these) | an already-specific request; a trivial one-liner |
+| `example-research` | workflow | "how should we / what's the best way", comparing approaches, understanding a module before a non-trivial change | a vague request to clarify (that's prompt-refiner); executing an already-chosen approach; a one-line fix |
 | _your-config-guard_ | guard | code that reads/writes configuration | reading config just to understand it |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 | _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
 
-Replace the placeholder rows with your real skills. The three `example-*` rows correspond to
-the runnable example skills in this folder (one workflow + two guards).
+Replace the placeholder rows with your real skills. The four `example-*` rows correspond to
+the runnable example skills in this folder (two workflows + two guards).

@@ -15,7 +15,7 @@ scratch with no code copied).
 | Project | License | What it influenced (idea / pattern only) |
 |---|---|---|
 | `claudekit` / claudekit-engineer | MIT | Workflow-rule and command-writing structure; the "remind to simplify after a burst of edits" idea behind `post_edit_simplify.py` (independently re-implemented in stdlib Python — no source copied) |
-| `mattpocock/skills` | MIT | The "grill / iterative-refine" prompt pattern; TDD slice idea |
+| `mattpocock/skills` | MIT | The "grill / iterative-refine" prompt pattern; TDD slice idea; the "zoom out one layer before diving in" idea in `example-research` |
 | `colbymchenry/codegraph` (© Colby McHenry) | MIT | The "affected tests" selection idea (re-implemented in stdlib `ast`) |
 | `anthropics/claude-plugins-official` | MIT | Command-development guidance |
 | `Lum1104/Understand-Anything` (© Lum1104) | MIT | Disk-intermediate output protocol (concept) |
