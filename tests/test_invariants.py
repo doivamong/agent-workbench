@@ -32,3 +32,15 @@ def test_todo_with_owner_not_flagged(tmp_path):
     (tmp_path / "m.py").write_text("# TODO(alice): do it\n", encoding="utf-8")
     found = invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS)
     assert not any(v.invariant == "todo-needs-owner" for v in found)
+
+
+def test_default_suffixes_skip_non_python(tmp_path):
+    # a TODO without owner in a .yaml is ignored by default (.py only)
+    (tmp_path / "c.yaml").write_text("# TODO: wire this up\n", encoding="utf-8")
+    assert invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS) == []
+
+
+def test_suffixes_extends_to_other_filetypes(tmp_path):
+    (tmp_path / "c.yaml").write_text("# TODO: wire this up\n", encoding="utf-8")
+    found = invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS, suffixes={".yaml"})
+    assert any(v.invariant == "todo-needs-owner" for v in found)

@@ -123,17 +123,18 @@ SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules", ".pytest_cache"}
 SCAN_SUFFIXES = {".py"}
 
 
-def iter_files(root: Path):
+def iter_files(root: Path, suffixes: set[str] | None = None):
+    suffixes = suffixes or SCAN_SUFFIXES
     for p in root.rglob("*"):
         if p.is_dir() or any(part in SKIP_DIRS for part in p.parts):
             continue
-        if p.suffix in SCAN_SUFFIXES:
+        if p.suffix in suffixes:
             yield p
 
 
-def run(root: Path, invariants: list[Invariant]) -> list[Violation]:
+def run(root: Path, invariants: list[Invariant], suffixes: set[str] | None = None) -> list[Violation]:
     found: list[Violation] = []
-    for f in iter_files(root):
+    for f in iter_files(root, suffixes):
         try:
             text = f.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -149,9 +150,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("root", type=Path)
     ap.add_argument("--allow", type=Path, help="JSON allow-list of grandfathered violation keys")
     ap.add_argument("--update-allow", type=Path, help="Write current violations to this allow-list and exit 0")
+    ap.add_argument("--suffixes", help="Comma-separated file extensions to scan (default: .py). "
+                                       "e.g. --suffixes .py,.yaml,.sh to cover non-Python files too")
     args = ap.parse_args(argv)
 
-    violations = run(args.root, SAMPLE_INVARIANTS)
+    suffixes = None
+    if args.suffixes:
+        suffixes = {s if s.startswith(".") else f".{s}" for s in args.suffixes.split(",") if s.strip()}
+
+    violations = run(args.root, SAMPLE_INVARIANTS, suffixes)
 
     if args.update_allow:
         keys = sorted({v.key() for v in violations})
