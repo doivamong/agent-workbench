@@ -38,6 +38,9 @@ committing your private vocabulary would itself be a leak.
 
 ## Honesty note
 
-Manual sanitization is never provably 100%. This export was scanned with the tool above
-plus a line-by-line read of every ported file. If you spot a residual identifier, that's
-a bug — please open an issue (without quoting the sensitive value).
+Manual sanitization is never provably 100%, and the scanner has real blind spots: `leak_scan`
+is **line-based**, so an identifier split across two lines — or one with no recognizable shape
+that falls below the entropy threshold — can slip past it (see the documented `leak_scan` limits
+in [`SECURITY.md`](SECURITY.md)). This export was scanned with the tool above **plus** a
+line-by-line read of every ported file, but treat both as tripwires, not proofs. If you spot a
+residual identifier, that's a bug — please open an issue (without quoting the sensitive value).

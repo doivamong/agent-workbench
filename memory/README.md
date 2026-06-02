@@ -46,6 +46,9 @@ The fact itself. For `feedback` and `project`, follow it with:
 Link related memories with [[their-name]].
 ```
 
+The `[[their-name]]` links are a **convention**, not a feature — your recall step resolves them
+when it pulls related memories together; nothing auto-follows them on disk.
+
 ## The four types
 
 | Type | Holds | Example |
