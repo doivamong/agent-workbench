@@ -54,6 +54,11 @@ import hmac
 import os
 import sys
 
+# Print UTF-8 safely on a legacy Windows console / redirected stdout, so the
+# status output never aborts with UnicodeEncodeError.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # Resolve project root relative to this script (assumed to live in a 'scripts/' subdir).
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -175,7 +180,8 @@ def encrypt_file(src: str, dst: str, password: str) -> bool:
         print(f"  [SKIP] {os.path.basename(src)} — file not found")
         return False
 
-    plaintext = open(src, "rb").read()
+    with open(src, "rb") as f:
+        plaintext = f.read()
     encrypted = encrypt_bytes(plaintext, password)
 
     os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
@@ -197,7 +203,8 @@ def decrypt_file(src: str, dst: str, password: str) -> bool:
         print(f"  [SKIP] {os.path.basename(src)} — file not found")
         return False
 
-    encrypted = open(src, "rb").read()
+    with open(src, "rb") as f:
+        encrypted = f.read()
     try:
         plaintext = decrypt_bytes(encrypted, password)
     except ValueError as e:

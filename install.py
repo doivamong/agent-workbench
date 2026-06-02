@@ -20,6 +20,12 @@ import shutil
 import sys
 from pathlib import Path
 
+# Print UTF-8 safely even on a legacy Windows console (cp1252/cp437) or when stdout
+# is redirected — otherwise a non-ASCII character in our output raises
+# UnicodeEncodeError and aborts the install. Same idiom as the hooks use.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 KIT = Path(__file__).resolve().parent
 
 # (source relative to kit, destination relative to target project)
@@ -154,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\ngit pre-commit hook:")
         print(_install_git_hook(project, args.dry_run))
 
-    print("\nNext step — activate the hooks. Merge this into your")
+    print("\nNext step - activate the hooks. Merge this into your")
     print(f"  {project / '.claude' / 'settings.json'}\n")
     print(json.dumps(SETTINGS_SNIPPET, indent=2))
     print("\nThen open the project in Claude Code. Dangerous Bash commands will be")
