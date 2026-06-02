@@ -46,6 +46,16 @@
         ]
       },
       {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/sync_guard.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "hooks": [
           {
             "type": "command",
@@ -83,6 +93,15 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/session_start.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/skill_routing_inject.py\"",
             "timeout": 10
           }
         ]

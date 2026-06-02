@@ -68,3 +68,40 @@ def test_inv_ignore_marker_suppresses(tmp_path):
     )
     (tmp_path / "m.py").write_text("try:\n    x()\nexcept:  # inv: ignore\n    pass\n", encoding="utf-8")
     assert invariants.run(tmp_path, [rule]) == []
+
+
+# --- config_nested_access (the deterministic config-guard check) ---
+
+def test_config_flat_access_flags_one_level_get():
+    chk = invariants.config_nested_access("box", {"inner"})
+    found = chk("m.py", 'x = cfg.get("inner")\n')
+    assert len(found) == 1 and found[0].invariant == "config-flat-access"
+
+
+def test_config_two_level_access_not_flagged():
+    chk = invariants.config_nested_access("box", {"inner"})
+    assert chk("m.py", 'x = cfg.get("box", {}).get("inner")\n') == []
+
+
+def test_config_flat_access_respects_inv_ignore():
+    chk = invariants.config_nested_access("box", {"inner"})
+    assert chk("m.py", 'x = cfg.get("inner")  # inv: ignore\n') == []
+
+
+def test_config_unrelated_key_not_flagged():
+    chk = invariants.config_nested_access("box", {"inner"})
+    assert chk("m.py", 'x = cfg.get("something_else")\n') == []
+
+
+def test_config_empty_nested_keys_is_noop():
+    chk = invariants.config_nested_access("box", set())
+    assert chk("m.py", 'x = cfg.get("inner")\n') == []
+
+
+def test_sample_config_invariant_catches_placeholder_trap(tmp_path):
+    # The shipped SAMPLE invariant uses placeholder parent="config_section"/key="inner_value".
+    (tmp_path / "flat.py").write_text('v = cfg.get("inner_value")\n', encoding="utf-8")  # inv: ignore
+    (tmp_path / "ok.py").write_text('v = cfg.get("config_section", {}).get("inner_value")\n', encoding="utf-8")
+    found = invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS)
+    config_hits = {v.path for v in found if v.invariant == "config-flat-access"}
+    assert config_hits == {"flat.py"}  # flat access flagged, correct two-level form not

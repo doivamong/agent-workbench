@@ -79,7 +79,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **seven** runnable example skills — five **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test) and two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **fifteen** runnable example skills across all five tiers — eight **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test, tdd, cook, external-ref), four **guards** (review, debug, output-guard, config-guard), a **meta** router (using-skills), a **feature** (optimize), and an **audit** (dead-code-audit) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
@@ -89,6 +89,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Keep memory honest** | A hygiene tripwire for the memory system — flags malformed frontmatter, dangling index links, orphan facts, broken `[[wiki-links]]`, and an oversized index | [`tools/memory_audit.py`](tools/memory_audit.py) |
 | **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
+| **Catch file-set drift** | A manifest gate over the source-of-truth dirs (skills, hooks, rules, tools, scripts): adding or removing a file without updating its dependent docs/wiring fails CI. Paired with a `PostToolUse` hook that nudges you the moment a new file lands | [`tools/sync_manifest.py`](tools/sync_manifest.py) |
 | **Watch the context budget** | An auditor for everything Claude Code loads each session (skills, agents, rules, the CLAUDE.md chain, MCP servers) — buckets each as always/sometimes/rarely and flags the heavy ones, so "short, high-signal context" gets a number (heuristic, not a real tokenizer) | [`tools/check_context_budget.py`](tools/check_context_budget.py) |
 | **Catch an un-installed dependency** | A pre-commit *seatbelt* that warns (never blocks) when a commit adds a line to `requirements.txt`, so you remember to install it where the code runs before it fails at import | [`tools/check_requirements_diff.py`](tools/check_requirements_diff.py) |
 | **See which skills actually fire** | An opt-in prompt-logger + report that surfaces which skills get used and which are dead weight — to prune them or fix their trigger text. Honest proxy: it counts name *mentions*, not true uses | [`tools/skill_usage_report.py`](tools/skill_usage_report.py) |
@@ -147,7 +148,7 @@ flowchart TB
 <summary><b>Deep-dive: the skill system (tiers, registry & example skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Seven runnable example skills ship as
+agent knows which takes precedence when several match. Fifteen runnable example skills ship as
 working references:
 
 | Example skill | Tier | Fires when | Role |
@@ -159,6 +160,14 @@ working references:
 | `prompt-refiner` | workflow | a vague, multi-part request (flagged by the `prompt-refiner-inject.py` hook) | Restates intent into a crisp spec before work starts |
 | `example-handover` | workflow | ending a session, "package this for the next session / write a handover" | Packages settled work into artifacts a cold reader can execute |
 | `example-stress-test` | workflow | "stress test this / what could go wrong / edge cases", before building or testing | Runs a change past fixed lenses for a GO/CAUTION/STOP verdict and an edge-case list |
+| `example-output-guard` | guard | generating a whole file / large refactor | Stops truncation, placeholders, and "for brevity" stubs in long output |
+| `example-using-skills` | meta | auto-injected each session; ≥2 skills could match, or unsure any applies | Routes to the right skill (tier precedence, match the object not the verb) |
+| `example-config-guard` | guard | writing code that reads config (a nested key, or a cross-context read) | Advisory layer over the deterministic `config-flat-access` invariant — catches the silent-None trap |
+| `example-tdd` | workflow | "do this TDD / test-first / red-green-refactor" | One failing test → minimal code → repeat, in vertical slices; guards the silent-skip trap |
+| `example-cook` | workflow | "cook this / full workflow with checkpoints / plan from a few angles" | Graduated oversight + multi-perspective plan, orchestrating the guard skills |
+| `example-external-ref` | workflow | about to copy/adapt outside code ("can we use this / port this") | Classify the licence → port-with-notice or salvage-the-concept; injection + supply-chain checks |
+| `example-optimize` | feature | "it's too slow / optimize / cut latency" with a measurable goal | Baseline → measure → fix the top bottleneck → re-measure → before/after table |
+| `example-dead-code-audit` | audit | "find unused / dead code", a post-refactor prune | Calls a symbol dead only when every independent cross-check is empty; never auto-deletes |
 
 The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
 single grep-able index of trigger / do-not-trigger boundaries; the
@@ -179,6 +188,8 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `post_edit_simplify.py` | `PostToolUse` (Edit/Write) | After a burst of edits, nudges a simplification pass (dead code, unused imports, over-long functions, DRY). Throttled by a cooldown and a session TTL so it nudges occasionally, never spams. Advisory only — never blocks. |
 | `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
 | `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
+| `skill_routing_inject.py` | `SessionStart` (all) | Injects a compact, tier-ordered routing map derived from `skill-registry.md`, so the agent starts each session knowing which skill fires when. Output is kept small (it loads every session); pairs with the `example-using-skills` meta-skill. |
+| `sync_guard.py` | `PostToolUse` (Write) | When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
 | `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
@@ -208,10 +219,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **298**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **12** (`examples/`) |
-| Example skills | **7** (5 workflow + 2 guards) |
-| Standalone tools | **10** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `skill_usage_report`) |
+| Tests | **340**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **13** (`examples/`) |
+| Example skills | **15** (8 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
+| Standalone tools | **11** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -237,9 +248,10 @@ python examples/memory_snapshot_demo.py  # snapshot/restore a memory dir
 python examples/context_budget_demo.py   # audit this repo's context budget
 python examples/requirements_diff_demo.py # warn on a newly added dependency
 python examples/affected_tests_demo.py   # pick only the tests a change affects
+python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 298 tests
+python -m pytest -q                 # 340 tests
 ```
 
 ## Install it into your own project
@@ -283,6 +295,8 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Guide** | [`docs/lessons-as-rules.md`](docs/lessons-as-rules.md) | Turning a hard-won mistake into a path-scoped rule — the rule shape, promotion from memory, and the periodic anti-bloat cull |
 | **Guide** | [`docs/development-rules.md`](docs/development-rules.md) | Everyday coding defaults (YAGNI/KISS/DRY, error handling, testing) — guidance, not law, and what yields when a path-scoped rule disagrees |
 | **Guide** | [`docs/workflow.md`](docs/workflow.md) | Which skills to chain for which task type, and what the hooks fire on their own — the routing map over the skill set |
+| **Guide** | [`docs/architecture-vocabulary.md`](docs/architecture-vocabulary.md) | A small domain-free vocabulary for *structural* quality — deep vs shallow module, seam, the deletion test, interface-as-test-surface |
+| **Guide** | [`docs/pre-commit-failure-modes.md`](docs/pre-commit-failure-modes.md) | A commit gate that learns — an append-only failure-modes registry plus advisory-vs-blocking tiering |
 | **Pattern** | [`docs/patterns/config-access.md`](docs/patterns/config-access.md) | Two config-access traps — the wrong accessor for the execution context, and the silent-`None` nested-key bug that detonates far downstream |
 | **Pattern** | [`docs/patterns/optimization-loop.md`](docs/patterns/optimization-loop.md) | Let a measurement, not intuition, decide each change — the measure → change → keep-or-revert-via-git loop, and the honest limit that it only fits measurable goals |
 | **Pattern** | [`docs/patterns/boundary-coherence.md`](docs/patterns/boundary-coherence.md) | When you change one side of a producer↔consumer boundary, read the other — contract drift there fails silently (blank render, silent `None`, a no-op) and a one-sided test still passes |
@@ -317,7 +331,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 298 tests · MIT
+**Agent Workbench** · stdlib-only core · 340 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

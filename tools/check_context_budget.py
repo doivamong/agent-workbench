@@ -12,9 +12,11 @@ its on-demand `references/`, and suggests where to trim.
     python tools/check_context_budget.py --top 5     # top N issues
     python tools/check_context_budget.py --verbose   # list every component
     python tools/check_context_budget.py --window 1000000   # 1M context window
+    python tools/check_context_budget.py --max-skills 13 --max-skill-tokens 12000  # enforce a cap
 
-Exit 0 = OK / minor warnings; exit 1 = a component crossed a *critical* threshold. Audit-only —
-it never blocks a commit.
+Exit 0 = OK / minor warnings; exit 1 = a component crossed a *critical* threshold, OR a
+--max-skills / --max-skill-tokens cap was exceeded. Audit-only by default (no cap set = it never
+blocks); pass a cap to give a CI gate teeth against silent skill-set bloat.
 
 HONEST LIMITS: token counts are a rough heuristic (words × TOKENS_PER_WORD), NOT a real
 tokenizer — treat them as relative magnitudes, not an exact budget. The per-server MCP cost and
@@ -257,7 +259,8 @@ def classify_buckets(components: list[Component], claudemd_text: str) -> None:
             comp.bucket = "rarely"
 
 
-def render_text_report(components: list[Component], top_n: int, verbose: bool, window: int) -> str:
+def render_text_report(components: list[Component], top_n: int, verbose: bool, window: int,
+                       cap_breaches: list[str] | None = None) -> str:
     lines: list[str] = []
     sep, sub = "=" * 60, "-" * 60
     lines += [sep, "Context budget report", sep]
@@ -271,6 +274,10 @@ def render_text_report(components: list[Component], top_n: int, verbose: bool, w
     lines.append(f"On-demand references/:  ~{ondemand:,} tokens (only when a skill is invoked)")
     lines.append(f"Context window:         {window:,} tokens (set with --window)")
     lines.append(f"Estimated headroom:     ~{avail:,} tokens ({pct}%)")
+
+    if cap_breaches:
+        lines += ["", "BUDGET CAP EXCEEDED (exit 1):", sub]
+        lines += [f"  ! {b}" for b in cap_breaches]
 
     by_kind: dict[str, list[Component]] = {}
     for c in components:
@@ -372,6 +379,26 @@ def _build_recommendations(components: list[Component]) -> list[tuple[str, int]]
     return recs
 
 
+def check_caps(components: list[Component], max_skills: int | None,
+               max_skill_tokens: int | None) -> list[str]:
+    """Cap breaches that should fail the run (exit 1). Empty when no cap is set or all pass.
+
+    Both caps target the SKILL set specifically — the session-start surface most prone to silent
+    bloat — not the whole component list. They are opt-in: without them the tool stays advisory.
+    The numbers are a deliberate ceiling you bump on purpose, not a measured truth. They do NOT
+    cap on-demand references/ (those don't load until a skill is invoked).
+    """
+    breaches: list[str] = []
+    skills = [c for c in components if c.kind == "skill"]
+    if max_skills is not None and len(skills) > max_skills:
+        breaches.append(f"live skills {len(skills)} > cap {max_skills}")
+    if max_skill_tokens is not None:
+        tok = sum(c.tokens for c in skills)
+        if tok > max_skill_tokens:
+            breaches.append(f"skill session-start tokens ~{tok:,} > cap {max_skill_tokens:,}")
+    return breaches
+
+
 def collect(base: Path) -> list[Component]:
     components: list[Component] = []
     components += scan_skills(base)
@@ -395,9 +422,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--verbose", action="store_true", help="list every component")
     ap.add_argument("--window", type=int, default=DEFAULT_WINDOW, help=f"context window in tokens (default {DEFAULT_WINDOW})")
     ap.add_argument("--root", type=Path, default=ROOT, help="project root (default: this repo)")
+    ap.add_argument("--max-skills", type=int, default=None,
+                    help="exit 1 if the number of live skills exceeds this cap (default: no cap)")
+    ap.add_argument("--max-skill-tokens", type=int, default=None,
+                    help="exit 1 if total skill session-start tokens exceed this cap (default: no cap)")
     args = ap.parse_args(argv)
 
     components = collect(args.root)
+    cap_breaches = check_caps(components, args.max_skills, args.max_skill_tokens)
 
     if args.json:
         print(json.dumps([{
@@ -405,10 +437,13 @@ def main(argv: list[str] | None = None) -> int:
             "ref_lines": c.ref_lines, "ref_tokens": c.ref_tokens,
             "bucket": c.bucket, "desc_words": c.desc_words, "issues": c.issues,
         } for c in components], indent=2, ensure_ascii=False))
+        if cap_breaches:  # keep JSON a pure component list; surface caps on stderr
+            print("BUDGET CAP EXCEEDED: " + "; ".join(cap_breaches), file=sys.stderr)
     else:
-        print(render_text_report(components, args.top, args.verbose, args.window))
+        print(render_text_report(components, args.top, args.verbose, args.window, cap_breaches))
 
-    return 1 if any("critical" in i for c in components for i in c.issues) else 0
+    has_critical = any("critical" in i for c in components for i in c.issues)
+    return 1 if (cap_breaches or has_critical) else 0
 
 
 if __name__ == "__main__":

@@ -19,9 +19,10 @@ understand, then change.
 
 ## Process
 
-1. **Reproduce.** Get a reliable, minimal way to trigger the bug. If you can't reproduce it,
-   you can't know you fixed it. Capture the exact input, environment, and the actual vs
-   expected behaviour.
+1. **Reproduce — build a fast pass/fail loop.** Get a reliable, minimal, *fast* way to trigger
+   the bug — ideally a one-command signal you can re-run after every change. If you can't
+   reproduce it on demand, you can't know you fixed it. Capture the exact input, environment, and
+   actual vs expected behaviour.
 2. **Locate.** Read the code on the path from trigger to symptom. Add a probe (log/print/test)
    that confirms *where* reality diverges from expectation — don't guess.
 3. **HARD GATE: root cause identified.** State the cause in one sentence ("X is null because Y
@@ -29,8 +30,10 @@ understand, then change.
    a guess.
 4. **Fix the cause, not the symptom.** Make the smallest change that addresses the root cause.
    Note if you find sibling bugs — don't silently expand scope.
-5. **Prove it.** Add a test that **fails before** the fix and **passes after**. Re-run the
-   reproduction. A bug fix without a regression test invites the bug back.
+5. **Prove it.** Add a test that **fails before** the fix and **passes after** — and confirm it
+   actually runs (a mis-named test file passes by collecting nothing;
+   [`example-tdd`](../example-tdd/SKILL.md) guards this trap). Re-run the reproduction. A fix
+   without a regression test invites the bug back.
 6. **Prevent the class — when it's cheap.** Ask whether the *whole class* of this bug can be
    made to fail loudly instead of silently: a guard or assertion at the boundary where the bad
    value first appears, a type that makes the invalid state unrepresentable, validation at the
@@ -43,12 +46,18 @@ understand, then change.
 |---|---|
 | "I'm pretty sure it's this line" | "Pretty sure" is a hypothesis. Confirm it with a probe before changing code. |
 | "I'll add a null-check and move on" | A null-check on a value that should never be null hides the real cause. Ask why it's null. |
-| "It's fixed, it works now" | Works *once*? Re-run the reproduction, and write the test that proves it. |
-| "No time for a test" | The test is how you (and CI) know it stays fixed. It's the cheapest insurance you'll buy. |
 | "I'll harden every layer so this never happens again" | Over-hardening hides the next bug behind redundant checks. One guard at the right boundary beats five scattered ones. |
 
-## Tip
+## When you're stuck
 
-If the symptom is far from the cause (a wrong value surfacing three layers up), bisect: confirm
-the value is correct at the boundary, then halfway, narrowing until the divergence point is
-found. Guessing scales linearly; bisecting scales logarithmically.
+- **Bisect, don't guess.** If the symptom is far from the cause, check the value at the boundary,
+  then halfway, narrowing to the divergence point — logarithmic, not linear.
+- **Three failed fixes = wrong model.** If the bug survives three attempts, stop changing code: the
+  assumption you're *most* sure of is the likely culprit. Re-derive from scratch or hand off — don't
+  spend a fourth guess.
+
+## Honest limit
+
+This is a *method*, not a debugger: it does **not** locate the bug for you or guarantee the named
+root cause is the right one — it forces you to name and prove it before changing code. A green
+regression test proves the one symptom is gone, not that a sibling bug doesn't remain.

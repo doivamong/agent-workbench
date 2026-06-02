@@ -1,0 +1,241 @@
+{
+  "roots": [
+    ".claude/skills",
+    ".claude/hooks",
+    ".claude/rules",
+    "tools",
+    "scripts"
+  ],
+  "files": {
+    ".claude/hooks/lib/handover_utils.py": {
+      "category": ".claude/hooks",
+      "lines": 42,
+      "bytes": 1491
+    },
+    ".claude/hooks/lib/hook_logger.py": {
+      "category": ".claude/hooks",
+      "lines": 76,
+      "bytes": 2491
+    },
+    ".claude/hooks/lib/session_breadcrumb.py": {
+      "category": ".claude/hooks",
+      "lines": 75,
+      "bytes": 3096
+    },
+    ".claude/hooks/lib/stdio_utf8.py": {
+      "category": ".claude/hooks",
+      "lines": 35,
+      "bytes": 1681
+    },
+    ".claude/hooks/prompt-refiner-inject.py": {
+      "category": ".claude/hooks",
+      "lines": 222,
+      "bytes": 8979
+    },
+    ".claude/hooks/scripts/block_dangerous.py": {
+      "category": ".claude/hooks",
+      "lines": 218,
+      "bytes": 9295
+    },
+    ".claude/hooks/scripts/compact_restore.py": {
+      "category": ".claude/hooks",
+      "lines": 93,
+      "bytes": 3422
+    },
+    ".claude/hooks/scripts/context_tracker.py": {
+      "category": ".claude/hooks",
+      "lines": 145,
+      "bytes": 5266
+    },
+    ".claude/hooks/scripts/post_edit_simplify.py": {
+      "category": ".claude/hooks",
+      "lines": 159,
+      "bytes": 5952
+    },
+    ".claude/hooks/scripts/precompact_backup.py": {
+      "category": ".claude/hooks",
+      "lines": 79,
+      "bytes": 2693
+    },
+    ".claude/hooks/scripts/session_end.py": {
+      "category": ".claude/hooks",
+      "lines": 68,
+      "bytes": 2591
+    },
+    ".claude/hooks/scripts/session_start.py": {
+      "category": ".claude/hooks",
+      "lines": 98,
+      "bytes": 4058
+    },
+    ".claude/hooks/scripts/skill_routing_inject.py": {
+      "category": ".claude/hooks",
+      "lines": 141,
+      "bytes": 5658
+    },
+    ".claude/hooks/scripts/skill_usage_logger.py": {
+      "category": ".claude/hooks",
+      "lines": 136,
+      "bytes": 5258
+    },
+    ".claude/hooks/scripts/sync_guard.py": {
+      "category": ".claude/hooks",
+      "lines": 106,
+      "bytes": 4076
+    },
+    ".claude/rules/command-writing-style.md": {
+      "category": ".claude/rules",
+      "lines": 250,
+      "bytes": 8659
+    },
+    ".claude/rules/measurement-honesty.md": {
+      "category": ".claude/rules",
+      "lines": 63,
+      "bytes": 3859
+    },
+    ".claude/skills/README.md": {
+      "category": ".claude/skills",
+      "lines": 109,
+      "bytes": 6284
+    },
+    ".claude/skills/SKILL_TEMPLATE.md": {
+      "category": ".claude/skills",
+      "lines": 58,
+      "bytes": 2204
+    },
+    ".claude/skills/example-config-guard/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 82,
+      "bytes": 4381
+    },
+    ".claude/skills/example-cook/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 67,
+      "bytes": 3827
+    },
+    ".claude/skills/example-dead-code-audit/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 56,
+      "bytes": 3037
+    },
+    ".claude/skills/example-debug/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 64,
+      "bytes": 3652
+    },
+    ".claude/skills/example-external-ref/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 65,
+      "bytes": 3713
+    },
+    ".claude/skills/example-handover/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 86,
+      "bytes": 5148
+    },
+    ".claude/skills/example-optimize/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 60,
+      "bytes": 3091
+    },
+    ".claude/skills/example-output-guard/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 60,
+      "bytes": 3058
+    },
+    ".claude/skills/example-plan-then-code/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 47,
+      "bytes": 2207
+    },
+    ".claude/skills/example-research/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 57,
+      "bytes": 3206
+    },
+    ".claude/skills/example-review/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 64,
+      "bytes": 2783
+    },
+    ".claude/skills/example-stress-test/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 159,
+      "bytes": 9728
+    },
+    ".claude/skills/example-tdd/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 67,
+      "bytes": 3527
+    },
+    ".claude/skills/example-using-skills/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 71,
+      "bytes": 3994
+    },
+    ".claude/skills/prompt-refiner/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 63,
+      "bytes": 3198
+    },
+    ".claude/skills/skill-registry.md": {
+      "category": ".claude/skills",
+      "lines": 49,
+      "bytes": 4787
+    },
+    "scripts/secrets_guard.py": {
+      "category": "scripts",
+      "lines": 383,
+      "bytes": 16005
+    },
+    "tools/affected_tests.py": {
+      "category": "tools",
+      "lines": 373,
+      "bytes": 13508
+    },
+    "tools/check_context_budget.py": {
+      "category": "tools",
+      "lines": 451,
+      "bytes": 20203
+    },
+    "tools/check_requirements_diff.py": {
+      "category": "tools",
+      "lines": 98,
+      "bytes": 3964
+    },
+    "tools/invariants.py": {
+      "category": "tools",
+      "lines": 237,
+      "bytes": 9859
+    },
+    "tools/leak_scan.py": {
+      "category": "tools",
+      "lines": 321,
+      "bytes": 15748
+    },
+    "tools/memory_audit.py": {
+      "category": "tools",
+      "lines": 182,
+      "bytes": 8193
+    },
+    "tools/memory_snapshot.py": {
+      "category": "tools",
+      "lines": 200,
+      "bytes": 8447
+    },
+    "tools/skill_lint.py": {
+      "category": "tools",
+      "lines": 274,
+      "bytes": 13731
+    },
+    "tools/skill_usage_report.py": {
+      "category": "tools",
+      "lines": 257,
+      "bytes": 10823
+    },
+    "tools/sync_manifest.py": {
+      "category": "tools",
+      "lines": 149,
+      "bytes": 7211
+    }
+  }
+}

@@ -104,3 +104,5 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`example-review/SKILL.md`](example-review/SKILL.md) | A **guard** skill: three-pass review with progressive disclosure |
 | [`example-debug/SKILL.md`](example-debug/SKILL.md) | A **guard** skill: reproduce → find root cause → fix → prove |
 | [`example-stress-test/SKILL.md`](example-stress-test/SKILL.md) | A **workflow** skill: pressure-test a change through fixed lenses before building — design verdict + edge-case list |
+| [`example-output-guard/SKILL.md`](example-output-guard/SKILL.md) | A **guard** skill: keep long/whole-file generation complete — no truncation or placeholders |
+| [`example-using-skills/SKILL.md`](example-using-skills/SKILL.md) | A **meta** skill: the routing protocol — pick the right skill when several match (auto-injected each session by [`skill_routing_inject.py`](../hooks/scripts/skill_routing_inject.py)) |

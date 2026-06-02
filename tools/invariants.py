@@ -79,6 +79,44 @@ def line_regex(invariant_id: str, pattern: str, message: str) -> CheckFn:
     return _check
 
 
+def config_nested_access(parent: str, nested_keys: set[str], accessor: str = "get") -> CheckFn:
+    """Flag reading a *nested* config key at the top level — the silent-None trap.
+
+    The deterministic half of the config-access guard (see the example-config-guard skill).
+    A key that lives under `parent` must be read two levels deep — ``cfg.get(parent, {}).get(key)``.
+    Read flat — ``cfg.get(key)`` — it returns ``None`` silently, and the crash surfaces far away
+    downstream as an ``AttributeError`` on ``None``. A bypassable skill can *remind* you of this;
+    only an always-run check can *guarantee* it never ships, which is why it lives here.
+
+    Heuristic: flag a line that accesses one of `nested_keys` via ``.<accessor>("key")`` while the
+    `parent` container is not named as a quoted key (``"parent"``) on that same line — the correct
+    two-level form spells the parent out, so it is not flagged. Matching the *quoted* parent (not a
+    bare substring) avoids a false pass when the parent's name happens to be a substring of the key.
+    A line scan, so it can still miss multi-line access — annotate a deliberate exception with
+    ``inv: ignore``.
+    """
+    key_alt = "|".join(re.escape(k) for k in sorted(nested_keys))
+    rx = re.compile(rf'\.{re.escape(accessor)}\(\s*["\'](?:{key_alt})["\']') if nested_keys else None
+    parent_tokens = (f'"{parent}"', f"'{parent}'")
+
+    def _check(path: str, text: str) -> list[Violation]:
+        out: list[Violation] = []
+        if rx is None:
+            return out
+        for i, line in enumerate(text.splitlines(), 1):
+            if "inv: ignore" in line:
+                continue
+            if rx.search(line) and not any(tok in line for tok in parent_tokens):
+                out.append(Violation(
+                    "config-flat-access", path, i,
+                    f"Nested config key read flat — use .{accessor}('{parent}', {{}}).{accessor}('...'). "
+                    "Flat access returns None silently.",
+                ))
+        return out
+
+    return _check
+
+
 # --------------------------------------------------------------------------- #
 # Sample invariants — REPLACE THESE with your project's real rules
 # --------------------------------------------------------------------------- #
@@ -111,6 +149,17 @@ SAMPLE_INVARIANTS: list[Invariant] = [
             "no-print-in-lib",
             r"^\s*print\(",
             "Bare print() in library code - use logging.",
+        ),
+    ),
+    Invariant(
+        id="config-flat-access",
+        description="A nested config key must be read two levels deep, never flat (silent-None trap).",
+        # error, not warn: the whole point of reclassifying this guard out of a bypassable skill is
+        # that the silent-None bug must ALWAYS be caught. Fires on nothing in this repo — the sample
+        # parent/keys below are placeholders; replace them with your project's real config shape.
+        check=config_nested_access(
+            parent="config_section",       # REPLACE: your container key (e.g. the schema/contract block)
+            nested_keys={"inner_value"},   # REPLACE: the keys that live *under* that container
         ),
     ),
 ]
