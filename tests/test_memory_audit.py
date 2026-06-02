@@ -59,3 +59,37 @@ def test_main_exit_code(tmp_path):
     assert memory_audit.main([str(tmp_path)]) == 0
     (tmp_path / "broken.md").write_text("nope\n", encoding="utf-8")
     assert memory_audit.main([str(tmp_path)]) == 1
+
+
+# --- near-dup / size-budget checks (N2) ---
+
+def _fact(name: str, desc: str, typ: str = "feedback") -> str:
+    return f"---\nname: {name}\ndescription: {desc}\nmetadata:\n  type: {typ}\n---\n\nbody\n"
+
+
+def test_near_duplicate_descriptions_warn(tmp_path):
+    same = "deploy the staging server every friday afternoon"
+    _mem(tmp_path, "- [a.md](a.md)\n- [b.md](b.md)\n",
+         {"a.md": _fact("alpha", same), "b.md": _fact("beta", same)})
+    findings = memory_audit.audit(tmp_path)
+    assert any(sev == "warn" and "near-duplicate" in msg for sev, _, msg in findings)
+    assert [f for f in findings if f[0] == "error"] == []  # detect-only, never an error
+
+
+def test_distinct_descriptions_no_near_dup(tmp_path):
+    _mem(tmp_path, "- [a.md](a.md)\n- [b.md](b.md)\n",
+         {"a.md": _fact("alpha", "cats sleep all day long"),
+          "b.md": _fact("beta", "quarterly financial reports are due")})
+    assert not any("near-duplicate" in msg for _, _, msg in memory_audit.audit(tmp_path))
+
+
+def test_oversized_index_entry_warn(tmp_path):
+    long_line = "- [a.md](a.md) - " + "x" * 250
+    _mem(tmp_path, long_line + "\n", {"a.md": _fact("alpha", "a short description")})
+    assert any(sev == "warn" and "chars" in msg for sev, _, msg in memory_audit.audit(tmp_path))
+
+
+def test_total_kb_budget_warn(tmp_path, monkeypatch):
+    monkeypatch.setattr(memory_audit, "TOTAL_FACTS_MAX_KB", 0)  # force the budget to bite
+    _mem(tmp_path, "- [a.md](a.md)\n", {"a.md": _fact("alpha", "a short description")})
+    assert any(sev == "warn" and "KB" in msg for sev, _, msg in memory_audit.audit(tmp_path))

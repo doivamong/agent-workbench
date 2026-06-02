@@ -10,7 +10,9 @@ rots. This tool is the missing tripwire. It flags, against a memory/ directory:
   ERROR  - an index line pointing at a file that does not exist (dangling link)
   ERROR  - a [[wiki-link]] that resolves to no known memory name
   WARN   - a fact file not referenced from the index (orphan / cold storage)
-  WARN   - the index exceeding its size budget (it is loaded every session)
+  WARN   - the index exceeding its line-count budget (it is loaded every session)
+  WARN   - an index entry over the per-line char budget, or facts over a total-KB budget
+  WARN   - two facts whose descriptions look near-duplicate (detect-only; you decide to merge)
 
 Usage:
     python tools/memory_audit.py [memory_dir]      # default: ./memory
@@ -31,7 +33,23 @@ VALID_TYPES = {"user", "feedback", "project", "reference"}
 INDEX_NAME = "MEMORY.md"
 SKIP = {INDEX_NAME, "README.md"}
 INDEX_MAX_LINES = 200  # the index is loaded every session; keep it small
+# The following are tunable starting points, not measured truths — adjust per project.
+INDEX_LINE_MAX_CHARS = 200   # a single index entry this long bloats recall (distinct from line COUNT)
+TOTAL_FACTS_MAX_KB = 128     # total on-disk size of all fact files (on-demand, but a bloat signal)
+NEAR_DUP_JACCARD = 0.7       # description token overlap above which two facts look like duplicates
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+
+
+def _desc_tokens(description: str) -> set[str]:
+    """Lowercased word tokens of a description, for similarity comparison."""
+    return set(re.findall(r"[a-z0-9]+", description.lower()))
+
+
+def _jaccard(a: set[str], b: set[str]) -> float:
+    """Jaccard similarity of two token sets (0.0 when either is empty)."""
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
 
 
 def parse_frontmatter(text: str) -> dict | None:
@@ -73,9 +91,13 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
 
     fact_files = sorted(p for p in mem_dir.glob("*.md") if p.name not in SKIP)
     names: dict[str, str] = {}  # frontmatter name -> filename
+    descs: list[tuple[str, str]] = []  # (filename, description) for near-dup detection
+    total_bytes = 0
 
     for f in fact_files:
-        fm = parse_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
+        raw = f.read_text(encoding="utf-8", errors="replace")
+        total_bytes += len(raw.encode("utf-8"))
+        fm = parse_frontmatter(raw)
         if fm is None:
             out.append(("error", f.name, "missing or malformed frontmatter block"))
             continue
@@ -85,6 +107,8 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
             names[fm["name"]] = f.name
         if not fm.get("description"):
             out.append(("error", f.name, "frontmatter missing 'description'"))
+        else:
+            descs.append((f.name, fm["description"]))
         mtype = fm.get("metadata", {}).get("type")
         if mtype not in VALID_TYPES:
             out.append(("error", f.name, f"metadata.type {mtype!r} not in {sorted(VALID_TYPES)}"))
@@ -107,6 +131,30 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
     if index_lines > INDEX_MAX_LINES:
         out.append(("warn", INDEX_NAME,
                     f"index is {index_lines} lines (> {INDEX_MAX_LINES}); it loads every session"))
+
+    # Per-entry char budget — distinct from the line COUNT above: one overlong line bloats recall.
+    long_entries = [ln for ln in index_text.splitlines() if len(ln) > INDEX_LINE_MAX_CHARS]
+    if long_entries:
+        word = "entry" if len(long_entries) == 1 else "entries"
+        out.append(("warn", INDEX_NAME,
+                    f"{len(long_entries)} index {word} exceed {INDEX_LINE_MAX_CHARS} chars; "
+                    "keep each line one terse fact"))
+
+    total_kb = total_bytes / 1024
+    if total_kb > TOTAL_FACTS_MAX_KB:
+        out.append(("warn", "(total)",
+                    f"fact files total {total_kb:.0f} KB (> {TOTAL_FACTS_MAX_KB} KB); "
+                    "consider archiving cold facts"))
+
+    # Near-duplicate descriptions (detect-only — a human decides whether to merge).
+    token_sets = [(name, _desc_tokens(d)) for name, d in descs]
+    for i in range(len(token_sets)):
+        for j in range(i + 1, len(token_sets)):
+            sim = _jaccard(token_sets[i][1], token_sets[j][1])
+            if sim >= NEAR_DUP_JACCARD:
+                out.append(("warn", token_sets[i][0],
+                            f"description ~{sim * 100:.0f}% similar to {token_sets[j][0]} "
+                            "(possible near-duplicate; merge or differentiate)"))
     return out
 
 
