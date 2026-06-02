@@ -19,6 +19,7 @@ scratch with no code copied).
 | `anthropics/claude-plugins-official` | MIT | Command-development guidance |
 | `Lum1104/Understand-Anything` (© Lum1104) | MIT | Disk-intermediate output protocol (concept) |
 | `MiniMax-AI/skills` (© MiniMax) | MIT | SKILL.md frontmatter validation idea — block-scalar parser + USE WHEN / DO NOT TRIGGER presence checks in `tools/skill_lint.py` (re-implemented in stdlib; no source copied) |
+| `affaan-m/ECC` (© Affaan Mustafa) | MIT | Context-budget auditing idea — component scan, always/sometimes/rarely buckets, and session-start-vs-on-demand split in `tools/check_context_budget.py` (re-implemented in stdlib; no source copied) |
 
 These are MIT-licensed; MIT requires preserving the copyright/permission notice only when you
 redistribute the licensed *code*. Since no substantial code from these projects is included
