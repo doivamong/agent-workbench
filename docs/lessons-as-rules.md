@@ -17,8 +17,9 @@ this page is the *how*, not the *why*.)
 
 A lesson should sit at the **narrowest scope that still fires when needed** — pushing everything into
 the always-loaded core is how `CLAUDE.md` bloats. The shipped
-[`command-writing-style.md`](../.claude/rules/command-writing-style.md) is a working example of a
-path-scoped rule.
+[`command-writing-style.md`](../.claude/rules/command-writing-style.md) and
+[`measurement-honesty.md`](../.claude/rules/measurement-honesty.md) are working examples of
+path-scoped rules.
 
 ## The shape of a rule
 

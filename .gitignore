@@ -18,6 +18,7 @@ handovers/
 *.bat
 known_violations.json
 **/.cache/
+.claude/.logs/
 *_ref_meta.md
 secret*.txt
 # Private porting workspace — references internal source paths/domain; never publish
