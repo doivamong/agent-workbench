@@ -149,3 +149,34 @@ def test_band_length_description_is_clean(tmp_path):
     _skills(tmp_path, _REGISTRY, {"alpha": _SKILL_BLOCK})
     msgs = [msg for _, _, msg in skill_lint.lint(tmp_path)]
     assert not any("chars" in m or "angle brackets" in m or "reserved token" in m for m in msgs)
+
+
+# --- dangling relative-link check (C2) ---
+
+def test_dangling_link_warns(tmp_path):
+    skill = _SKILL_BLOCK + "\nSee [the checklist](references/checklist.md).\n"
+    _skills(tmp_path, _REGISTRY, {"alpha": skill})
+    assert any(sev == "warn" and "link target not found" in msg
+               for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_existing_link_is_clean(tmp_path):
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL_BLOCK + "\nSee [refs](references/x.md).\n"})
+    refs = tmp_path / "alpha" / "references"
+    refs.mkdir()
+    (refs / "x.md").write_text("ok\n", encoding="utf-8")
+    assert not any("link target not found" in msg for _, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_external_and_anchor_links_skipped(tmp_path):
+    body = "\n[site](https://example.com) [mail](mailto:dev@example.com) [sec](#section)\n"
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL_BLOCK + body})
+    assert not any("link target not found" in msg for _, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_dangling_links_helper_resolves_from_skill_folder(tmp_path):
+    d = tmp_path / "alpha"
+    d.mkdir()
+    md = d / "SKILL.md"
+    md.write_text("[a](there.md) [b](https://x.io)\n", encoding="utf-8")
+    assert skill_lint.dangling_links(md, md.read_text(encoding="utf-8")) == ["there.md"]

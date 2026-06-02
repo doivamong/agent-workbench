@@ -19,6 +19,8 @@ a skills directory:
   WARN   - a description outside a sane length band (too thin to route on / so long it
            bloats the always-loaded listing)
   WARN   - a SKILL.md longer than MAX_SKILL_LINES (push detail into references/)
+  WARN   - a relative markdown link in a SKILL.md whose target file doesn't exist
+           (a reference deleted/renamed out from under the link)
 
 Usage:
     python tools/skill_lint.py [skills_dir]        # default: .claude/skills
@@ -57,6 +59,24 @@ _ROW_NAME_RE = re.compile(r"^\|\s*`?_?([A-Za-z0-9][\w-]*)_?`?\s*\|")
 _PLACEHOLDER_RE = re.compile(r"^\|\s*[_*]")
 _FIELD_RE = re.compile(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$")
 _BLOCK_SCALAR_HEADS = {"|", ">", "|+", "|-", ">+", ">-"}
+# Markdown inline link target: the bit inside ](...). Used to find local file links
+# whose target no longer exists (a SKILL.md pointing at a deleted references/ file).
+_MD_LINK_RE = re.compile(r"\]\(([^)]+)\)")
+
+
+def dangling_links(skill_md: Path, text: str) -> list[str]:
+    """Relative file links in ``text`` whose target doesn't exist (resolved from the
+    SKILL.md's own folder). Skips external URLs, mailto:, and pure ``#anchor`` links —
+    only local paths are checked, since those are the ones a refactor silently breaks."""
+    missing: list[str] = []
+    for raw in _MD_LINK_RE.findall(text):
+        target = raw.strip().split()[0]  # drop an optional "title" after the path
+        target = target.split("#", 1)[0]  # drop a #fragment
+        if not target or "://" in target or target.startswith(("#", "mailto:", "tel:")):
+            continue
+        if not (skill_md.parent / target).exists():
+            missing.append(target)
+    return missing
 
 
 def registry_names(registry_text: str) -> set[str]:
@@ -131,6 +151,9 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
         n_lines = text.count("\n") + 1
         if n_lines > MAX_SKILL_LINES:
             out.append(("warn", loc, f"{n_lines} lines (>{MAX_SKILL_LINES}) — move detail into references/"))
+
+        for missing in dangling_links(skill_md, text):
+            out.append(("warn", loc, f"link target not found: {missing!r}"))
 
         fields = parse_frontmatter(text)
         if fields is None:
