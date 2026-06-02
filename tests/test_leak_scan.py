@@ -44,6 +44,37 @@ def test_example_email_allowed(tmp_path):
     assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
 
 
+# --- multi-line (cross-line) secret assignment ------------------------------
+
+def test_multiline_catches_cross_line_assignment(tmp_path):
+    f = tmp_path / "x.py"
+    # value on a later line than the keyword: the per-line scan cannot see this
+    f.write_text('api_key = (\n    "abcd1234efgh"\n)\n', encoding="utf-8")  # leak-scan: ignore
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, multiline=False) == []
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, multiline=True)
+    assert any(name == "multiline_secret_assign" for _, name, _ in found)
+
+
+def test_multiline_is_off_by_default(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text('password =\n  "supersecret99"\n', encoding="utf-8")  # leak-scan: ignore
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []  # opt-in only
+
+
+def test_multiline_respects_ignore_within_span(tmp_path):
+    f = tmp_path / "x.py"
+    # opt-out on the value line (any line the assignment spans suppresses it)
+    f.write_text('password = (\n  "supersecret99"  # leak-scan: ignore\n)\n', encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, multiline=True) == []
+
+
+def test_multiline_ignores_keyword_inside_a_string(tmp_path):
+    # regression: a keyword *inside* a prompt string must not swallow a later quote
+    f = tmp_path / "x.py"
+    f.write_text('pw = getpass("Master password: ")\nx = input("type here please")\n', encoding="utf-8")  # leak-scan: ignore (fixture string, not a secret)
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, multiline=True) == []
+
+
 def test_real_looking_email_flagged(tmp_path):
     f = tmp_path / "x.py"
     f.write_text("contact = 'jane.doe@acme-corp.io'\n", encoding="utf-8")  # leak-scan: ignore

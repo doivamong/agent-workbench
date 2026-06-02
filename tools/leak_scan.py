@@ -65,6 +65,14 @@ HARD_PATTERNS = frozenset({
 # Inline opt-out: "leak-scan: ignore" (bare) or "leak-scan: ignore[name1,name2]" (scoped).
 _IGNORE_RE = re.compile(r"leak-scan:\s*ignore(?:\[([^\]]*)\])?")
 
+# Cross-line secret assignment: a keyword and its quoted value separated by
+# newlines/parentheses, e.g. `api_key = (\n  "abc12345"\n)`. The per-line scan
+# (generic_api_key_assign) cannot see this; --multiline catches it. Soft detector.
+_MULTILINE_ASSIGN_RE = re.compile(
+    r"(?i)\b(?:api[_-]?key|secret[_-]?key|access[_-]?token|password|passwd|pwd)\b"
+    r"\s*[:=]\s*[\(\[]?\s*['\"][^'\"\n]{8,}['\"]"  # value itself stays on one line; only the gap may wrap
+)
+
 DEFAULT_SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules", ".pytest_cache",
                      ".mypy_cache", ".porting"}
 TEXT_SUFFIXES = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".ini",
@@ -122,13 +130,34 @@ def _suppressed(name: str, suppress_soft: bool, named: set[str]) -> bool:
     return suppress_soft or explicit
 
 
+def _multiline_findings(text: str) -> list[tuple[int, str, str]]:
+    """Flag secret assignments whose quoted value sits on a later line than the
+    keyword — the cross-line blind spot the per-line scan cannot see."""
+    out: list[tuple[int, str, str]] = []
+    lines = text.splitlines()
+    for m in _MULTILINE_ASSIGN_RE.finditer(text):
+        frag = m.group(0)
+        if "\n" not in frag:
+            continue  # same-line case is already covered by generic_api_key_assign
+        start_line = text.count("\n", 0, m.start()) + 1
+        end_line = text.count("\n", 0, m.end()) + 1
+        # honor an opt-out on any line the assignment spans
+        if any(_suppressed("multiline_secret_assign", *_parse_ignore(lines[i - 1]))
+               for i in range(start_line, end_line + 1)):
+            continue
+        out.append((start_line, "multiline_secret_assign", _redact(" ".join(frag.split()))))
+    return out
+
+
 def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]],
-              entropy: bool = False) -> list[tuple[int, str, str]]:
+              entropy: bool = False, multiline: bool = False) -> list[tuple[int, str, str]]:
     findings: list[tuple[int, str, str]] = []
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return findings
+    if multiline:
+        findings.extend(_multiline_findings(text))
     for lineno, line in enumerate(text.splitlines(), 1):
         suppress_soft, named = _parse_ignore(line)
         for name, pat in patterns:
@@ -191,6 +220,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fail-on-find", action="store_true", help="Exit non-zero if any finding")
     ap.add_argument("--entropy", action="store_true",
                     help="Also flag high-entropy base64/hex tokens (opt-in; noisier, good for a pre-publish sweep)")
+    ap.add_argument("--multiline", action="store_true",
+                    help="Also flag secret assignments whose value is on a later line than the "
+                         "keyword (opt-in; catches a cross-line blind spot of the line scan)")
     ap.add_argument("--require-denylist", action="store_true",
                     help="Fail (exit 2) if --denylist is missing or has zero effective patterns. "
                          "Use in private->public port runs so the project-specific gate cannot silently no-op.")
@@ -219,7 +251,8 @@ def main(argv: list[str] | None = None) -> int:
 
     total = 0
     for f in files:
-        for lineno, name, redacted in scan_file(f, patterns, entropy=args.entropy):
+        for lineno, name, redacted in scan_file(f, patterns, entropy=args.entropy,
+                                                 multiline=args.multiline):
             total += 1
             print(f"{f}:{lineno}: [{name}] {redacted}")
 

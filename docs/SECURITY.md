@@ -48,9 +48,12 @@ A bare `# leak-scan: ignore` silences only *soft* detectors; **high-confidence s
 key, AWS, Slack, Telegram) require a named opt-out** (`# leak-scan: ignore[aws_access_key]`), so a
 real credential can't be hidden by an accidental blanket comment.
 
-**Does NOT:** find everything. It is **line-based** (a secret split across lines, or a token with
-no recognizable shape and below the entropy threshold, slips through) and has false negatives by
-design. **It is not a replacement for a dedicated scanner.** Use it as a fast pre-commit tripwire
+**Does NOT:** find everything. It is **line-based by default** (a token with no recognizable shape
+and below the entropy threshold slips through) and has false negatives by design. An opt-in
+`--multiline` pass catches one common cross-line case — a secret assignment whose quoted value
+sits on a later line than the keyword — but it is **noisy** (like `--entropy`): a keyword inside a
+string can still misfire, so it is for a pre-publish sweep with human review, not the standing
+gate. **It is not a replacement for a dedicated scanner.** Use it as a fast pre-commit tripwire
 *in addition to* a real backstop:
 
 - [gitleaks](https://github.com/gitleaks/gitleaks) or [trufflehog](https://github.com/trufflesecurity/trufflehog) in CI, and
