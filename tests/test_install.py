@@ -76,7 +76,7 @@ def test_git_hook_written_with_repo(tmp_path):
 
 def test_merge_into_empty_dict_adds_all_events():
     merged = _merge_settings({}, SETTINGS_SNIPPET)
-    assert set(merged["hooks"]) == {"PreToolUse", "UserPromptSubmit", "PostToolUse"}
+    assert set(merged["hooks"]) == {"PreToolUse", "UserPromptSubmit", "PostToolUse", "PreCompact", "SessionStart"}
 
 
 def test_merge_preserves_unrelated_keys_and_is_idempotent():
@@ -98,7 +98,7 @@ def test_merge_settings_flag_writes_valid_json(tmp_path):
     settings = tmp_path / ".claude" / "settings.json"
     assert settings.is_file()
     data = json.loads(settings.read_text(encoding="utf-8"))
-    assert set(data["hooks"]) == {"PreToolUse", "UserPromptSubmit", "PostToolUse"}
+    assert set(data["hooks"]) == {"PreToolUse", "UserPromptSubmit", "PostToolUse", "PreCompact", "SessionStart"}
 
 
 def test_merge_settings_flag_is_idempotent_on_disk(tmp_path):

@@ -1,13 +1,15 @@
 # Session Context Preservation — a reference design
 
-> **This is a blueprint, not a shipped feature.** Agent Workbench does **not** ship the
-> `/session-save` or `/catchup` commands, the context tracker, or the restore hooks described
-> below. What ships in this repo is the *fail-open hook architecture*
-> ([`.claude/hooks/lib/hook_logger.py`](../.claude/hooks/lib/hook_logger.py)) and the
-> cross-session [`memory/`](../memory/) scaffold. This page is the **design** — the patterns and
-> the HANDOVER template — so you (or future-you on a new project) can build your own version
-> without re-deriving it. Treat the command names here as *the commands you would create*, not
-> ones you can run today.
+> **What ships vs. what this describes.** Agent Workbench now ships the **automatic layers** as
+> fail-open hooks: a PreCompact transcript backup
+> ([`precompact_backup.py`](../.claude/hooks/scripts/precompact_backup.py)), a post-compact
+> restore that re-injects the latest handover excerpt
+> ([`compact_restore.py`](../.claude/hooks/scripts/compact_restore.py)), and a context-budget
+> nudge ([`context_tracker.py`](../.claude/hooks/scripts/context_tracker.py)) — wire them via
+> [`install.py`](../install.py) or the `.claude/settings.json` snippet. It does **not** ship the
+> `/session-save` or `/catchup` **commands** or the tiered-restore *workflow*; those, and the
+> HANDOVER you write by hand, stay manual (the command names below are *the commands you would
+> create*). The reusable core to copy is the **HANDOVER template** and the three-layer shape.
 
 The problem it solves: an agent's working context is easy to lose, and re-establishing it is
 expensive. Three common ways it goes:
@@ -79,21 +81,23 @@ Reading everything every time is wasteful; match the restore depth to the situat
 
 ---
 
-## How you'd wire it (sketch)
+## How it's wired
 
-If you implement the automatic layers, the moving parts are:
+The automatic layers ship as three hooks (all fail-open via
+[`hook_logger.py`](../.claude/hooks/lib/hook_logger.py), so a crash in any never wedges your
+session):
 
-- A **PreCompact hook** that copies the transcript before compaction and drops a small signal
-  file — this is Layer 1, the safety net. (Backlog item for this repo; not shipped yet.)
-- A **SessionStart hook** that, on a new session, notices a recent HANDOVER and suggests
-  restoring it.
-- An optional **PostToolUse counter** that nudges you to save after N tool calls, before quota
-  or context limits hit unexpectedly.
-- A **save command/skill** that gathers `git diff`/`log` + your plan/todo state and writes the
-  HANDOVER above.
+- **PreCompact** → [`precompact_backup.py`](../.claude/hooks/scripts/precompact_backup.py):
+  copies the transcript before compaction and drops a `.last_compact` signal file (Layer 1).
+- **SessionStart[compact]** → [`compact_restore.py`](../.claude/hooks/scripts/compact_restore.py):
+  on the post-compaction restart, if the signal is recent it re-injects the top of the newest
+  HANDOVER so the agent resumes with goal/decisions/next-steps (Layer 2's automatic half).
+- **PostToolUse** → [`context_tracker.py`](../.claude/hooks/scripts/context_tracker.py): nudges
+  you to `/compact` or save a handover once a session gets long, before limits hit unexpectedly.
 
-Wrap every hook fail-open (see [`hook_logger.py`](../.claude/hooks/lib/hook_logger.py)) so a
-crash in any of them never wedges your session.
+Still manual (by design): writing the HANDOVER itself, and a **save command/skill** that gathers
+`git diff`/`log` + your plan state into the template above. Kill switches: `PRECOMPACT_BACKUP=0`,
+`COMPACT_RESTORE=0`, `CONTEXT_TRACKER=0`.
 
 ---
 

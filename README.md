@@ -165,13 +165,16 @@ single grep-able index of trigger / do-not-trigger boundaries; the
 <summary><b>Deep-dive: hooks are fail-open by design</b></summary>
 
 Every hook is wrapped so that a crash **never blocks your workflow** — it logs to a JSONL
-crash file and exits cleanly, rather than wedging the agent. The three shipped hooks:
+crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 
 | Hook | Event | What it does |
 |---|---|---|
 | `block_dangerous.py` | `PreToolUse` (Bash) | Catches common destructive command shapes — `rm -rf` (any flag order/spacing), `find -delete`, `dd`, `mkfs`, fork bombs, force-push, `DROP TABLE`, … — and denies them via the documented hook contract. A **seatbelt against accidents, not a security boundary** (a determined operator can evade any string matcher). Adversarial evasion cases are in the test suite. |
 | `prompt-refiner-inject.py` | `UserPromptSubmit` | Flags vague prompts to be refined before execution |
 | `post_edit_simplify.py` | `PostToolUse` (Edit/Write) | After a burst of edits, nudges a simplification pass (dead code, unused imports, over-long functions, DRY). Throttled by a cooldown and a session TTL so it nudges occasionally, never spams. Advisory only — never blocks. |
+| `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
+| `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
+| `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
 Run [`examples/hook_block_demo.py`](examples/hook_block_demo.py) to see the classifier decide.
@@ -198,7 +201,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **206**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **223**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **8** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`) |
@@ -227,7 +230,7 @@ python examples/memory_snapshot_demo.py  # snapshot/restore a memory dir
 python examples/context_budget_demo.py   # audit this repo's context budget
 
 # Prove the tools actually work:
-python -m pytest -q                 # 206 tests
+python -m pytest -q                 # 223 tests
 ```
 
 ## Install it into your own project
@@ -265,7 +268,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
 | **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
 | **Blueprint** | [`docs/memory-governance.md`](docs/memory-governance.md) | Reference design for cross-session memory — the repo ships the `memory/` scaffold; the governance tooling is a model you implement |
-| **Blueprint** | [`docs/session-preservation.md`](docs/session-preservation.md) | Reference design for context handover on long projects — the commands shown are a blueprint, not shipped here |
+| **Design + hooks** | [`docs/session-preservation.md`](docs/session-preservation.md) | Context handover on long projects — the automatic layers ship as hooks (PreCompact backup, post-compact restore, context-budget nudge); the `/session-save` commands and the HANDOVER you write stay manual |
 | **Blueprint** | [`docs/skills-as-cli.md`](docs/skills-as-cli.md) | Pattern for running a skill's playbook outside Claude Code (Cursor/Copilot/raw API) |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
@@ -297,7 +300,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 206 tests · MIT
+**Agent Workbench** · stdlib-only core · 223 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

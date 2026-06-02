@@ -77,6 +77,38 @@ SETTINGS_SNIPPET = {
                         "timeout": 10,
                     }
                 ],
+            },
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/context_tracker.py"',
+                        "timeout": 10,
+                    }
+                ]
+            },
+        ],
+        "PreCompact": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/precompact_backup.py"',
+                        "timeout": 10,
+                    }
+                ]
+            }
+        ],
+        "SessionStart": [
+            {
+                "matcher": "compact",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/compact_restore.py"',
+                        "timeout": 10,
+                    }
+                ],
             }
         ],
     }

@@ -15,6 +15,9 @@ HOOKS_DIR = Path(__file__).resolve().parents[1] / ".claude" / "hooks"
 ALL_HOOKS = [
     HOOKS_DIR / "scripts" / "block_dangerous.py",
     HOOKS_DIR / "scripts" / "post_edit_simplify.py",
+    HOOKS_DIR / "scripts" / "precompact_backup.py",
+    HOOKS_DIR / "scripts" / "compact_restore.py",
+    HOOKS_DIR / "scripts" / "context_tracker.py",
     HOOKS_DIR / "prompt-refiner-inject.py",
 ]
 
