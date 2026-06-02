@@ -194,8 +194,8 @@
     },
     "tools/check_context_budget.py": {
       "category": "tools",
-      "lines": 451,
-      "bytes": 20203
+      "lines": 467,
+      "bytes": 21809
     },
     "tools/check_requirements_diff.py": {
       "category": "tools",
@@ -211,6 +211,11 @@
       "category": "tools",
       "lines": 321,
       "bytes": 15748
+    },
+    "tools/license_scan.py": {
+      "category": "tools",
+      "lines": 156,
+      "bytes": 7394
     },
     "tools/memory_audit.py": {
       "category": "tools",

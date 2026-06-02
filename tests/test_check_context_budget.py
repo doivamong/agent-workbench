@@ -30,9 +30,21 @@ def test_collect_finds_each_kind(tmp_path):
 
 def test_skill_body_and_references_counted_separately(tmp_path):
     foo = next(c for c in cb.collect(_project(tmp_path)) if c.kind == "skill")
-    assert foo.tokens > 0       # session-start body
+    assert foo.tokens > 0       # body (on-demand — loads when the skill is invoked)
     assert foo.ref_tokens > 0   # references/ counted as on-demand
     assert foo.ref_lines >= 1
+
+
+def test_oversize_skill_body_yields_exit_1_without_any_cap(tmp_path):
+    # The per-skill body CRITICAL (SKILL.md > skill_lines_critical) is the real "no monster skill"
+    # gate — it fires WITHOUT --max-skill-tokens, mirroring ITF. Bodies load on-demand, so this
+    # catches a single bloated skill; many small skills stay cheap (only descriptions load).
+    _project(tmp_path)
+    huge = tmp_path / ".claude" / "skills" / "huge"
+    huge.mkdir(parents=True)
+    body = "\n".join(f"line {i}" for i in range(cb.THRESH["skill_lines_critical"] + 50))
+    (huge / "SKILL.md").write_text(f"---\nname: huge\ndescription: big one\n---\n{body}\n", encoding="utf-8")
+    assert cb.main(["--root", str(tmp_path)]) == 1  # critical body → exit 1, no cap flags needed
 
 
 def test_bucket_is_always_when_named_in_claudemd(tmp_path):
@@ -88,3 +100,14 @@ def test_main_exits_1_when_skill_cap_exceeded(tmp_path):
 def test_main_exits_0_when_under_cap(tmp_path):
     _project(tmp_path)
     assert cb.main(["--root", str(tmp_path), "--max-skills", "10", "--max-skill-tokens", "100000"]) == 0
+
+
+def test_many_small_skills_pass_count_gate_without_total_cap(tmp_path):
+    # The corrected gate design: many lean skills cost little at session-start (only descriptions
+    # load), so the COUNT cap alone suffices — no total-body cap needed. CI uses --max-skills only.
+    _project(tmp_path)
+    for i in range(8):
+        d = tmp_path / ".claude" / "skills" / f"s{i}"
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(f"---\nname: s{i}\ndescription: small skill {i}\n---\nshort body\n", encoding="utf-8")
+    assert cb.main(["--root", str(tmp_path), "--max-skills", "16"]) == 0  # 9 skills, no total cap → ok

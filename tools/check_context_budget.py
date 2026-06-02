@@ -4,19 +4,27 @@
 Every skill, agent, rule, command, the CLAUDE.md/AGENTS.md chain, and each MCP server costs
 context. CLAUDE.md asks you to keep that "short and high-signal" — this tool measures it so the
 rule has teeth: it scans `.claude/` + the CLAUDE.md chain + `.mcp.json`, classifies each piece
-into always / sometimes / rarely loaded buckets, separates a skill's session-start body cost from
-its on-demand `references/`, and suggests where to trim.
+into always / sometimes / rarely loaded buckets, and separates a skill's BODY (and its
+`references/`) — both of which load **on-demand, only when the skill is invoked** — from what is
+truly loaded every session: the CLAUDE.md chain and each skill's frontmatter *description*. (Claude
+Code uses progressive disclosure — the description is always in context; the SKILL.md body enters
+the conversation only when the skill fires. So 27 installed skills cost 27 short descriptions at
+session start, NOT 27 full bodies.) Use it to spot a single bloated skill and keep the always-loaded
+surface lean — the body-token figures are an on-demand / maintenance magnitude, not a per-session tax.
 
     python tools/check_context_budget.py            # text report (default)
     python tools/check_context_budget.py --json      # machine-readable
     python tools/check_context_budget.py --top 5     # top N issues
     python tools/check_context_budget.py --verbose   # list every component
     python tools/check_context_budget.py --window 1000000   # 1M context window
-    python tools/check_context_budget.py --max-skills 13 --max-skill-tokens 12000  # enforce a cap
+    python tools/check_context_budget.py --max-skills 16  # CI gate: cap the live-skill COUNT
 
-Exit 0 = OK / minor warnings; exit 1 = a component crossed a *critical* threshold, OR a
---max-skills / --max-skill-tokens cap was exceeded. Audit-only by default (no cap set = it never
-blocks); pass a cap to give a CI gate teeth against silent skill-set bloat.
+Exit 0 = OK / minor warnings; exit 1 = a component crossed a *critical* threshold (e.g. a SKILL.md
+body > 800 lines, an agent description > 50 words) OR a --max-skills / --max-skill-tokens cap was
+exceeded. Audit-only by default (no cap set = it never blocks). The recommended CI gate is
+`--max-skills` (count) + the automatic per-skill body-critical; `--max-skill-tokens` caps the TOTAL
+skill-body tokens, which is an opt-in *maintenance* budget, NOT a session-start one (bodies are
+on-demand) — leave it off unless you specifically want a whole-library size ceiling.
 
 HONEST LIMITS: token counts are a rough heuristic (words × TOKENS_PER_WORD), NOT a real
 tokenizer — treat them as relative magnitudes, not an exact budget. The per-server MCP cost and
@@ -266,11 +274,13 @@ def render_text_report(components: list[Component], top_n: int, verbose: bool, w
     lines += [sep, "Context budget report", sep]
     lines.append("(token figures are a word-count heuristic, not a real tokenizer)")
 
-    total = sum(c.tokens for c in components)          # session-start cost
+    total = sum(c.tokens for c in components)          # upper bound: counts bodies that load on-demand
     ondemand = sum(c.ref_tokens for c in components)   # references/, on demand only
     avail = window - total
     pct = avail * 100 // window if window else 0
-    lines.append(f"\nSession-start overhead: ~{total:,} tokens (loaded by default)")
+    lines.append(f"\nLoaded surface (upper bound): ~{total:,} tokens")
+    lines.append("  NOTE: skill bodies + path-scoped rules load on-demand, NOT every session — only")
+    lines.append("        the CLAUDE.md chain + skill descriptions are truly always-loaded (see split below)")
     lines.append(f"On-demand references/:  ~{ondemand:,} tokens (only when a skill is invoked)")
     lines.append(f"Context window:         {window:,} tokens (set with --window)")
     lines.append(f"Estimated headroom:     ~{avail:,} tokens ({pct}%)")
@@ -383,10 +393,16 @@ def check_caps(components: list[Component], max_skills: int | None,
                max_skill_tokens: int | None) -> list[str]:
     """Cap breaches that should fail the run (exit 1). Empty when no cap is set or all pass.
 
-    Both caps target the SKILL set specifically — the session-start surface most prone to silent
-    bloat — not the whole component list. They are opt-in: without them the tool stays advisory.
-    The numbers are a deliberate ceiling you bump on purpose, not a measured truth. They do NOT
-    cap on-demand references/ (those don't load until a skill is invoked).
+    Both caps are opt-in (without them the tool stays advisory) and target the SKILL set. They
+    differ in what they actually protect:
+      * ``max_skills`` caps the live-skill COUNT — the right session-start guard, because only each
+        skill's *description* (plus, here, the routing-map) is always loaded, and that cost grows
+        with count, not body size.
+      * ``max_skill_tokens`` caps the TOTAL skill-*body* tokens. Bodies load on-demand (only when a
+        skill is invoked), so this is a whole-library *maintenance* ceiling, NOT a session-start
+        one — keep it off in CI unless you specifically want a total-size budget. (The per-skill
+        body-critical at THRESH["skill_lines_critical"] already catches a single bloated skill.)
+    Neither caps on-demand references/ (those don't load until a skill is invoked).
     """
     breaches: list[str] = []
     skills = [c for c in components if c.kind == "skill"]
@@ -395,7 +411,7 @@ def check_caps(components: list[Component], max_skills: int | None,
     if max_skill_tokens is not None:
         tok = sum(c.tokens for c in skills)
         if tok > max_skill_tokens:
-            breaches.append(f"skill session-start tokens ~{tok:,} > cap {max_skill_tokens:,}")
+            breaches.append(f"total skill-body tokens ~{tok:,} > cap {max_skill_tokens:,} (on-demand/maintenance, not session-start)")
     return breaches
 
 

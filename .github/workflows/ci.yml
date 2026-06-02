@@ -52,10 +52,15 @@ jobs:
       - name: Skill registry lint
         run: python tools/skill_lint.py
 
-      # Enforce a deliberate ceiling on the skill set's session-start cost. These are tunable
-      # caps you bump on purpose (today: 15 skills / ~11.8k tok) — not a measured truth.
-      - name: Context budget (cap skill bloat)
-        run: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
+      # Gate skill-set bloat against what ACTUALLY costs session-start context. Per Claude Code's
+      # progressive disclosure, only a skill's frontmatter DESCRIPTION is always in context (capped
+      # by skill_lint); the SKILL.md body loads on-demand when the skill is invoked. So the binding
+      # gates are: a COUNT cap (--max-skills — the always-loaded routing-map grows linearly in count)
+      # plus the automatic per-skill body CRITICAL (a SKILL.md > 800 lines → exit 1, ITF-aligned).
+      # A total-body cap would mis-measure session-start ~5x (bodies don't all load) — it's NOT gated
+      # here; pass --max-skill-tokens only if you want an opt-in total maintenance budget.
+      - name: Context budget (skill-set bloat)
+        run: python tools/check_context_budget.py --max-skills 16
 
       # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
       # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
