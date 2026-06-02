@@ -52,8 +52,10 @@ CACHE_DIR = ROOT / "tools" / ".cache"
 CACHE_FILE = CACHE_DIR / "affected_tests.json"
 
 # Directories containing source code to scan for import edges (forward graph).
-# Tune these to your project's layout (e.g. add your package/app dirs here).
-SCAN_DIRS = ("src", "lib", "tests", "tools")
+# These double as module-resolution roots (sys.path-style), so a bare ``import foo``
+# resolves to ``<dir>/foo.py`` — matching how conftest.py injects these dirs onto
+# sys.path. Tune to your project's layout (e.g. add your package/app dirs here).
+SCAN_DIRS = ("src", "lib", "tests", "tools", "scripts")
 
 # Files whose change triggers the full test suite (high blast radius).
 # Add your own "everything depends on this" files (app entrypoints, shared
@@ -104,14 +106,23 @@ def _all_python_files() -> list[Path]:
 
 
 def _module_to_path(module: str) -> Path | None:
-    """Convert a dotted module name (e.g. ``services.foo_service``) to a file path."""
+    """Resolve a dotted/bare module name to a source file path.
+
+    Tries the repo root first (package-rooted imports like ``src.foo_service``), then
+    each SCAN_DIR as a sys.path-style root. The latter is what makes a flat layout work:
+    a bare ``import leak_scan`` (resolved at runtime because conftest injects ``tools/``
+    onto sys.path) maps to ``tools/leak_scan.py`` instead of silently resolving to
+    nothing — which previously left the import graph empty on this kind of repo.
+    """
     parts = module.split(".")
-    candidate = ROOT.joinpath(*parts).with_suffix(".py")
-    if candidate.exists():
-        return candidate
-    pkg = ROOT.joinpath(*parts) / "__init__.py"
-    if pkg.exists():
-        return pkg
+    roots = [ROOT, *(ROOT / d for d in SCAN_DIRS)]
+    for base in roots:
+        candidate = base.joinpath(*parts).with_suffix(".py")
+        if candidate.exists():
+            return candidate
+        pkg = base.joinpath(*parts) / "__init__.py"
+        if pkg.exists():
+            return pkg
     return None
 
 
@@ -148,12 +159,20 @@ def _extract_imports(file_path: Path) -> set[Path]:
 
 
 def _files_hash(files: list[Path]) -> str:
-    """Hash based on mtime of all files — used for cache invalidation."""
+    """Hash file paths + contents — used for cache invalidation.
+
+    Content-based, not mtime-based, on purpose: an mtime-second key could serve a
+    STALE graph after two edits within the same wall-clock second (or on filesystems
+    with coarse mtime granularity). Hashing content is collision-free for that case
+    and also avoids needless rebuilds on a no-op ``touch``.
+    """
     h = hashlib.sha256()
     for p in sorted(files, key=lambda x: x.as_posix()):
         try:
             h.update(p.as_posix().encode())
-            h.update(str(int(p.stat().st_mtime)).encode())
+            h.update(b"\0")
+            h.update(p.read_bytes())
+            h.update(b"\0")
         except OSError:
             continue
     return h.hexdigest()[:16]
