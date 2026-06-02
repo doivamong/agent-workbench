@@ -36,9 +36,9 @@ When more than one skill could match a request:
 | `example-stress-test` | workflow | "stress test this / poke holes in this plan / what could go wrong / edge cases / is this design sound", before building or testing something non-trivial | a one-line / low-risk change; comparing approaches (research); reviewing code already written (review); a known bug (debug) |
 | `example-output-guard` | guard | generating a whole file / large template / big refactor | a small edit to an existing file; a question; prose-only output |
 | `example-using-skills` | meta | auto-injected each session; also when ≥2 skills could match, or you're unsure any applies | as a destination — it routes TO other skills, never does the work itself |
-| _your-config-guard_ | guard | code that reads/writes configuration | reading config just to understand it |
+| `example-config-guard` | guard | writing/modifying code that reads config — esp. a nested key or a cross-context read | reading config once to understand it; a single non-nested constant |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 | _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
 
-Replace the placeholder rows with your real skills. The seven non-placeholder rows correspond to
-the runnable example skills in this folder (three workflows + three guards + one meta routing skill).
+Replace the placeholder rows with your real skills. The eight non-placeholder rows correspond to
+the runnable example skills in this folder (three workflows + four guards + one meta routing skill).

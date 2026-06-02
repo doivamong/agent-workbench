@@ -72,6 +72,11 @@
       "lines": 47,
       "bytes": 1677
     },
+    ".claude/skills/example-config-guard/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 82,
+      "bytes": 4300
+    },
     ".claude/skills/example-debug/SKILL.md": {
       "category": ".claude/skills",
       "lines": 55,
@@ -110,7 +115,7 @@
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
       "lines": 43,
-      "bytes": 3077
+      "bytes": 3159
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
@@ -134,8 +139,8 @@
     },
     "tools/invariants.py": {
       "category": "tools",
-      "lines": 188,
-      "bytes": 7035
+      "lines": 237,
+      "bytes": 9859
     },
     "tools/leak_scan.py": {
       "category": "tools",
