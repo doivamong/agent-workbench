@@ -44,3 +44,27 @@ def test_suffixes_extends_to_other_filetypes(tmp_path):
     (tmp_path / "c.yaml").write_text("# TODO: wire this up\n", encoding="utf-8")
     found = invariants.run(tmp_path, invariants.SAMPLE_INVARIANTS, suffixes={".yaml"})
     assert any(v.invariant == "todo-needs-owner" for v in found)
+
+
+def test_user_defined_invariant_runs_through_public_api(tmp_path):
+    # The framework's whole point: a project defines its OWN rule with line_regex +
+    # Invariant and runs it the same way as the built-ins. Pin that contract.
+    my_rule = invariants.Invariant(
+        id="no-bare-except",
+        description="No bare except:.",
+        check=invariants.line_regex("no-bare-except", r"^\s*except\s*:", "Bare except swallows errors."),
+    )
+    (tmp_path / "m.py").write_text("try:\n    x()\nexcept:\n    pass\n", encoding="utf-8")
+    found = invariants.run(tmp_path, [my_rule])
+    assert [v.invariant for v in found] == ["no-bare-except"]
+
+
+def test_inv_ignore_marker_suppresses(tmp_path):
+    # An `inv: ignore` comment opts a line out (the mechanism the sample demo relies on).
+    rule = invariants.Invariant(
+        id="no-bare-except",
+        description="No bare except:.",
+        check=invariants.line_regex("no-bare-except", r"^\s*except\s*:", "msg"),
+    )
+    (tmp_path / "m.py").write_text("try:\n    x()\nexcept:  # inv: ignore\n    pass\n", encoding="utf-8")
+    assert invariants.run(tmp_path, [rule]) == []
