@@ -156,3 +156,43 @@ def test_keyring_absence_does_not_break(monkeypatch):
     fake.get_password = lambda *a: "should-not-be-used"
     monkeypatch.setitem(_sys.modules, "keyring", fake)
     assert _get_password(Namespace(password=None)) == "from-env"
+
+
+# --- status command (stale detection -> pre-commit gating exit codes) --------
+
+import os
+
+from secrets_guard import cmd_status
+
+
+def test_status_plaintext_only_is_stale(tmp_path, monkeypatch, capsys):
+    # plaintext exists but was never encrypted -> stale, exit 1 (a pre-commit
+    # hook keying off this code would block the commit).
+    plain = tmp_path / "config.json"
+    plain.write_bytes(b"{}")
+    monkeypatch.setattr(secrets_guard, "TARGETS", [(str(plain), str(tmp_path / "config.json.enc"))])
+    assert cmd_status() == 1
+
+
+def test_status_ok_when_enc_up_to_date(tmp_path, monkeypatch):
+    plain = tmp_path / "config.json"
+    enc = tmp_path / "config.json.enc"
+    plain.write_bytes(b"{}")
+    encrypt_file(str(plain), str(enc), "pw")
+    # make the .enc look at least as new as the plaintext, deterministically
+    p_mtime = os.path.getmtime(plain)
+    os.utime(enc, (p_mtime + 5, p_mtime + 5))
+    monkeypatch.setattr(secrets_guard, "TARGETS", [(str(plain), str(enc))])
+    assert cmd_status() == 0
+
+
+def test_status_detects_stale_enc(tmp_path, monkeypatch):
+    # plaintext edited after the last encrypt -> .enc is stale, exit 1
+    plain = tmp_path / "config.json"
+    enc = tmp_path / "config.json.enc"
+    plain.write_bytes(b"{}")
+    encrypt_file(str(plain), str(enc), "pw")
+    e_mtime = os.path.getmtime(enc)
+    os.utime(plain, (e_mtime + 10, e_mtime + 10))
+    monkeypatch.setattr(secrets_guard, "TARGETS", [(str(plain), str(enc))])
+    assert cmd_status() == 1
