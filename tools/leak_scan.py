@@ -39,7 +39,8 @@ GENERIC_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # Emails that are fine in a public repo (examples, noreply, placeholders).
 EMAIL_ALLOW = re.compile(r"@(?:example\.(?:com|org|net)|test\.|localhost|noreply\.)", re.I)
 
-DEFAULT_SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules", ".pytest_cache", ".mypy_cache"}
+DEFAULT_SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules", ".pytest_cache",
+                     ".mypy_cache", ".porting"}
 TEXT_SUFFIXES = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".ini",
                  ".cfg", ".sh", ".bat", ".js", ".ts", ".html", ".css", ".rst"}
 
