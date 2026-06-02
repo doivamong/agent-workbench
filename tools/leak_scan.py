@@ -9,18 +9,26 @@ Two jobs:
    file (one term/regex per line). This is how you verify a "domain-stripped"
    export without baking your private vocabulary into the public tool itself.
 
+It is a line-based *tripwire*, not a vault: pass --entropy for an extra (opt-in,
+higher-false-positive) pass that flags high-entropy base64/hex tokens a keyword
+scan would miss — useful for a deeper sweep before publishing.
+
 Usage:
     python tools/leak_scan.py .                       # generic patterns only
     python tools/leak_scan.py . --denylist private.txt
     python tools/leak_scan.py src/ --denylist db.txt --fail-on-find
+    python tools/leak_scan.py . --entropy --fail-on-find   # + high-entropy sweep
 
 Exit code is non-zero when findings exist and --fail-on-find is set (CI gate).
 """
 from __future__ import annotations
 
 import argparse
+import math
 import re
+import string
 import sys
+from collections import Counter
 from pathlib import Path
 
 # Generic patterns: (name, compiled regex). Tuned for low false-negative on the
@@ -69,7 +77,8 @@ def iter_text_files(root: Path):
             yield p
 
 
-def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]]) -> list[tuple[int, str, str]]:
+def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]],
+              entropy: bool = False) -> list[tuple[int, str, str]]:
     findings: list[tuple[int, str, str]] = []
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -86,6 +95,9 @@ def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]]) -> list[t
                 continue
             # Redact the matched value in output — never echo the secret itself.
             findings.append((lineno, name, _redact(m.group(0))))
+        if entropy:
+            for name, redacted in _entropy_findings(line):
+                findings.append((lineno, name, redacted))
     return findings
 
 
@@ -95,11 +107,42 @@ def _redact(s: str) -> str:
     return s[:3] + "***" + s[-2:]
 
 
+# --- Optional high-entropy detection (opt-in via --entropy) ------------------
+# Catches random-looking secrets (API keys, tokens) that don't match any keyword.
+# Charsets are built from the stdlib `string` module so this file never embeds a
+# high-entropy literal that would flag itself.
+_ENTROPY_TOKEN_RE = re.compile(r"[A-Za-z0-9+/=_-]{20,}")
+_HEX_SET = set(string.hexdigits)
+_B64_SET = set(string.ascii_letters + string.digits + "+/=_-")
+
+
+def _shannon_entropy(s: str) -> float:
+    n = len(s)
+    if n == 0:
+        return 0.0
+    return -sum((c / n) * math.log2(c / n) for c in Counter(s).values())
+
+
+def _entropy_findings(line: str) -> list[tuple[str, str]]:
+    """Flag long, high-entropy base64/hex tokens. Conservative thresholds to keep
+    false positives manageable; still noisier than the keyword scan (hence opt-in)."""
+    out: list[tuple[str, str]] = []
+    for m in _ENTROPY_TOKEN_RE.finditer(line):
+        tok = m.group(0)
+        if len(tok) >= 32 and all(ch in _HEX_SET for ch in tok) and _shannon_entropy(tok) >= 3.0:
+            out.append(("high_entropy_hex", _redact(tok)))
+        elif len(tok) >= 20 and all(ch in _B64_SET for ch in tok) and _shannon_entropy(tok) >= 4.5:
+            out.append(("high_entropy_base64", _redact(tok)))
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Scan a tree for leaked secrets/identifiers.")
     ap.add_argument("root", type=Path, help="Directory or file to scan")
     ap.add_argument("--denylist", type=Path, help="Extra project-specific terms/regexes (gitignored)")
     ap.add_argument("--fail-on-find", action="store_true", help="Exit non-zero if any finding")
+    ap.add_argument("--entropy", action="store_true",
+                    help="Also flag high-entropy base64/hex tokens (opt-in; noisier, good for a pre-publish sweep)")
     args = ap.parse_args(argv)
 
     patterns = list(GENERIC_PATTERNS)
@@ -111,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
 
     total = 0
     for f in files:
-        for lineno, name, redacted in scan_file(f, patterns):
+        for lineno, name, redacted in scan_file(f, patterns, entropy=args.entropy):
             total += 1
             print(f"{f}:{lineno}: [{name}] {redacted}")
 

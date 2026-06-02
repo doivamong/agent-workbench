@@ -68,7 +68,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
-| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list — the commit-time seatbelt used to vet this export (catches common shapes + your own identifiers; not an entropy-aware vault) | [`tools/leak_scan.py`](tools/leak_scan.py) |
+| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers) and an opt-in `--entropy` sweep for random-looking tokens — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
 | **Keep the agent on-style** | Rules for writing slash-commands consistently | [`.claude/rules/`](.claude/rules/) |
 | **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
 | **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
@@ -173,7 +173,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **56**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **60**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **3** (`examples/`) |
 | Example skills | **3** (1 workflow + 2 guards) |
 | Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
@@ -196,7 +196,7 @@ python examples/hook_block_demo.py  # dangerous-command classifier
 python examples/invariant_demo.py   # the invariant gate
 
 # Prove the tools actually work:
-python -m pytest -q                 # 56 tests
+python -m pytest -q                 # 60 tests
 ```
 
 ## Install it into your own project
@@ -241,9 +241,9 @@ PRs that challenge a pattern are as welcome as PRs that extend one.
 
 **On the guardrails specifically:** `block_dangerous.py` and `leak_scan.py` are **seatbelts, not
 security boundaries.** They catch common accidental and obvious-malicious shapes; they do **not**
-stop a determined operator (string matchers can always be evaded via encoding, indirection, or
-high-entropy secrets a line scanner won't flag). Use them to reduce footguns, not as your last
-line of defense.
+stop a determined operator (string matchers can be evaded via encoding or indirection; the
+opt-in `leak_scan --entropy` pass catches random-looking tokens but a line scanner still can't
+see everything). Use them to reduce footguns, not as your last line of defense.
 
 ## License
 
@@ -260,7 +260,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 56 tests · MIT
+**Agent Workbench** · stdlib-only core · 60 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

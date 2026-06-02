@@ -47,3 +47,36 @@ def test_redaction_hides_value(tmp_path):
     assert findings
     # The full secret must never appear verbatim in the finding output.
     assert "super_secret_value_123" not in findings[0][2]
+
+
+# --- entropy detection (opt-in) ---------------------------------------------
+# The token literal lives in the *test source* with a `# leak-scan: ignore`
+# comment so a `--entropy` self-scan won't flag this file; the tmp file written
+# below has no such marker, so the scanner still detects it there.
+_HIGH_ENTROPY = "aZ3kP9xQ2mW7vR5tY8nB4cF6hJ1lD0sG"  # leak-scan: ignore
+
+
+def test_entropy_off_by_default(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text(f'k = "{_HIGH_ENTROPY}"\n', encoding="utf-8")
+    # No keyword and entropy disabled -> nothing flagged.
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
+
+
+def test_entropy_flags_high_entropy_token(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text(f'k = "{_HIGH_ENTROPY}"\n', encoding="utf-8")
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, entropy=True)
+    assert any(name == "high_entropy_base64" for _, name, _ in found)
+
+
+def test_entropy_ignores_prose(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("# the quick brown fox jumps over the lazy dog again today\n", encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, entropy=True) == []
+
+
+def test_entropy_ignores_short_sha(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text("# see commit 6e69b60 and d656ead for details\n", encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS, entropy=True) == []
