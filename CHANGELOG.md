@@ -15,6 +15,12 @@ since you copied — not a published package.
   into the example `settings.json` and the installer snippet. The injected text carries only the
   file *count*, not paths, so a crafted filename has no route into the agent's context.
 
+- **Canonical `PHILOSOPHY.md`** (repo root): the kit's four tenets plus a "what would betray
+  this" review checklist, single-sourced. README/CLAUDE/AGENTS/CONTRIBUTING/SECURITY now quote
+  one line and link to it instead of restating. Guarded by `tests/test_philosophy_anchor.py`
+  (a de-duplication drift-guard — distinctive tenet sentences must live only in the canon) and
+  by a philosophy check folded into the `example-review` skill's Stage 1.
+
 ### Changed
 - **Docs overhaul.** Corrected stale counts (demos, tools, skill tiers, hook list). Added a
   "why it's public" manifesto to the README. Reframed `docs/memory-governance.md` and

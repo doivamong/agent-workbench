@@ -24,6 +24,11 @@ Does the change actually do what was asked? Compare the diff against the stated 
 Flag anything implemented that wasn't asked for (scope creep) and anything asked for that's
 missing.
 
+**Philosophy check (this repo):** does the change oversell a guard, drop a "what it does NOT
+do" line, blur SHIPS vs BLUEPRINT, let a star/adoption framing or a domain identifier creep in,
+or otherwise contradict [`PHILOSOPHY.md`](../../../PHILOSOPHY.md)? Its "what would betray this"
+list is the checklist — a regex can't catch this, so it lives here.
+
 ## Stage 2 — Quality
 
 Walk the diff against a quality bar. Keep your real bar in a reference file so this stays
