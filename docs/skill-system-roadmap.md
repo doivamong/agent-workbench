@@ -118,9 +118,14 @@ independently shippable; read each result before starting the next.
 **Wave 0 — Harden the system (do first; this *lowers* ongoing cost).**
 - Gate `skill_lint.py` and `check_context_budget.py` in `.pre-commit-config.yaml` + CI (today
   they only run via their own unit tests, so real drift can ship green).
-- Add an enforced session-start budget cap to `check_context_budget.py` (e.g. a ceiling on
-  always+sometimes skill-body tokens and a live-skill count), mirroring how the README test-count
-  metric is already drift-guarded.
+- Add an enforced budget cap to `check_context_budget.py`, mirroring how the README test-count
+  metric is already drift-guarded. **Shipped (corrected) as a live-skill COUNT cap (`--max-skills`)
+  plus the automatic per-skill body-critical (a `SKILL.md` > 800 lines → exit 1), NOT a total
+  skill-body-token cap.** Why the change: per Claude Code's progressive disclosure only a skill's
+  *description* is always loaded — the body loads on-demand when the skill is invoked — so a
+  total-body cap mis-measures session-start (~5× over, measured) and creates false pressure to trim
+  valuable bodies. The honest session-start guards are the description-length lint + the count cap;
+  `--max-skill-tokens` remains an opt-in *maintenance* budget only.
 - Extend `skill_lint.py`: recognize an `archived: <date>` frontmatter field; flag a skill that
   references another skill with no registry row; **warn when a guard-tier skill lacks a "does NOT
   do" line** (makes the honesty contract greppable).
@@ -146,10 +151,13 @@ same change.
 
 ## Cost governance
 
-Thirteen live skills is past the point where a solo maintainer can eyeball the context budget.
-The Wave-0 budget cap is what keeps growth honest: it turns "short, high-signal context" into a
-number CI defends, so a future skill can't silently tax every session. Breadth beyond the 13
-exemplars lives in `SKILL_CATALOG.md` and blueprints, which cost zero routing context.
+A dozen-plus live skills is past the point where a solo maintainer can eyeball the context budget.
+The Wave-0 budget cap is what keeps growth honest — but it guards what *actually* costs session-start
+context: the live-skill **count** cap (`--max-skills`) bounds the always-loaded routing-map/description
+surface, and the per-skill body-critical stops any single skill becoming a monster. (Skill *bodies*
+load on-demand, so there is deliberately no total-body session-start cap — that would mis-measure the
+cost; see the Wave-0 note.) Breadth beyond the exemplars lives in `SKILL_CATALOG.md` and blueprints,
+which cost zero routing context.
 
 ## Honesty notes / open limits
 
