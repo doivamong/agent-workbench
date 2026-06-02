@@ -35,6 +35,7 @@ COPY_MAP = [
     (".claude/rules", ".claude/rules"),
     (".claude/session-primer.md", ".claude/session-primer.md"),
     ("tools/leak_scan.py", "tools/leak_scan.py"),
+    ("tools/license_scan.py", "tools/license_scan.py"),
     ("tools/invariants.py", "tools/invariants.py"),
     ("tools/affected_tests.py", "tools/affected_tests.py"),
     ("tools/memory_audit.py", "tools/memory_audit.py"),
