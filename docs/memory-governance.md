@@ -4,7 +4,16 @@
 
 > Specification for the 3-layer memory system used with Claude Code projects. Ensures memory stays fresh, non-fragmented, and has a clear promotion path.
 
-> ⚠ **Reality check:** The automation layer (Phase 2/3) is **code-complete but zero-execution** and auto-promotion is **mathematically infeasible** in the reference implementation (see §10). Items affected are tagged **[UNIMPLEMENTED]** inline. This spec describes the *intended design*; the parts actually running are L1 + L2 + Semgrep + user-override promotion + `memory_health.py`.
+> ⚠ **What this repo actually ships vs. what this doc describes.** This document is the
+> **conceptual model**. **Agent Workbench ships only the file-based scaffold** — the
+> [`memory/`](../memory/) folder (one-fact-per-file + an index-gated `MEMORY.md`) and this design
+> note. The *automation* this doc references — `memory_*.py` scripts, Semgrep enforcement, a
+> `reports/` folder, an auto-promotion sleep cycle — is **NOT included here**; it belongs to the
+> larger private codebase this kit was extracted from, and in that codebase the automation layer
+> is itself **code-complete but unexecuted** with auto-promotion **mathematically infeasible**
+> (see §10). Treat the named tooling below as *illustrative design*, not files you'll find in this
+> repo. The genuinely portable, working part is the layout + the promotion *model* you implement
+> yourself.
 
 ---
 

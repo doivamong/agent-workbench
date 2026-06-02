@@ -15,61 +15,92 @@ import sys
 import json
 import re
 
-# Substring patterns — DB / filesystem / config (substring match is sufficient)
-DANGEROUS_PATTERNS = [
-    # DB operations
-    ("DROP TABLE", "Drop DB table"),
-    ("DROP DATABASE", "Drop database"),
-    ("DELETE FROM users", "Delete all users"),
-    ("DELETE FROM items", "Delete all items"),
-    ("TRUNCATE", "Delete all rows in table"),
-    # File system
-    ("rm -rf /", "Delete root"),
-    ("rm -rf ~", "Delete home dir"),
-    ("rmdir /s /q C:", "Windows: delete C drive"),
-    # Config destructive
-    ("del config.json", "Delete config file"),
-    ("rm config.json", "Delete config file"),
-    ("rm *.db", "Delete databases"),
-]
+# IMPORTANT — scope and honesty:
+# This catches *common, obvious* destructive forms (the accidental footgun and the
+# blatant one-liner). It is NOT a security boundary: a determined operator can evade
+# any string-level matcher (base64, variable indirection, here-docs, eval). Treat it
+# as a seatbelt, not a vault. See README "Status & honesty".
+#
+# Matching is done on a whitespace-normalized, lowercased command, so extra spaces and
+# casing ("rm  -rf  /", "RM -RF /") do not slip through.
 
-# Regex patterns — git destructive. All regexes are IGNORECASE, searched on the command.
-# SAFE commands still pass through (regex only matches destructive forms):
-#   git push origin main | git reset --hard HEAD | git reset --hard |
-#   git checkout main | git checkout -- file.py | git checkout .gitignore |
-#   git restore --staged . | git clean -n
+# Regex patterns matched on the normalized command.
 DANGEROUS_REGEX = [
-    (r"\bgit\s+push\b[^&|;]*(?:--force|\s-f\b)",
-     "Force push — rewrites remote history"),
-    (r"\bgit\s+reset\s+--hard\s+HEAD[~^]",
-     "Reset --hard HEAD~/^ — loses commits"),
-    (r"\bgit\s+reset\s+--hard\s+(?:origin|upstream)/",
-     "Reset --hard to remote — loses local commits"),
-    (r"\bgit\s+reset\s+--hard\s+[0-9a-f]{7,40}\b",
-     "Reset --hard to SHA — loses commits"),
-    (r"\bgit\s+checkout\s+(?:--\s+)?\.(?:\s|$)",
-     "Checkout . — discards all uncommitted changes (IRREVERSIBLE)"),
-    (r"\bgit\s+restore\s+(?:--\s+)?\.(?:\s|$)",
-     "Restore . — discards all uncommitted changes (IRREVERSIBLE)"),
-    (r"\bgit\s+clean\s+-[a-z]*f",
-     "Clean -f — deletes untracked files (IRREVERSIBLE)"),
+    # --- SQL ---
+    (r"\bdrop\s+(?:table|database)\b", "DROP TABLE/DATABASE"),
+    (r"\btruncate\s+(?:table\s+)?[`\"']?\w", "TRUNCATE — deletes all rows"),
+    (r"\bdelete\s+from\s+[`\"']?\w+[`\"']?\s*(?:;|$)", "DELETE FROM with no WHERE — deletes all rows"),
+    # --- filesystem (non-rm) ---
+    (r"\bfind\b[^|;&]*\s-delete\b", "find -delete — bulk delete"),
+    (r"\bfind\b[^|;&]*-exec\s+rm\b", "find -exec rm — bulk delete"),
+    (r"\bdd\b[^|;&]*\bof=/dev/", "dd writing to a raw device"),
+    (r"\bmkfs(?:\.\w+)?\b", "mkfs — formats a filesystem"),
+    (r"\bchmod\s+-[a-z]*r[a-z]*\s+0?[0-7]{3,4}\b", "Recursive chmod (mass permission change)"),
+    (r"\bchown\s+-[a-z]*r[a-z]*\b[^|;&]*\s/\s*$", "Recursive chown on /"),
+    (r">\s*/dev/(?:sd|hd|nvme|disk|mmcblk)", "Redirect to a raw block device"),
+    (r":\s*\(\s*\)\s*\{\s*:\s*\|\s*:", "Fork bomb"),
+    # --- Windows ---
+    (r"\brmdir\s+/s\b", "Windows recursive directory delete"),
+    (r"\bdel\s+/[a-z]*[fqs]", "Windows force delete"),
+    (r"\bformat\s+[a-z]:", "Windows format drive"),
+    # --- git destructive (flag-order tolerant after normalization) ---
+    (r"\bgit\s+push\b[^&|;]*(?:--force\b|--force-with-lease\b|\s-f\b)", "Force push — rewrites remote history"),
+    (r"\bgit\s+reset\s+--hard\s+(?:head[~^]|origin/|upstream/|[0-9a-f]{7,40}\b)", "git reset --hard — loses commits"),
+    (r"\bgit\s+checkout\s+(?:--\s+)?\.(?:\s|$)", "git checkout . — discards uncommitted changes"),
+    (r"\bgit\s+restore\s+(?:--\s+)?\.(?:\s|$)", "git restore . — discards uncommitted changes"),
+    (r"\bgit\s+clean\s+-[a-z]*f", "git clean -f — deletes untracked files"),
 ]
 
-_COMPILED_REGEX = [(re.compile(rx, re.IGNORECASE), reason)
-                   for rx, reason in DANGEROUS_REGEX]
+_COMPILED_REGEX = [(re.compile(rx), reason) for rx, reason in DANGEROUS_REGEX]
+
+# Paths that make a recursive delete catastrophic.
+_RM_DANGER_TARGETS = {"/", "~", "$home", "${home}", "*", ".", "./", "..", "/*", "~/*"}
+
+
+def _normalize(command):
+    """Lowercase + collapse runs of whitespace, so spacing/casing tricks don't evade."""
+    return re.sub(r"\s+", " ", command.strip().lower())
+
+
+def _is_dangerous_rm(norm):
+    """Flag-order-agnostic detector: rm with recursive AND force, or recursive on a
+    broad target. Catches 'rm -rf /', 'rm -fr /', 'rm -r -f .', 'rm -rf $HOME', etc."""
+    if not re.search(r"\brm\b", norm):
+        return False
+    has_r = has_f = False
+    targets = []
+    for tok in norm.split():
+        if tok == "rm":
+            continue
+        if tok == "--recursive":
+            has_r = True
+        elif tok == "--force":
+            has_f = True
+        elif tok.startswith("-") and not tok.startswith("--"):
+            if "r" in tok[1:]:
+                has_r = True
+            if "f" in tok[1:]:
+                has_f = True
+        elif not tok.startswith("-"):
+            targets.append(tok)
+    if has_r and has_f:
+        return True
+    if has_r and any(t in _RM_DANGER_TARGETS or t.startswith(("/", "~", "$home")) for t in targets):
+        return True
+    return False
 
 
 def check_command(command):
-    """Return (pattern, reason) if command is dangerous; None if safe.
+    """Return (matched, reason) if the command looks destructive; None if it looks safe.
 
-    Separated from main() to allow direct unit testing without changing hook behavior.
+    Separated from main() so it can be unit-tested directly. Operates on a normalized
+    form so spacing/casing variants are treated identically.
     """
-    lower = command.lower()
-    for pattern, reason in DANGEROUS_PATTERNS:
-        if pattern.lower() in lower:
-            return pattern, reason
+    norm = _normalize(command)
+    if _is_dangerous_rm(norm):
+        return "rm -r -f", "Recursive force delete"
     for rx, reason in _COMPILED_REGEX:
-        if rx.search(command):
+        if rx.search(norm):
             return rx.pattern, reason
     return None
 

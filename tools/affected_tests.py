@@ -181,6 +181,17 @@ def build_import_graph(force: bool = False) -> dict[str, list[str]]:
         imports = _extract_imports(f)
         forward[_rel(f)] = sorted(_rel(p) for p in imports)
 
+    # Honesty about scope: if no import edges were found, graph-based selection is a
+    # no-op and we silently degrade to name-based matching. Warn so the caller knows
+    # to tune SCAN_DIRS to their layout rather than trusting an empty graph.
+    if files and not any(forward.values()):
+        print(
+            f"affected_tests: WARNING — no import edges found under SCAN_DIRS {SCAN_DIRS}; "
+            "graph-based selection is inactive, falling back to name-based matching only. "
+            "Tune SCAN_DIRS in tools/affected_tests.py to your project's layout.",
+            file=sys.stderr,
+        )
+
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": CACHE_VERSION,

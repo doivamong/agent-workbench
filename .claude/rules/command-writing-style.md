@@ -1,6 +1,13 @@
+---
+description: Conventions for writing slash-commands consistently. Loaded when editing a command file.
+paths:
+  - ".claude/commands/*.md"
+---
+
 # Command Writing Style
 
-Path-scoped rule for files in `.claude/commands/*.md`. Auto-loads when Claude edits a slash command. Pattern adopted from Anthropic claude-plugins-official `plugins/plugin-dev/skills/command-development` (MIT).
+Path-scoped rule for files in `.claude/commands/*.md`. The `paths:` frontmatter above is what actually
+wires the auto-load when Claude edits a slash command — adjust it to your own command directory. Pattern adopted from Anthropic claude-plugins-official `plugins/plugin-dev/skills/command-development` (MIT).
 
 **Scope note:** Sections **C1 + C7 are MUST-FOLLOW** (highest ROI). Sections **C2-C6, C8 are optional guidance** — defer until the project scales or you do a large command refactor. Document core rules here to prevent drift; archive advanced patterns to `command-writing-style-advanced.md` only when needed.
 

@@ -16,6 +16,13 @@ SAFE = [
     "git checkout .gitignore",
     "pytest tests/",
     "rm build/tmp.o",
+    # near-misses that must NOT be flagged (guards against over-blocking)
+    "rm -f stale.lock",          # force but not recursive, specific target
+    "ls -lrf",                   # not rm
+    'find . -name "*.py"',       # find without -delete/-exec rm
+    "chmod 644 file.txt",        # not recursive 777
+    "delete from users where id = 1",  # has WHERE
+    "truncate -s 0 log.txt",     # coreutils truncate, not SQL
 ]
 DANGEROUS = [
     "git push origin main --force",
@@ -25,6 +32,20 @@ DANGEROUS = [
     "rm -rf /",
     "DROP TABLE users;",
     "TRUNCATE logs",
+    # --- adversarial: evasion attempts that earlier slipped through ---
+    "rm  -rf  /",                # extra whitespace
+    "rm -fr /",                  # reordered flags
+    "rm -r -f .",                # split flags
+    "RM -RF /",                  # uppercase
+    "rm -rf $HOME",              # variable target
+    "DROP   TABLE users",        # extra whitespace in SQL
+    "find / -delete",            # bulk delete, no rm
+    "find . -exec rm {} +",      # delete via find -exec
+    "dd if=/dev/zero of=/dev/sda",  # raw device write
+    "mkfs.ext4 /dev/sda1",       # format filesystem
+    ":(){ :|:& };:",             # fork bomb
+    "chmod -R 777 /",            # recursive perms
+    "delete from users;",        # DELETE without WHERE
 ]
 
 

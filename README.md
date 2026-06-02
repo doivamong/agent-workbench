@@ -64,11 +64,11 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
 | **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **three** runnable example skills — one **workflow** (plan-then-code) + two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
-| **Stop the agent doing damage** | Hooks that block dangerous shell commands, flag vague prompts, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
+| **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
-| **Verify nothing leaked** | A secret/identifier scanner with a private deny-list — the same tool used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
+| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list — the commit-time seatbelt used to vet this export (catches common shapes + your own identifiers; not an entropy-aware vault) | [`tools/leak_scan.py`](tools/leak_scan.py) |
 | **Keep the agent on-style** | Rules for writing slash-commands consistently | [`.claude/rules/`](.claude/rules/) |
 | **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
 | **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
@@ -145,7 +145,7 @@ crash file and exits cleanly, rather than wedging the agent. The two shipped hoo
 
 | Hook | Event | What it does |
 |---|---|---|
-| `block_dangerous.py` | `PreToolUse` (Bash) | Classifies and blocks destructive commands (force-push, `rm -rf /`, `DROP TABLE`, …) against a documented hook I/O contract |
+| `block_dangerous.py` | `PreToolUse` (Bash) | Catches common destructive command shapes — `rm -rf` (any flag order/spacing), `find -delete`, `dd`, `mkfs`, fork bombs, force-push, `DROP TABLE`, … — and denies them via the documented hook contract. A **seatbelt against accidents, not a security boundary** (a determined operator can evade any string matcher). Adversarial evasion cases are in the test suite. |
 | `prompt-refiner-inject.py` | `UserPromptSubmit` | Flags vague prompts to be refined before execution |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
@@ -168,12 +168,12 @@ what's transferable and what was intentionally left behind:
 
 ## At a glance
 
-<!-- BEGIN GENERATED:metrics (counts below are checked by CI; edit narrative around them, not the numbers) -->
+<!-- BEGIN GENERATED:metrics (hand-maintained; run `python -m pytest --co -q` to recount tests) -->
 
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **37**, green in CI |
+| Tests | **56**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **3** (`examples/`) |
 | Example skills | **3** (1 workflow + 2 guards) |
 | Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
@@ -196,7 +196,7 @@ python examples/hook_block_demo.py  # dangerous-command classifier
 python examples/invariant_demo.py   # the invariant gate
 
 # Prove the tools actually work:
-python -m pytest -q                 # 37 tests
+python -m pytest -q                 # 56 tests
 ```
 
 ## Install it into your own project
@@ -239,6 +239,12 @@ This is **best-fit as currently known, with better approaches left open** — no
 comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may differ.
 PRs that challenge a pattern are as welcome as PRs that extend one.
 
+**On the guardrails specifically:** `block_dangerous.py` and `leak_scan.py` are **seatbelts, not
+security boundaries.** They catch common accidental and obvious-malicious shapes; they do **not**
+stop a determined operator (string matchers can always be evaded via encoding, indirection, or
+high-entropy secrets a line scanner won't flag). Use them to reduce footguns, not as your last
+line of defense.
+
 ## License
 
 [MIT](LICENSE) for the original code. Several pieces are ports/derivatives of other open-source
@@ -254,7 +260,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 37 tests · MIT
+**Agent Workbench** · stdlib-only core · 56 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
