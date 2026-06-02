@@ -5,7 +5,9 @@
 > ([`precompact_backup.py`](../.claude/hooks/scripts/precompact_backup.py)), a post-compact
 > restore that re-injects the latest handover excerpt
 > ([`compact_restore.py`](../.claude/hooks/scripts/compact_restore.py)), and a context-budget
-> nudge ([`context_tracker.py`](../.claude/hooks/scripts/context_tracker.py)) — wire them via
+> nudge ([`context_tracker.py`](../.claude/hooks/scripts/context_tracker.py)), and a session-end
+> breadcrumb ([`session_end.py`](../.claude/hooks/scripts/session_end.py)) the next SessionStart
+> surfaces as a one-line "Last session: …" — wire them via
 > [`install.py`](../install.py) or the `.claude/settings.json` snippet. It does **not** ship the
 > `/session-save` or `/catchup` **commands** or the tiered-restore *workflow*; those, and the
 > HANDOVER you write by hand, stay manual (the command names below are *the commands you would
@@ -94,10 +96,16 @@ session):
   HANDOVER so the agent resumes with goal/decisions/next-steps (Layer 2's automatic half).
 - **PostToolUse** → [`context_tracker.py`](../.claude/hooks/scripts/context_tracker.py): nudges
   you to `/compact` or save a handover once a session gets long, before limits hit unexpectedly.
+- **SessionEnd** → [`session_end.py`](../.claude/hooks/scripts/session_end.py): on session end,
+  writes a one-line breadcrumb (git branch, last commit, uncommitted count, time). The next
+  session's **SessionStart** ([`session_start.py`](../.claude/hooks/scripts/session_start.py))
+  reads a recent one and injects a "Last session: …" line — automatic, lightweight orientation
+  between sessions. It complements, never replaces, a hand-written HANDOVER (a breadcrumb, not a
+  replay: it has no goal/decisions and reflects git state at the moment the session ended).
 
 Still manual (by design): writing the HANDOVER itself, and a **save command/skill** that gathers
 `git diff`/`log` + your plan state into the template above. Kill switches: `PRECOMPACT_BACKUP=0`,
-`COMPACT_RESTORE=0`, `CONTEXT_TRACKER=0`.
+`COMPACT_RESTORE=0`, `CONTEXT_TRACKER=0`, `SESSION_BREADCRUMB=0`.
 
 ---
 

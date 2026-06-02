@@ -180,6 +180,7 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
 | `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
+| `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
@@ -207,7 +208,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **284**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **298**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **12** (`examples/`) |
 | Example skills | **7** (5 workflow + 2 guards) |
 | Standalone tools | **10** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `skill_usage_report`) |
@@ -238,7 +239,7 @@ python examples/requirements_diff_demo.py # warn on a newly added dependency
 python examples/affected_tests_demo.py   # pick only the tests a change affects
 
 # Prove the tools actually work:
-python -m pytest -q                 # 284 tests
+python -m pytest -q                 # 298 tests
 ```
 
 ## Install it into your own project
@@ -315,7 +316,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 284 tests · MIT
+**Agent Workbench** · stdlib-only core · 298 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

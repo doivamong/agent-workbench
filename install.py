@@ -123,6 +123,17 @@ SETTINGS_SNIPPET = {
                 ],
             },
         ],
+        "SessionEnd": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/session_end.py"',
+                        "timeout": 10,
+                    }
+                ],
+            }
+        ],
     }
 }
 

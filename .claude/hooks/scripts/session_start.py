@@ -27,10 +27,12 @@ Fail-open: any error degrades to an empty injection, never a broken session.
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from stdio_utf8 import ensure_utf8_io  # noqa: E402
+from session_breadcrumb import breadcrumb_path, format_note, read_breadcrumb  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
 
 # UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
@@ -73,10 +75,20 @@ def main() -> None:
         event = {}
     cwd = event.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or str(Path.home())
 
-    context = build_primer_context(Path(cwd) / PRIMER_REL)
+    # Inject the project primer, then a one-line "where I left off" breadcrumb (if a recent one
+    # was written by session_end.py). Either may be absent; inject whatever we have.
+    parts = []
+    primer = build_primer_context(Path(cwd) / PRIMER_REL)
+    if primer:
+        parts.append(primer)
+    note = format_note(read_breadcrumb(breadcrumb_path(cwd)), datetime.now(timezone.utc))
+    if note:
+        parts.append(note)
+
     output: dict = {}
-    if context:
-        output = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}
+    if parts:
+        output = {"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                         "additionalContext": "\n\n".join(parts)}}
     print(json.dumps(output, ensure_ascii=False))
     sys.exit(0)
 
