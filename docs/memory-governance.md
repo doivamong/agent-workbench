@@ -1,14 +1,18 @@
 # Memory Governance — a reference design
 
 > **What ships here vs. what this describes.** Agent Workbench ships the file-based
-> [`memory/`](../memory/) scaffold — one fact per file plus an index-gated `MEMORY.md` — and
-> this design note. It does **not** ship the `memory_*.py` automation (health checks, decay,
-> auto-promotion), a `reports/` folder, or Semgrep enforcement; those belong to the private
-> codebase this kit was extracted from. In that codebase the automation layer is **code-complete
-> but unexecuted, with auto-promotion mathematically infeasible** (see the honest lessons at the
-> end). So treat the tooling named below as *the design you'd build*, not files in this repo. The
-> portable, working parts are the **layout**, the **index-gating discipline**, and the
-> **promotion model** — which you implement yourself.
+> [`memory/`](../memory/) scaffold — one fact per file plus an index-gated `MEMORY.md` — this
+> design note, and **one manual safety tool**: [`tools/memory_snapshot.py`](../tools/memory_snapshot.py)
+> (snapshot the memory dir before a risky edit, then restore if it goes wrong). That tool is
+> **manual-only — run it yourself, never from a hook or cron**: an unattended mutator with no
+> rollback is the exact failure the honest lessons below warn about. It does **not** ship the
+> rest of the `memory_*.py` automation (health checks, decay, auto-promotion), a `reports/`
+> folder, or Semgrep enforcement; those belong to the private codebase this kit was extracted
+> from. In that codebase the automation layer is **code-complete but unexecuted, with
+> auto-promotion mathematically infeasible** (see the honest lessons at the end). So treat the
+> *other* tooling named below as *the design you'd build*, not files in this repo. The portable,
+> working parts are the **layout**, the **index-gating discipline**, and the **promotion model**
+> (which you implement yourself), plus the shipped **snapshot-before-mutate** safety net.
 
 ---
 
