@@ -24,7 +24,9 @@ genuinely cannot, write **"not measured"** — never round an un-measured thing 
 A guard exits 0 because it *ran*, not because it *covered the case you care about*. A linter green on
 the files it sees says nothing about the file it skipped. Before trusting a green check, verify its
 **coverage** — which inputs / files / branches it actually exercised, and what it silently skipped. A
-check that cannot fail is decoration; make it go red once on purpose to prove it bites.
+check that cannot fail is decoration; make it go red once on purpose to prove it bites. The same trap
+scales to a whole external tool that answers confidently but wrongly — benchmark it before you believe
+it ([`docs/external-tool-reliability.md`](../../docs/external-tool-reliability.md)).
 
 **3. Selection-biased percentage — a stat measured on a rigged sample.**
 "80% of X do Y", computed over items chosen *because* they do Y, is circular. Before quoting or

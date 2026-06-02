@@ -289,6 +289,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | Group | Key file | When to read |
 |---|---|---|
 | **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
+| **Map** | [`SKILL_CATALOG.md`](SKILL_CATALOG.md) | The full capability taxonomy — every skill/hook/doc/placeholder tagged LIVE / BLUEPRINT / ADOPTER-FILLS / REJECTED |
 | **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
 | **Blueprint** | [`docs/memory-governance.md`](docs/memory-governance.md) | Reference design for cross-session memory — the repo ships the `memory/` scaffold; the governance tooling is a model you implement |
 | **Design + hooks** | [`docs/session-preservation.md`](docs/session-preservation.md) | Context handover on long projects — the automatic layers ship as hooks (PreCompact backup, post-compact restore, context-budget nudge); the `/session-save` commands and the HANDOVER you write stay manual |
@@ -298,6 +299,9 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Guide** | [`docs/development-rules.md`](docs/development-rules.md) | Everyday coding defaults (YAGNI/KISS/DRY, error handling, testing) — guidance, not law, and what yields when a path-scoped rule disagrees |
 | **Guide** | [`docs/workflow.md`](docs/workflow.md) | Which skills to chain for which task type, and what the hooks fire on their own — the routing map over the skill set |
 | **Guide** | [`docs/architecture-vocabulary.md`](docs/architecture-vocabulary.md) | A small domain-free vocabulary for *structural* quality — deep vs shallow module, seam, the deletion test, interface-as-test-surface |
+| **Blueprint** | [`docs/ui-redesign-workflow.md`](docs/ui-redesign-workflow.md) | UI redesign as a gated workflow (admin + public toggle) — front-load the cheap checks; ships the method, you fill the brand |
+| **Guide** | [`docs/design-discipline.md`](docs/design-discipline.md) | Make UI quality explicit, not a vibe — numeric design dials, a scan→diagnose→fix audit, anti-AI-slop rules, a11y/perf as hard rules |
+| **Guide** | [`docs/external-tool-reliability.md`](docs/external-tool-reliability.md) | Trust an external analysis tool only after benchmarking it — ban its 0%-accurate queries, degrade gracefully to grep |
 | **Guide** | [`docs/pre-commit-failure-modes.md`](docs/pre-commit-failure-modes.md) | A commit gate that learns — an append-only failure-modes registry plus advisory-vs-blocking tiering |
 | **Pattern** | [`docs/patterns/config-access.md`](docs/patterns/config-access.md) | Two config-access traps — the wrong accessor for the execution context, and the silent-`None` nested-key bug that detonates far downstream |
 | **Pattern** | [`docs/patterns/optimization-loop.md`](docs/patterns/optimization-loop.md) | Let a measurement, not intuition, decide each change — the measure → change → keep-or-revert-via-git loop, and the honest limit that it only fits measurable goals |
