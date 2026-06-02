@@ -32,6 +32,7 @@ When more than one skill could match a request:
 | `example-debug` | guard | "it's broken / erroring / wrong / crashing" with an unknown cause | a known one-line fix; a feature; a code review |
 | `prompt-refiner` | workflow | a vague, multi-part request (the `prompt-refiner-inject.py` hook flags these) | an already-specific request; a trivial one-liner |
 | `example-research` | workflow | "how should we / what's the best way", comparing approaches, understanding a module before a non-trivial change | a vague request to clarify (that's prompt-refiner); executing an already-chosen approach; a one-line fix |
+| `example-handover` | workflow | ending a session, "hand this off / package for next session / write a handover", research-done-move-to-execution | work not finished enough to hand off; a quick mid-task note; starting fresh implementation now |
 | _your-config-guard_ | guard | code that reads/writes configuration | reading config just to understand it |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 | _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
