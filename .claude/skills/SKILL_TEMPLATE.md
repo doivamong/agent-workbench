@@ -20,6 +20,17 @@ description: >
 A sentence or two restating the trigger in your own words, so the agent re-confirms
 it picked the right skill before doing anything.
 
+## Scope
+
+State plainly what this skill **does** — and, just as explicitly, what it does **not**
+do and hands off to. (This is different from the `DO NOT TRIGGER` line above: that one
+keeps the skill from *firing* on the wrong request; this one stops it from *over-reaching*
+once it's already running.) A named boundary is what stops a skill from quietly growing
+into a do-everything blob.
+
+- **Does:** the one job, stated concretely.
+- **Does NOT:** the adjacent things it must refuse or delegate (and to what).
+
 ## Process
 
 1. **Step one** — what to do, what "done" looks like.
