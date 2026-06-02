@@ -1,4 +1,15 @@
+import shutil
+import subprocess
+
+import pytest
+
 import leak_scan
+
+requires_git = pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
+
+
+def _git(tmp_path, *args):
+    subprocess.run(["git", *args], cwd=tmp_path, capture_output=True, text=True, check=True)
 
 
 def test_detects_private_key(tmp_path):
@@ -153,3 +164,53 @@ def test_require_denylist_passes_with_terms(tmp_path):
     target.write_text("x = 1\n", encoding="utf-8")
     rc = leak_scan.main([str(target), "--denylist", str(dl), "--require-denylist", "--fail-on-find"])
     assert rc == 0
+
+
+# --- --respect-gitignore: skip files git won't publish -----------------------
+
+@requires_git
+def test_respect_gitignore_drops_ignored_file(tmp_path):
+    _git(tmp_path, "init")
+    (tmp_path / ".gitignore").write_text("notes/\n", encoding="utf-8")
+    (tmp_path / "notes").mkdir()
+    # A leak that lives ONLY in a git-ignored file is a false positive: it never ships.
+    (tmp_path / "notes" / "scratch.md").write_text("path C:\\Users\\someone\\x\n", encoding="utf-8")
+    files = list(leak_scan.iter_text_files(tmp_path))
+    assert any(f.name == "scratch.md" for f in files)  # the walker still sees it
+    kept, warning = leak_scan.filter_gitignored(tmp_path, files)
+    assert warning is None
+    assert not any(f.name == "scratch.md" for f in kept)  # but the filter drops it
+
+
+@requires_git
+def test_respect_gitignore_keeps_tracked_and_unignored(tmp_path):
+    _git(tmp_path, "init")
+    (tmp_path / ".gitignore").write_text("notes/\n", encoding="utf-8")
+    (tmp_path / "keep.py").write_text("x = 1\n", encoding="utf-8")
+    files = list(leak_scan.iter_text_files(tmp_path))
+    kept, warning = leak_scan.filter_gitignored(tmp_path, files)
+    assert warning is None
+    assert any(f.name == "keep.py" for f in kept)
+
+
+@requires_git
+def test_respect_gitignore_end_to_end_no_false_fail(tmp_path):
+    _git(tmp_path, "init")
+    (tmp_path / ".gitignore").write_text("private/\n", encoding="utf-8")
+    (tmp_path / "private").mkdir()
+    (tmp_path / "private" / "leak.md").write_text("home /home/realuser/secret\n", encoding="utf-8")  # leak-scan: ignore (fixture path, not a real leak)
+    # Without the flag the ignored file trips the gate; with it, the gate passes.
+    assert leak_scan.main([str(tmp_path), "--fail-on-find"]) == 1
+    assert leak_scan.main([str(tmp_path), "--fail-on-find", "--respect-gitignore"]) == 0
+
+
+def test_filter_gitignored_fails_open_outside_work_tree(tmp_path):
+    # Not a git repo -> cannot determine ignores -> scan everything, with a warning.
+    f = tmp_path / "x.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    kept, warning = leak_scan.filter_gitignored(tmp_path, [f])
+    if shutil.which("git") is None:
+        assert "git not found" in warning
+    else:
+        assert warning is not None and "no effect" in warning
+    assert kept == [f]  # fail open: nothing dropped

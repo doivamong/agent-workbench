@@ -85,7 +85,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
-| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers) and an opt-in `--entropy` sweep for random-looking tokens — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
+| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers), an opt-in `--entropy` sweep for random-looking tokens, and `--respect-gitignore` to skip files that never ship — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
 | **Keep memory honest** | A hygiene tripwire for the memory system — flags malformed frontmatter, dangling index links, orphan facts, broken `[[wiki-links]]`, and an oversized index | [`tools/memory_audit.py`](tools/memory_audit.py) |
 | **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
@@ -203,7 +203,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **238**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **242**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **5** (3 workflow + 2 guards) |
 | Standalone tools | **9** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`) |
@@ -233,7 +233,7 @@ python examples/context_budget_demo.py   # audit this repo's context budget
 python examples/requirements_diff_demo.py # warn on a newly added dependency
 
 # Prove the tools actually work:
-python -m pytest -q                 # 238 tests
+python -m pytest -q                 # 242 tests
 ```
 
 ## Install it into your own project
@@ -306,7 +306,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 238 tests · MIT
+**Agent Workbench** · stdlib-only core · 242 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

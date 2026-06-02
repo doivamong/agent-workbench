@@ -23,6 +23,14 @@ Usage:
     python tools/leak_scan.py . --denylist private.txt
     python tools/leak_scan.py src/ --denylist db.txt --fail-on-find
     python tools/leak_scan.py . --entropy --fail-on-find   # + high-entropy sweep
+    python tools/leak_scan.py . --respect-gitignore        # skip git-ignored files
+
+`--respect-gitignore` answers "would this leak when I publish?" — git-ignored files
+(local notes, private workspaces, scratch handovers) are never pushed, so flagging an
+identifier inside one is a false positive. It delegates the "is this ignored?" decision
+to `git check-ignore` rather than reimplementing gitignore semantics, and *fails open*:
+if git is missing or the path isn't inside a work tree, it warns and scans everything
+(over-scanning is safe for a tripwire; silently skipping files would not be).
 
 Exit code is non-zero when findings exist and --fail-on-find is set (CI gate).
 """
@@ -32,6 +40,7 @@ import argparse
 import math
 import re
 import string
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -101,6 +110,42 @@ def iter_text_files(root: Path):
             continue
         if p.suffix.lower() in TEXT_SUFFIXES or p.suffix == "":
             yield p
+
+
+def filter_gitignored(root: Path, files: list[Path]) -> tuple[list[Path], str | None]:
+    """Drop files that git would ignore, so the scan reflects what actually gets published.
+
+    Delegates to ``git check-ignore`` — the authority on gitignore rules — instead of
+    reimplementing the (subtle) matching semantics. ``check-ignore`` also consults the
+    index by default, so a *tracked* file matching an ignore rule is correctly NOT
+    dropped (it still ships, so it must still be scanned).
+
+    Fails OPEN: if git is unavailable or ``root`` is not inside a work tree, returns the
+    files unchanged plus a warning. For a leak tripwire, over-scanning is safe; silently
+    skipping files would not be. Returns ``(kept_files, warning_or_None)``.
+    """
+    if not files:
+        return files, None
+    cwd = root if root.is_dir() else root.parent
+    # NUL-separated (-z) I/O on both ends: avoids newline-mode translation (a stray \r on
+    # Windows broke path matching) and git's pathname quoting. Bytes in/out for the same reason.
+    try:
+        proc = subprocess.run(
+            ["git", "check-ignore", "-z", "--stdin"],
+            input=b"\0".join(f.as_posix().encode("utf-8") for f in files),
+            cwd=str(cwd), capture_output=True,
+        )
+    except OSError:
+        return files, "--respect-gitignore had no effect: git not found; scanned everything."
+    # git check-ignore exit codes: 0 = one or more ignored, 1 = none ignored, 128 = error
+    # (e.g. not a work tree). Anything other than 0/1 means the filter could not run.
+    if proc.returncode not in (0, 1):
+        detail = proc.stderr.decode("utf-8", "replace").strip() or "git check-ignore failed"
+        return files, f"--respect-gitignore had no effect: {detail}; scanned everything."
+    ignored = {p.decode("utf-8", "replace") for p in proc.stdout.split(b"\0") if p}
+    if not ignored:
+        return files, None
+    return [f for f in files if f.as_posix() not in ignored], None
 
 
 def _parse_ignore(line: str) -> tuple[bool, set[str]]:
@@ -226,6 +271,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--require-denylist", action="store_true",
                     help="Fail (exit 2) if --denylist is missing or has zero effective patterns. "
                          "Use in private->public port runs so the project-specific gate cannot silently no-op.")
+    ap.add_argument("--respect-gitignore", action="store_true",
+                    help="Skip files git would ignore (never published, so a finding there is a false "
+                         "positive). Uses `git check-ignore`; fails open (warns + scans all) if git is "
+                         "unavailable or the path isn't in a work tree.")
     args = ap.parse_args(argv)
 
     # Fail CLOSED on the project-specific gate: in a port run a missing/empty denylist
@@ -248,6 +297,11 @@ def main(argv: list[str] | None = None) -> int:
 
     root = args.root
     files = [root] if root.is_file() else list(iter_text_files(root))
+
+    if args.respect_gitignore:
+        files, warning = filter_gitignored(root, files)
+        if warning:
+            print(f"warning: {warning}", file=sys.stderr)
 
     total = 0
     for f in files:
