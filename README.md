@@ -62,10 +62,10 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **three** runnable example skills — one **workflow** (plan-then-code) + two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **four** runnable example skills — one **workflow** (plan-then-code), two **guards** (review, debug), and a **prompt-refiner** (workflow-tier, wired to the prompt hook) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
-| **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
+| **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
 | **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
 | **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers) and an opt-in `--entropy` sweep for random-looking tokens — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
@@ -119,10 +119,10 @@ flowchart TB
 ```
 
 <details>
-<summary><b>Deep-dive: the skill system (three archetypes)</b></summary>
+<summary><b>Deep-dive: the skill system (tiers, registry & example skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Three runnable examples ship as
+agent knows which takes precedence when several match. Four runnable example skills ship as
 working references:
 
 | Example skill | Tier | Fires when | Role |
@@ -130,6 +130,7 @@ working references:
 | `example-plan-then-code` | workflow | "implement X", multi-file work needing a plan first | Orchestrates a full plan → implement → review flow |
 | `example-review` | guard | "review my changes", before a non-trivial commit | Gates quality on changed code |
 | `example-debug` | guard | "it's broken / erroring" with an unknown cause | Maps symptom → suspect files before any fix |
+| `prompt-refiner` | workflow | a vague, multi-part request (flagged by the `prompt-refiner-inject.py` hook) | Restates intent into a crisp spec before work starts |
 
 The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
 single grep-able index of trigger / do-not-trigger boundaries; the
@@ -173,9 +174,9 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **60**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **75**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **3** (`examples/`) |
-| Example skills | **3** (1 workflow + 2 guards) |
+| Example skills | **4** (2 workflow + 2 guards) |
 | Standalone tools | **3** (`invariants`, `affected_tests`, `leak_scan`) |
 
 <!-- END GENERATED:metrics -->
@@ -196,7 +197,7 @@ python examples/hook_block_demo.py  # dangerous-command classifier
 python examples/invariant_demo.py   # the invariant gate
 
 # Prove the tools actually work:
-python -m pytest -q                 # 60 tests
+python -m pytest -q                 # 75 tests
 ```
 
 ## Install it into your own project
@@ -228,6 +229,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | Group | Key file | When to read |
 |---|---|---|
 | **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
+| **Security** | [`docs/SECURITY.md`](docs/SECURITY.md) | What each guard does / does NOT defend against |
 | **Operating** | [`docs/memory-governance.md`](docs/memory-governance.md) | Adapting the cross-session memory model |
 | **Operating** | [`docs/session-preservation.md`](docs/session-preservation.md) | Keeping context across long projects / handovers |
 | **Provenance** | [`docs/SANITIZATION.md`](docs/SANITIZATION.md) | How the domain was stripped and verified |
@@ -260,7 +262,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 60 tests · MIT
+**Agent Workbench** · stdlib-only core · 75 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

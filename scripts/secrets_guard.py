@@ -9,9 +9,10 @@ Example defaults assume two common cases:
   - a local database with secrets     (e.g. db/sensitive.db)
 
 Usage:
-  python secrets_guard.py encrypt              # Interactive password prompt
+  python secrets_guard.py encrypt              # Interactive password prompt (preferred)
   python secrets_guard.py decrypt              # Interactive password prompt
-  python secrets_guard.py encrypt --password X # Non-interactive
+  SECRETS_GUARD_PASSWORD=... python secrets_guard.py encrypt   # Non-interactive via env var
+  python secrets_guard.py encrypt --password X # Non-interactive (AVOID: visible in shell history / process list)
   python secrets_guard.py status               # Show encryption state
 
 Developer workflow:
@@ -30,6 +31,16 @@ Crypto:
   - Encryption: HMAC-based keystream in CTR mode (XOR)
   - Integrity: HMAC-SHA256 authentication tag
   - Format: salt(16) || hmac_tag(32) || ciphertext
+
+CAVEAT — read before relying on this:
+  This is a CUSTOM construction built from stdlib primitives, NOT an audited crypto
+  library. The pieces are sound (encrypt-then-MAC, constant-time tag compare, unique
+  per-encryption salt/nonce, 200k-iter PBKDF2) and it is adequate for keeping a private
+  backup encrypted AT REST. But it has had no third-party cryptographic review. If you
+  have a real adversarial threat model, use a vetted tool (age, sops, libsodium) and
+  accept the dependency — this kit stays stdlib-only by design and cannot. See
+  docs/SECURITY.md. Prefer the interactive password prompt over --password (which is
+  visible in shell history and the process list).
 
 Copyright: (c) 2026 doivamong
 """
@@ -249,9 +260,17 @@ def cmd_status() -> int:
 
 
 def _get_password(args) -> str:
-    """Obtain the master password from CLI args or an interactive prompt."""
+    """Obtain the master password.
+
+    Precedence: --password flag, then the SECRETS_GUARD_PASSWORD env var, then an
+    interactive prompt. Prefer the prompt or the env var for non-interactive use:
+    --password is visible in shell history and the process list (ps / Task Manager).
+    """
     if args.password:
         return args.password
+    env_pw = os.environ.get("SECRETS_GUARD_PASSWORD")
+    if env_pw:
+        return env_pw
     try:
         pw = getpass.getpass("  Master password: ")
     except Exception:
@@ -274,7 +293,8 @@ def main() -> None:
     ap.add_argument(
         "--password",
         metavar="PASS",
-        help="Master password (non-interactive mode)",
+        help="Master password (non-interactive). AVOID: visible in shell history / "
+             "process list — prefer the interactive prompt or the SECRETS_GUARD_PASSWORD env var.",
     )
     args = ap.parse_args()
 
