@@ -19,7 +19,9 @@ That is the one line every other file quotes verbatim.
 2. **Utility over metrics.** It is not published for stars, adoption, or attention. It exists so
    that whoever needs it can skip avoidable mistakes. *Consequence:* an artifact has done its job
    the moment it is available, correct, and honest the day someone reaches for it — counted or
-   not. Don't add features to look bigger.
+   not. Don't add features to look bigger — but *do* grow by need: a tool or lesson earns its
+   place when it distills real methodology someone would otherwise stumble without. The gate is
+   on vanity, not on ambition; disciplined growth over many cycles is the mission, not a risk.
 
 3. **Honesty about limits is the ethical core.** Load-bearing, not decoration: an oversold guard
    causes the very stumble it should prevent. *Consequence:* every tool and doc states plainly
@@ -33,8 +35,12 @@ That is the one line every other file quotes verbatim.
 
 ## What would betray this
 
-A change is suspect if it does any of these — catch them in review:
+A change *protects* this philosophy if it distills a real need, closes a loophole, or makes a
+hidden principle greppable — disciplined growth is welcome. A change *betrays* it if it does any
+of these — catch them in review:
 
+- a feature or tool is added to look bigger rather than because a real need demands it — bloat
+  that isn't distilled (betrays tenets 2 and 4);
 - a guard's doc drops its "what it does NOT do" line, or an absolute claim ("prevents",
   "guarantees", "secure") sits next to a guard with no hedge;
 - star / adoption / traffic framing creeps into the copy;

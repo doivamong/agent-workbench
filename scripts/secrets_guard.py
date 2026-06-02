@@ -26,23 +26,27 @@ Restore workflow (after clone):
   2. python secrets_guard.py decrypt -> restores plaintext
   3. Continue with normal setup
 
-Crypto:
-  - Key derivation: PBKDF2-HMAC-SHA256 (200,000 iterations)
+Crypto (format v2):
+  - Key derivation: PBKDF2-HMAC-SHA256 (600,000 iterations, NIST SP 800-132 2023+)
+  - Key separation: HKDF-Expand (RFC 5869) splits the PBKDF2 master into an
+    independent cipher key and MAC key (domain separation)
   - Encryption: HMAC-based keystream in CTR mode (XOR)
   - Integrity: HMAC-SHA256 authentication tag (authenticates the header too)
   - Format: magic(3) || version(1) || salt(16) || hmac_tag(32) || ciphertext
             (the magic+version header makes the format self-identifying and
              cleanly migratable: bump FORMAT_VERSION and branch in decrypt_bytes)
+  - Backward compatibility: v1 blobs (200k iters, single key for cipher+MAC) still
+    decrypt; new encryptions are written as v2.
 
 CAVEAT — read before relying on this:
   This is a CUSTOM construction built from stdlib primitives, NOT an audited crypto
   library. The pieces are sound (encrypt-then-MAC, constant-time tag compare, unique
-  per-encryption salt/nonce, 200k-iter PBKDF2) and it is adequate for keeping a private
-  backup encrypted AT REST. But it has had no third-party cryptographic review. If you
-  have a real adversarial threat model, use a vetted tool (age, sops, libsodium) and
-  accept the dependency — this kit stays stdlib-only by design and cannot. See
-  docs/SECURITY.md. Prefer the interactive password prompt over --password (which is
-  visible in shell history and the process list).
+  per-encryption salt/nonce, 600k-iter PBKDF2, HKDF-separated cipher/MAC keys) and it is
+  adequate for keeping a private backup encrypted AT REST. But it has had no third-party
+  cryptographic review. If you have a real adversarial threat model, use a vetted tool
+  (age, sops, libsodium) and accept the dependency — this kit stays stdlib-only by design
+  and cannot. See docs/SECURITY.md. Prefer the interactive password prompt over
+  --password (which is visible in shell history and the process list).
 
 Copyright: (c) 2026 doivamong
 """
@@ -77,7 +81,8 @@ TARGETS = [
     ),
 ]
 
-PBKDF2_ITERATIONS = 200_000
+PBKDF2_ITERATIONS = 600_000      # v2 default (NIST SP 800-132, 2023+)
+PBKDF2_ITERATIONS_V1 = 200_000   # legacy: only for decrypting existing v1 blobs
 SALT_LEN = 16
 HMAC_LEN = 32  # SHA-256 output length
 
@@ -86,7 +91,8 @@ HMAC_LEN = 32  # SHA-256 output length
 # (bump FORMAT_VERSION and branch in decrypt_bytes). The header is authenticated
 # by the HMAC tag, so the magic/version cannot be silently altered or downgraded.
 MAGIC = b"AWB"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2               # current; v1 still decrypts (see _derive_keys)
+SUPPORTED_VERSIONS = (1, 2)
 HEADER = MAGIC + bytes([FORMAT_VERSION])
 HEADER_LEN = len(HEADER)  # 4
 
@@ -94,9 +100,32 @@ HEADER_LEN = len(HEADER)  # 4
 # ── Crypto primitives (stdlib only) ─────────────────────────────────────────
 
 
-def _derive_key(password: str, salt: bytes) -> bytes:
-    """Derive a 32-byte encryption key from a password and salt using PBKDF2."""
-    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS)
+def _hkdf_expand(prk: bytes, info: bytes, length: int = 32) -> bytes:
+    """HKDF-Expand (RFC 5869) over HMAC-SHA256. ``prk`` is the PBKDF2 master key,
+    already pseudorandom, so Extract is unnecessary — Expand alone gives us cheap
+    domain separation into independent sub-keys."""
+    out, block, counter = b"", b"", 1
+    while len(out) < length:
+        block = hmac.new(prk, block + info + bytes([counter]), "sha256").digest()
+        out += block
+        counter += 1
+    return out[:length]
+
+
+def _derive_keys(password: str, salt: bytes, version: int) -> tuple[bytes, bytes]:
+    """Return ``(cipher_key, mac_key)`` for the given format version.
+
+    v1 (legacy): 200k-iter PBKDF2, one key reused for both cipher and MAC.
+    v2 (current): 600k-iter PBKDF2 master, then HKDF-Expand into two independent
+    keys so the cipher key and the MAC key are domain-separated.
+    """
+    if version == 1:
+        key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS_V1)
+        return key, key
+    master = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS)
+    cipher_key = _hkdf_expand(master, b"agent-workbench/secrets_guard cipher v2")
+    mac_key = _hkdf_expand(master, b"agent-workbench/secrets_guard mac v2")
+    return cipher_key, mac_key
 
 
 def _hmac_ctr_crypt(data: bytes, key: bytes, nonce: bytes) -> bytes:
@@ -122,16 +151,16 @@ def encrypt_bytes(plaintext: bytes, password: str) -> bytes:
     Returns: magic(3) || version(1) || salt(16) || hmac_tag(32) || ciphertext
     """
     salt = os.urandom(SALT_LEN)
-    key = _derive_key(password, salt)
+    cipher_key, mac_key = _derive_keys(password, salt, FORMAT_VERSION)
 
     # Derive a deterministic nonce from the salt so that the nonce is
     # never reused across independent encryptions.
     nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
-    ciphertext = _hmac_ctr_crypt(plaintext, key, nonce)
+    ciphertext = _hmac_ctr_crypt(plaintext, cipher_key, nonce)
 
     # Authenticate the header + salt + ciphertext, so the magic/version cannot be
     # tampered with or downgraded without failing verification.
-    tag = hmac.new(key, HEADER + salt + ciphertext, "sha256").digest()
+    tag = hmac.new(mac_key, HEADER + salt + ciphertext, "sha256").digest()
 
     return HEADER + salt + tag + ciphertext
 
@@ -150,25 +179,25 @@ def decrypt_bytes(encrypted: bytes, password: str) -> bytes:
     if header[:len(MAGIC)] != MAGIC:
         raise ValueError("Not an agent-workbench encrypted file (bad magic)")
     version = header[len(MAGIC)]
-    if version != FORMAT_VERSION:
+    if version not in SUPPORTED_VERSIONS:
         raise ValueError(
             f"Unsupported encrypted-format version {version} "
-            f"(this build supports v{FORMAT_VERSION})"
+            f"(this build supports v{', v'.join(map(str, SUPPORTED_VERSIONS))})"
         )
 
     salt = encrypted[HEADER_LEN : HEADER_LEN + SALT_LEN]
     stored_tag = encrypted[HEADER_LEN + SALT_LEN : HEADER_LEN + SALT_LEN + HMAC_LEN]
     ciphertext = encrypted[HEADER_LEN + SALT_LEN + HMAC_LEN :]
 
-    key = _derive_key(password, salt)
+    cipher_key, mac_key = _derive_keys(password, salt, version)
 
     # Verify the HMAC authentication tag (integrity + authentication), header included.
-    expected_tag = hmac.new(key, header + salt + ciphertext, "sha256").digest()
+    expected_tag = hmac.new(mac_key, header + salt + ciphertext, "sha256").digest()
     if not hmac.compare_digest(stored_tag, expected_tag):
         raise ValueError("Wrong password or tampered data (HMAC mismatch)")
 
     nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
-    return _hmac_ctr_crypt(ciphertext, key, nonce)
+    return _hmac_ctr_crypt(ciphertext, cipher_key, nonce)
 
 
 # ── File operations ──────────────────────────────────────────────────────────

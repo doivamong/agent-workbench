@@ -54,21 +54,30 @@ If a real secret ever reaches a commit, rotate it — scrubbing history is not e
 
 ## `secrets_guard.py` — at-rest file encryptor
 
-**Does:** encrypt sensitive files for storage with a **custom stdlib construction**:
-PBKDF2-HMAC-SHA256 (200k iterations) → HMAC-keystream CTR cipher → encrypt-then-MAC with an
-HMAC-SHA256 tag and constant-time verification, unique random salt (and derived nonce) per
-encryption. It round-trips correctly and rejects tampering and wrong passwords. Adequate for
-keeping a **private backup encrypted at rest**.
+**Does:** encrypt sensitive files for storage with a **custom stdlib construction** (format v2):
+PBKDF2-HMAC-SHA256 (600k iterations) → HKDF-Expand into a separate cipher key and MAC key →
+HMAC-keystream CTR cipher → encrypt-then-MAC with an HMAC-SHA256 tag and constant-time
+verification, unique random salt (and derived nonce) per encryption. It round-trips correctly
+and rejects tampering and wrong passwords. Adequate for keeping a **private backup encrypted at
+rest**. Older v1 blobs (200k iters, a single key reused for cipher and MAC) still decrypt, so
+existing backups are not stranded.
 
 **Does NOT:** stand in for an audited cryptographic library. This construction has had **no
-third-party cryptographic review** and derives the cipher key and MAC key from the same PBKDF2
-output (no HKDF separation). It does carry a self-identifying `magic + version` header
-(authenticated by the HMAC tag), so the on-disk format can be migrated cleanly if the
-construction ever changes. The kit is
+third-party cryptographic review**. It carries a self-identifying `magic + version` header
+(authenticated by the HMAC tag), so the on-disk format can be migrated cleanly when the
+construction changes — as it did for the v1 → v2 key-separation upgrade. The kit is
 **stdlib-only by golden rule**, so it cannot depend on a vetted library — that is a deliberate
 scope trade-off, not an endorsement of rolling your own crypto. **If you have a real adversarial
 threat model, use [`age`](https://github.com/FiloSottile/age), [`sops`](https://github.com/getsops/sops),
 or libsodium and accept the dependency.**
+
+**Migration roadmap — when to leave this behind.** Treat the version header as the seam. Move off
+this construction (re-encrypt with `age`/`sops`) when *any* of these is true: your threat model
+becomes adversarial (a motivated attacker, not just at-rest confidentiality); you need shared-key
+or multi-recipient access; or a primitive weakens (SHA-256/HMAC broken, or NIST's PBKDF2 iteration
+floor rises above what `PBKDF2_ITERATIONS` tracks — bump it and add a v3 branch, keeping v1/v2
+decryptable). The header + `_derive_keys(version)` branch is the migration mechanism: add a new
+version, leave the old branches in place, and re-encrypt on next write.
 
 Password resolution — **first one set wins**: `--password` flag → `SECRETS_GUARD_PASSWORD`
 env var → interactive prompt (the default). (An explicit flag beats an env var beats the

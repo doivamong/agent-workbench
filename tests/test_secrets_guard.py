@@ -55,6 +55,45 @@ def test_unsupported_version_rejected():
         decrypt_bytes(bytes(blob), "pw")
 
 
+# --- format versioning & key separation (v1 -> v2 migration) ----------------
+
+# A real v1 blob captured from the pre-HKDF construction (200k iters, single key,
+# fixed salt). password "pw" -> plaintext b"hello v1". This is a frozen golden
+# vector: if the v1 decrypt branch ever regresses, this test fails.
+_GOLDEN_V1_HEX = (
+    "41574201000102030405060708090a0b0c0d0e0f"  # leak-scan: ignore (golden test vector, not a secret)
+    "89c5214f3714e58f767670409dac2c26a73e9b256b37004e4a2e6d7df9eb00d8"  # leak-scan: ignore
+    "21f25b1ec2ff3260"
+)
+
+
+def test_golden_v1_blob_still_decrypts():
+    blob = bytes.fromhex(_GOLDEN_V1_HEX)
+    assert blob[len(secrets_guard.MAGIC)] == 1  # it really is a v1 blob
+    assert decrypt_bytes(blob, "pw") == b"hello v1"
+
+
+def test_new_encryptions_are_v2():
+    blob = encrypt_bytes(b"x", "pw")
+    assert blob[len(secrets_guard.MAGIC)] == 2 == secrets_guard.FORMAT_VERSION
+
+
+def test_v2_cipher_and_mac_keys_are_separated():
+    salt = bytes(range(16))
+    cipher_key, mac_key = secrets_guard._derive_keys("pw", salt, 2)
+    assert cipher_key != mac_key  # HKDF domain separation
+    # and v1 deliberately reuses one key, the weakness v2 fixes
+    v1_cipher, v1_mac = secrets_guard._derive_keys("pw", salt, 1)
+    assert v1_cipher == v1_mac
+
+
+def test_hkdf_expand_is_deterministic_and_sized():
+    prk = b"\x01" * 32
+    assert secrets_guard._hkdf_expand(prk, b"info", 32) == secrets_guard._hkdf_expand(prk, b"info", 32)
+    assert len(secrets_guard._hkdf_expand(prk, b"info", 48)) == 48
+    assert secrets_guard._hkdf_expand(prk, b"a") != secrets_guard._hkdf_expand(prk, b"b")
+
+
 # --- file operations & CLI helpers ------------------------------------------
 
 from argparse import Namespace
