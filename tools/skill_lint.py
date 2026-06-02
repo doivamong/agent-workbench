@@ -12,6 +12,12 @@ a skills directory:
   WARN   - a SKILL.md whose frontmatter 'name' differs from its folder name
   WARN   - a description missing a 'USE WHEN' or 'DO NOT TRIGGER' marker (the
            convention that makes a skill fire at the right time and not the wrong one)
+  WARN   - a skill name containing a reserved token ('claude'/'anthropic') — naming a
+           skill after the assistant/vendor reads as an impersonation/injection smell
+  WARN   - a description with raw angle brackets (`<`/`>`) — it lands verbatim in the
+           always-loaded system listing, where stray markup is an injection/noise risk
+  WARN   - a description outside a sane length band (too thin to route on / so long it
+           bloats the always-loaded listing)
   WARN   - a SKILL.md longer than MAX_SKILL_LINES (push detail into references/)
 
 Usage:
@@ -38,6 +44,13 @@ REGISTRY = "skill-registry.md"
 # A SKILL.md beyond this is usually carrying detail that belongs in references/.
 # Soft nudge (WARN), not a hard rule — tune per project.
 MAX_SKILL_LINES = 400
+# A skill name should never impersonate the assistant/vendor (smells like an
+# injection or a confused scope). Substring match, case-insensitive.
+RESERVED_NAME_TOKENS = ("claude", "anthropic")
+# The description is concatenated into the always-loaded skill listing. Too short =
+# nothing to route on; too long = it bloats every session's context. Soft band (WARN).
+DESC_MIN_CHARS = 30
+DESC_MAX_CHARS = 1200
 # Registry rows for unwritten skills are intentionally italicised placeholders
 # (e.g. `_your-config-guard_`); they have no folder yet, so don't demand one.
 _ROW_NAME_RE = re.compile(r"^\|\s*`?_?([A-Za-z0-9][\w-]*)_?`?\s*\|")
@@ -128,6 +141,10 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
                 out.append(("error", loc, "frontmatter missing 'name'"))
             elif name != folder:
                 out.append(("warn", loc, f"frontmatter name {name!r} != folder {folder!r}"))
+            bad_tok = next((t for t in RESERVED_NAME_TOKENS if t in name.lower()), None)
+            if bad_tok:
+                out.append(("warn", loc, f"name contains reserved token {bad_tok!r} "
+                                         "(don't name a skill after the assistant/vendor)"))
 
             desc = fields.get("description", "").strip()
             if not desc:
@@ -138,6 +155,13 @@ def lint(skills_dir: Path) -> list[tuple[str, str, str]]:
                     out.append(("warn", loc, "description has no 'USE WHEN' marker (when should it fire?)"))
                 if "DO NOT TRIGGER" not in upper:
                     out.append(("warn", loc, "description has no 'DO NOT TRIGGER' marker (when should it not?)"))
+                if "<" in desc or ">" in desc:
+                    out.append(("warn", loc, "description contains raw angle brackets (<>) — "
+                                             "they land verbatim in the system skill listing"))
+                if not (DESC_MIN_CHARS <= len(desc) <= DESC_MAX_CHARS):
+                    out.append(("warn", loc, f"description is {len(desc)} chars "
+                                             f"(outside {DESC_MIN_CHARS}-{DESC_MAX_CHARS}; "
+                                             "too thin to route on, or bloats the listing)"))
 
         if folder not in reg_names:
             out.append(("error", folder, "skill folder has no row in skill-registry.md"))

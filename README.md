@@ -203,7 +203,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **244**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **249**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **6** (`examples/`) |
 | Example skills | **5** (3 workflow + 2 guards) |
 | Standalone tools | **9** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`) |
@@ -233,7 +233,7 @@ python examples/context_budget_demo.py   # audit this repo's context budget
 python examples/requirements_diff_demo.py # warn on a newly added dependency
 
 # Prove the tools actually work:
-python -m pytest -q                 # 244 tests
+python -m pytest -q                 # 249 tests
 ```
 
 ## Install it into your own project
@@ -308,7 +308,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 244 tests · MIT
+**Agent Workbench** · stdlib-only core · 249 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

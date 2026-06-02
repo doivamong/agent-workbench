@@ -112,3 +112,40 @@ def test_oversize_skill_warns(tmp_path):
     _skills(tmp_path, _REGISTRY, {"alpha": big})
     assert any(sev == "warn" and "lines" in msg
                for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+# --- description-quality checks (C1) ---
+
+def test_reserved_name_token_warns(tmp_path):
+    reg = _REGISTRY.replace("`alpha`", "`claude-helper`")
+    skill = _SKILL_BLOCK.replace("name: alpha", "name: claude-helper")
+    _skills(tmp_path, reg, {"claude-helper": skill})
+    assert any(sev == "warn" and "reserved token" in msg
+               for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_angle_brackets_in_description_warn(tmp_path):
+    skill = _SKILL_BLOCK.replace("does a thing.", "does a thing for <users>.")
+    _skills(tmp_path, _REGISTRY, {"alpha": skill})
+    assert any(sev == "warn" and "angle brackets" in msg
+               for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_too_short_description_warns(tmp_path):
+    # _SKILL has a 12-char 'does a thing' description — under DESC_MIN_CHARS.
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL})
+    assert any(sev == "warn" and "chars" in msg for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_too_long_description_warns(tmp_path):
+    long_desc = "USE WHEN x. DO NOT TRIGGER y. " + ("padding " * 200)
+    skill = f"---\nname: alpha\ndescription: {long_desc}\ntier: guard\n---\nbody\n"
+    _skills(tmp_path, _REGISTRY, {"alpha": skill})
+    assert any(sev == "warn" and "chars" in msg for sev, _, msg in skill_lint.lint(tmp_path))
+
+
+def test_band_length_description_is_clean(tmp_path):
+    # _SKILL_BLOCK's description is well within the band and has no angle brackets.
+    _skills(tmp_path, _REGISTRY, {"alpha": _SKILL_BLOCK})
+    msgs = [msg for _, _, msg in skill_lint.lint(tmp_path)]
+    assert not any("chars" in m or "angle brackets" in m or "reserved token" in m for m in msgs)
