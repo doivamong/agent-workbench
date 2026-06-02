@@ -29,6 +29,9 @@ python tools/invariants.py .                 # zero new errors
 - **Every tool needs a runnable example and tests.** "Readable but unrunnable" is the failure
   mode this kit fights.
 - **Plan → implement → test → review** for non-trivial changes.
+- **Best-fit, honest about limits, not gospel.** Every tool states what it does *not* do; never
+  oversell a guard — that would cause the very stumble it is meant to prevent. This is the
+  kit's reason for existing, not a stylistic note.
 - **No AI co-author trailers** in commits.
 
 ## Why have both AGENTS.md and CLAUDE.md?
