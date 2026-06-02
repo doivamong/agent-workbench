@@ -39,6 +39,7 @@ COPY_MAP = [
     ("tools/affected_tests.py", "tools/affected_tests.py"),
     ("tools/memory_audit.py", "tools/memory_audit.py"),
     ("tools/skill_lint.py", "tools/skill_lint.py"),
+    ("tools/skill_usage_report.py", "tools/skill_usage_report.py"),
     ("scripts/secrets_guard.py", "scripts/secrets_guard.py"),
     ("memory", "memory"),
 ]

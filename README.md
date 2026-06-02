@@ -91,6 +91,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
 | **Watch the context budget** | An auditor for everything Claude Code loads each session (skills, agents, rules, the CLAUDE.md chain, MCP servers) — buckets each as always/sometimes/rarely and flags the heavy ones, so "short, high-signal context" gets a number (heuristic, not a real tokenizer) | [`tools/check_context_budget.py`](tools/check_context_budget.py) |
 | **Catch an un-installed dependency** | A pre-commit *seatbelt* that warns (never blocks) when a commit adds a line to `requirements.txt`, so you remember to install it where the code runs before it fails at import | [`tools/check_requirements_diff.py`](tools/check_requirements_diff.py) |
+| **See which skills actually fire** | An opt-in prompt-logger + report that surfaces which skills get used and which are dead weight — to prune them or fix their trigger text. Honest proxy: it counts name *mentions*, not true uses | [`tools/skill_usage_report.py`](tools/skill_usage_report.py) |
 | **Keep the agent on-style** | Rules for writing slash-commands consistently | [`.claude/rules/`](.claude/rules/) |
 | **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
 | **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
@@ -179,6 +180,7 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
 | `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
+| `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
 Run [`examples/hook_block_demo.py`](examples/hook_block_demo.py) to see the classifier decide.
@@ -205,10 +207,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **267**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **11** (`examples/`) |
+| Tests | **284**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **12** (`examples/`) |
 | Example skills | **7** (5 workflow + 2 guards) |
-| Standalone tools | **9** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`) |
+| Standalone tools | **10** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `skill_usage_report`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -236,7 +238,7 @@ python examples/requirements_diff_demo.py # warn on a newly added dependency
 python examples/affected_tests_demo.py   # pick only the tests a change affects
 
 # Prove the tools actually work:
-python -m pytest -q                 # 267 tests
+python -m pytest -q                 # 284 tests
 ```
 
 ## Install it into your own project
@@ -313,7 +315,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 267 tests · MIT
+**Agent Workbench** · stdlib-only core · 284 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
