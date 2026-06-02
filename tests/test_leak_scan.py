@@ -198,7 +198,7 @@ def test_respect_gitignore_end_to_end_no_false_fail(tmp_path):
     _git(tmp_path, "init")
     (tmp_path / ".gitignore").write_text("private/\n", encoding="utf-8")
     (tmp_path / "private").mkdir()
-    (tmp_path / "private" / "leak.md").write_text("home /home/realuser/secret\n", encoding="utf-8")  # leak-scan: ignore (fixture path, not a real leak)
+    (tmp_path / "private" / "leak.md").write_text("home /home/realuser/secret\n", encoding="utf-8")  # leak-scan: ignore, inv: ignore (fixture path, not a real leak)
     # Without the flag the ignored file trips the gate; with it, the gate passes.
     assert leak_scan.main([str(tmp_path), "--fail-on-find"]) == 1
     assert leak_scan.main([str(tmp_path), "--fail-on-find", "--respect-gitignore"]) == 0
