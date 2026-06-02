@@ -89,8 +89,8 @@
     },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
-      "lines": 63,
-      "bytes": 3859
+      "lines": 65,
+      "bytes": 4065
     },
     ".claude/skills/README.md": {
       "category": ".claude/skills",
@@ -110,12 +110,12 @@
     ".claude/skills/example-cook/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3827
+      "bytes": 3893
     },
     ".claude/skills/example-dead-code-audit/SKILL.md": {
       "category": ".claude/skills",
       "lines": 56,
-      "bytes": 3037
+      "bytes": 3092
     },
     ".claude/skills/example-debug/SKILL.md": {
       "category": ".claude/skills",
@@ -125,7 +125,7 @@
     ".claude/skills/example-external-ref/SKILL.md": {
       "category": ".claude/skills",
       "lines": 65,
-      "bytes": 3713
+      "bytes": 3777
     },
     ".claude/skills/example-handover/SKILL.md": {
       "category": ".claude/skills",
@@ -135,7 +135,7 @@
     ".claude/skills/example-optimize/SKILL.md": {
       "category": ".claude/skills",
       "lines": 60,
-      "bytes": 3091
+      "bytes": 3150
     },
     ".claude/skills/example-output-guard/SKILL.md": {
       "category": ".claude/skills",
@@ -165,7 +165,7 @@
     ".claude/skills/example-tdd/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3527
+      "bytes": 3593
     },
     ".claude/skills/example-using-skills/SKILL.md": {
       "category": ".claude/skills",
