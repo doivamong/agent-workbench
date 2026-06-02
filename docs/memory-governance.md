@@ -111,6 +111,15 @@ These cost real time to learn; the point of writing them down is so you skip the
   ever had 3 members and the cycle produced zero candidates. Every promotion that actually
   happened was a manual human decision. **The manual path is the one that works** — don't over-
   invest in automating it.
+- **A destructive guard can be silently bypassed through a *different* parameter.** A cap meant to
+  stop a bulk mutation only fired when one optional argument was absent — passing some *other*
+  meaningful argument was treated as "the user clearly thought about this" and skipped the cap,
+  which then let a damaging run through. An override must be its own explicit, single-purpose flag
+  (`--force-...`), never a side effect of an unrelated option that happens to be set.
+- **Deprecating a tool means deleting the things that still run it.** A mutation tool was retired as
+  unsafe, but a scheduled task kept invoking it on a timer — the automation outlived the decision to
+  kill the code. When you deprecate something dangerous, remove its cron/scheduler/hook entries in
+  the *same* change, or the "dead" tool keeps running unattended.
 
 The meta-lesson: a memory system's failure mode is silent (a truncated index, a wrongly-decayed
 lesson). Favor read-only health checks and manual mutation over clever automation you can't see
