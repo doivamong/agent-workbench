@@ -53,7 +53,7 @@ jobs:
         run: python tools/skill_lint.py
 
       # Enforce a deliberate ceiling on the skill set's session-start cost. These are tunable
-      # caps you bump on purpose (today: 7 skills / ~4.3k tok) — not a measured truth.
+      # caps you bump on purpose (today: 8 skills / ~5.2k tok) — not a measured truth.
       - name: Context budget (cap skill bloat)
         run: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
 
