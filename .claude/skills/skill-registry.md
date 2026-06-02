@@ -40,5 +40,5 @@ When more than one skill could match a request:
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 | _your-dead-code-audit_ | audit | "find unused code", post-refactor cleanup | "this function is too long" (that's a structural-size concern) |
 
-Replace the placeholder rows with your real skills. The eight non-placeholder rows correspond to
-the runnable example skills in this folder (three workflows + four guards + one meta routing skill).
+Replace the placeholder rows with your real skills. The ten non-placeholder rows correspond to
+the runnable example skills in this folder (five workflows + four guards + one meta routing skill).

@@ -79,7 +79,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **seven** runnable example skills — five **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test) and two **guards** (review, debug) | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **ten** runnable example skills — five **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test), four **guards** (review, debug, output-guard, config-guard), and a **meta** routing skill (using-skills) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
@@ -147,7 +147,7 @@ flowchart TB
 <summary><b>Deep-dive: the skill system (tiers, registry & example skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Eight runnable example skills ship as
+agent knows which takes precedence when several match. Ten runnable example skills ship as
 working references:
 
 | Example skill | Tier | Fires when | Role |
@@ -211,9 +211,9 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **267**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **309**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **12** (`examples/`) |
-| Example skills | **7** (5 workflow + 2 guards) |
+| Example skills | **10** (5 workflow + 4 guards + 1 meta routing) |
 | Standalone tools | **10** (`invariants`, `affected_tests`, `leak_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`) |
 
 <!-- END GENERATED:metrics -->
@@ -243,7 +243,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 267 tests
+python -m pytest -q                 # 309 tests
 ```
 
 ## Install it into your own project
@@ -320,7 +320,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 267 tests · MIT
+**Agent Workbench** · stdlib-only core · 309 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

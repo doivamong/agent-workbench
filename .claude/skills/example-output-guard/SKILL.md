@@ -3,9 +3,9 @@ name: example-output-guard
 description: >
   WHAT: keep long / whole-file code generation complete — no truncation, placeholders, "...",
   or "for brevity" stubs.
-  USE WHEN: generating a whole file, a large template, or a big refactor (roughly >150 lines, or
+  USE WHEN: generating a whole file, a large template, or a big refactor (roughly 150+ lines, or
   any "write the complete X" request); or when an earlier turn may have left a file half-written.
-  DO NOT TRIGGER: a small edit (<~30 lines) to an existing file; a question; a prose-only answer.
+  DO NOT TRIGGER: a small edit (under ~30 lines) to an existing file; a question; a prose-only answer.
 tier: guard
 oversight: high
 ---
