@@ -33,6 +33,7 @@ COPY_MAP = [
     (".claude/hooks", ".claude/hooks"),
     (".claude/skills", ".claude/skills"),
     (".claude/rules", ".claude/rules"),
+    (".claude/agents", ".claude/agents"),
     (".claude/session-primer.md", ".claude/session-primer.md"),
     ("tools/leak_scan.py", "tools/leak_scan.py"),
     ("tools/license_scan.py", "tools/license_scan.py"),
@@ -123,6 +124,18 @@ SETTINGS_SNIPPET = {
                         "timeout": 10,
                     }
                 ],
+            },
+            {
+                # No matcher: runs on every SessionStart so the agent gets the skill
+                # routing map each session. Derived from the (also-copied) skill-registry.md
+                # and fails open if it's missing, so it's safe to wire for any adopter.
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/skill_routing_inject.py"',
+                        "timeout": 10,
+                    }
+                ]
             },
         ],
         "SessionEnd": [

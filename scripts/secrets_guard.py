@@ -153,8 +153,12 @@ def encrypt_bytes(plaintext: bytes, password: str) -> bytes:
     salt = os.urandom(SALT_LEN)
     cipher_key, mac_key = _derive_keys(password, salt, FORMAT_VERSION)
 
-    # Derive a deterministic nonce from the salt so that the nonce is
-    # never reused across independent encryptions.
+    # Derive a deterministic nonce from the salt. This is safe ONLY because `salt` is a fresh
+    # os.urandom(SALT_LEN) per encryption (above): a unique salt yields a unique nonce, so the
+    # CTR keystream never repeats across independent encryptions.
+    # LOAD-BEARING INVARIANT — never make the salt fixed or deterministic. Reusing a salt reuses
+    # the keystream, which silently collapses CTR confidentiality (an attacker XORs two ciphertexts
+    # to cancel the keystream), and nothing here or in the tests would catch it.
     nonce = hashlib.sha256(salt + b"nonce").digest()[:16]
     ciphertext = _hmac_ctr_crypt(plaintext, cipher_key, nonce)
 

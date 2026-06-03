@@ -194,7 +194,7 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
 | `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
 | `skill_routing_inject.py` | `SessionStart` (all) | Injects a compact, tier-ordered routing map derived from `skill-registry.md`, so the agent starts each session knowing which skill fires when. Output is kept small (it loads every session); pairs with the `awb-using-skills` meta-skill. |
-| `sync_guard.py` | `PostToolUse` (Write) | When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
+| `sync_guard.py` | `PostToolUse` (Write) | **Maintainer-only — not wired by the installer** (its `tools/sync_manifest.py` gate and `.claude/manifest.json` ship with the kit, not into adopter projects, so wiring it there would only nag). When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
 | `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
@@ -263,8 +263,9 @@ python -m pytest -q                 # 405 tests
 ## Install it into your own project
 
 This is the part that makes it real, not just a reference. Point the installer at any project
-and it copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold in, then
-wires the hooks for you:
+and it copies the hooks, skills, rules, the project-facing tools (8 of the 15 in `tools/` — the
+other 7 are repo-maintenance tools that stay in the kit), `secrets_guard`, and the memory scaffold
+in, then wires the hooks for you:
 
 ```bash
 python install.py /path/to/your/project --with-git-hook --merge-settings
@@ -274,9 +275,10 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 # --dry-run to preview first; --force to overwrite existing copied files.
 ```
 
-With `--merge-settings` the hooks are active immediately; without it you paste the printed
-snippet into `.claude/settings.json` yourself. Either way, opening that project in your agent
-gives you, working immediately:
+With `--merge-settings` the installer's hooks are active immediately — every hook in the table
+above except the maintainer-only `sync_guard` and the opt-in `skill_usage_logger`; without it you
+paste the printed snippet into `.claude/settings.json` yourself. Either way, opening that project
+in your agent gives you, working immediately:
 
 - **Dangerous `Bash` commands get blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) via a
   real `PreToolUse` hook — verified against the documented hook I/O contract.

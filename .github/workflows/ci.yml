@@ -41,8 +41,11 @@ jobs:
 
       # This kit gates itself with its own tools (dogfooding).
       # --entropy adds the high-entropy token sweep so keyless secrets are caught too.
+      # --respect-gitignore keeps the exact documented command safe to run verbatim on a working
+      # tree too: it skips gitignored handovers/scratch that would false-positive. CI's fresh
+      # checkout has no untracked files, so this never narrows coverage of what actually ships.
       - name: Leak scan (no secrets / identifiers committed)
-        run: python tools/leak_scan.py . --entropy --fail-on-find
+        run: python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
 
       - name: Invariants
         run: python tools/invariants.py .
