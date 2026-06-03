@@ -3,10 +3,16 @@
     ".claude/skills",
     ".claude/hooks",
     ".claude/rules",
+    ".claude/agents",
     "tools",
     "scripts"
   ],
   "files": {
+    ".claude/agents/silent-failure-hunter.md": {
+      "category": ".claude/agents",
+      "lines": 80,
+      "bytes": 4548
+    },
     ".claude/hooks/lib/handover_utils.py": {
       "category": ".claude/hooks",
       "lines": 42,
@@ -94,8 +100,8 @@
     },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
-      "lines": 65,
-      "bytes": 4065
+      "lines": 71,
+      "bytes": 4777
     },
     ".claude/skills/README.md": {
       "category": ".claude/skills",
@@ -194,8 +200,8 @@
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
-      "lines": 383,
-      "bytes": 16005
+      "lines": 387,
+      "bytes": 16423
     },
     "tools/affected_tests.py": {
       "category": "tools",
@@ -270,7 +276,7 @@
     "tools/sync_manifest.py": {
       "category": "tools",
       "lines": 149,
-      "bytes": 7211
+      "bytes": 7229
     }
   }
 }
