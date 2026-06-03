@@ -115,12 +115,12 @@
     ".claude/skills/awb-cook/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3841
+      "bytes": 3832
     },
     ".claude/skills/awb-dead-code-audit/SKILL.md": {
       "category": ".claude/skills",
       "lines": 64,
-      "bytes": 3623
+      "bytes": 3614
     },
     ".claude/skills/awb-debug/SKILL.md": {
       "category": ".claude/skills",
@@ -130,7 +130,7 @@
     ".claude/skills/awb-external-ref/SKILL.md": {
       "category": ".claude/skills",
       "lines": 68,
-      "bytes": 4056
+      "bytes": 4047
     },
     ".claude/skills/awb-handover/SKILL.md": {
       "category": ".claude/skills",
@@ -145,7 +145,7 @@
     ".claude/skills/awb-optimize/SKILL.md": {
       "category": ".claude/skills",
       "lines": 60,
-      "bytes": 3142
+      "bytes": 3133
     },
     ".claude/skills/awb-output-guard/SKILL.md": {
       "category": ".claude/skills",
@@ -175,7 +175,7 @@
     ".claude/skills/awb-tdd/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3585
+      "bytes": 3576
     },
     ".claude/skills/awb-using-skills/SKILL.md": {
       "category": ".claude/skills",
@@ -189,8 +189,8 @@
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
-      "lines": 50,
-      "bytes": 5112
+      "lines": 54,
+      "bytes": 5410
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
@@ -246,6 +246,11 @@
       "category": "tools",
       "lines": 222,
       "bytes": 10160
+    },
+    "tools/memory_sync.py": {
+      "category": "tools",
+      "lines": 146,
+      "bytes": 7281
     },
     "tools/readme_metrics.py": {
       "category": "tools",
