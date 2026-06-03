@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -38,15 +39,13 @@ SKIP = {INDEX_NAME, "README.md"}
 
 
 def mangle_cwd(cwd: Path) -> str:
-    """Best-effort Claude Code project-id mangling: path separators, ':' and '_' all become '-'.
+    """Claude Code project-id mangling: every non-alphanumeric character becomes '-'.
 
-    e.g. ``Z:/code/proj_x/sub`` -> ``Z--code-proj-x-sub``. Harness-specific and
-    version-fragile by nature; the caller always stat-verifies the result rather than trusting it.
+    e.g. ``Z:/code/proj_x/sub`` -> ``Z--code-proj-x-sub``, and a ``.claude`` worktree path folds
+    ``/.`` to ``--`` to match the harness's on-disk ~/.claude/projects/<id>/ dir. Harness-specific
+    and version-fragile; the caller always stat-verifies the result rather than trusting it.
     """
-    s = str(cwd)
-    for ch in ("\\", "/", ":", "_"):
-        s = s.replace(ch, "-")
-    return s
+    return re.sub(r"[^A-Za-z0-9]", "-", str(cwd))
 
 
 def _auto_memory_dir(project: Path) -> "Path | None":
@@ -58,8 +57,12 @@ def _auto_memory_dir(project: Path) -> "Path | None":
         data = json.loads(settings.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+    if not isinstance(data, dict):          # valid JSON but not an object -> fall through
+        return None
     raw = data.get("autoMemoryDirectory")
-    return Path(raw).expanduser() if raw else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    return Path(raw).expanduser()
 
 
 def resolve_live_dir(project: Path, explicit: "Path | None") -> "tuple[Path, str]":
@@ -102,7 +105,7 @@ def doctor(project: Path, explicit_dir: "Path | None", template: Path) -> "tuple
 
     index = live / INDEX_NAME
     if not index.exists():
-        lines.append(f"  WARN: no {INDEX_NAME} in the live dir — nothing auto-loads each session.")
+        lines.append(f"  WARN: no {INDEX_NAME} in the live dir - nothing auto-loads each session.")
         return lines, 0
     raw = index.read_text(encoding="utf-8", errors="replace")
     nbytes, nlines = len(raw.encode("utf-8")), len(raw.splitlines())

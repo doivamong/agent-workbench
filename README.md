@@ -80,7 +80,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
 | **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **fifteen** runnable example skills across all five tiers — eight **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test, tdd, cook, external-ref), four **guards** (review, debug, output-guard, config-guard), a **meta** router (using-skills), a **feature** (optimize), and an **audit** (dead-code-audit) | [`.claude/skills/`](.claude/skills/) |
-| **Carry context across sessions** | A file-based, index-gated memory the agent reloads each session — scaffold + example facts | [`memory/`](memory/) |
+| **Carry context across sessions** | A file-based, index-gated memory scaffold (example facts to replace). The harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/` — see [memory-governance.md](docs/memory-governance.md) | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
@@ -110,7 +110,7 @@ flowchart TB
         cfg["CLAUDE.md / AGENTS.md<br/>project instructions"]
         skills["Skills<br/>intent-triggered playbooks"]
         rules["Rules<br/>path-scoped style"]
-        mem["Memory<br/>index-gated, cross-session"]
+        mem["Memory<br/>index-gated; live store is per-project, not the repo copy"]
     end
 
     subgraph guards["Runtime guardrails (hooks)"]
@@ -221,7 +221,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **376**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **385**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **16** (`examples/`) |
 | Example skills | **15** (8 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **14** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
@@ -253,7 +253,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 376 tests
+python -m pytest -q                 # 385 tests
 ```
 
 ## Install it into your own project
@@ -337,7 +337,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 376 tests · MIT
+**Agent Workbench** · stdlib-only core · 385 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

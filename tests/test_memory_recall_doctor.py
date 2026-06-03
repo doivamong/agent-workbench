@@ -78,3 +78,72 @@ def test_autoMemoryDirectory_used_when_no_explicit_dir(tmp_path):
     path, how = doc.resolve_live_dir(tmp_path, None)
     assert path == auto
     assert "autoMemoryDirectory" in how
+
+
+# --- code-review regression tests (PR #8 follow-up) ---
+
+def test_mangle_cwd_dotted_path_doubles_the_dash():
+    # A '.claude' worktree path: the harness maps EVERY non-alphanumeric to '-', so '/.' -> '--'.
+    assert doc.mangle_cwd(Path("Z:/code/.claude/wt/x")) == "Z--code--claude-wt-x"
+
+
+def test_non_object_settings_falls_through_to_derived(tmp_path):
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text("[1, 2, 3]", encoding="utf-8")  # valid JSON, not an object
+    _path, how = doc.resolve_live_dir(tmp_path, None)
+    assert how.startswith("derived")  # did not crash; fell through to derivation
+
+
+def test_non_string_autoMemoryDirectory_falls_through(tmp_path):
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text('{"autoMemoryDirectory": 123}', encoding="utf-8")
+    _path, how = doc.resolve_live_dir(tmp_path, None)
+    assert how.startswith("derived")
+
+
+def test_derived_branch_wires_mangle_cwd(tmp_path):
+    project = tmp_path / "proj"
+    project.mkdir()
+    path, how = doc.resolve_live_dir(project, None)
+    assert how.startswith("derived")
+    assert doc.mangle_cwd(project) in str(path) and path.name == "memory"
+
+
+def test_derived_missing_dir_is_advisory(tmp_path, capsys):
+    # No --dir, no settings: derive a path that won't exist -> advisory exit 0, never a false RED.
+    project = tmp_path / "proj"
+    project.mkdir()
+    rc = doc.main(["--project", str(project), "--template", str(_seed(tmp_path / "repo", facts=1))])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "derived" in out and "NOT found" in out
+
+
+def test_no_memory_md_in_live_dir_is_advisory(tmp_path, capsys):
+    live = tmp_path / "live"
+    live.mkdir()  # exists but has no MEMORY.md -> exercises the 'nothing auto-loads' branch
+    rc = doc.main(["--dir", str(live), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "nothing auto-loads" in out
+
+
+def test_over_line_count_index_goes_red(tmp_path, capsys):
+    live = tmp_path / "live"
+    live.mkdir()
+    (live / "MEMORY.md").write_text("\n".join(f"- l{i}" for i in range(205)) + "\n", encoding="utf-8")
+    rc = doc.main(["--dir", str(live), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 1  # the line-count clause of the RED trips even though total bytes are tiny
+    assert "RED" in out and "lines" in out
+
+
+def test_doctor_output_is_ascii_safe(tmp_path):
+    # Every emitted line must encode as ASCII (a stray non-ASCII char crashes a legacy console).
+    live = tmp_path / "live"
+    live.mkdir()  # no MEMORY.md -> exercises the line that previously held an em-dash
+    report, _ = doc.doctor(tmp_path, live, tmp_path / "repo")
+    for line in report:
+        line.encode("ascii")  # raises UnicodeEncodeError if any non-ASCII slipped in
