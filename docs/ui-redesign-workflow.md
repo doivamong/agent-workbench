@@ -10,7 +10,7 @@ token prefixes, component macros, font policy, and SEO-block layout are yours to
 `‹placeholder›` below). It ships the *sequence of gates* that keeps a redesign from thrashing. The
 standard is [`PHILOSOPHY.md`](../PHILOSOPHY.md) — best-fit, honest about limits. It is the design
 sibling of [`design-discipline.md`](design-discipline.md) (the quality dials) and
-[`example-plan-then-code`](../.claude/skills/example-plan-then-code/) (plan before code).
+[`awb-plan-then-code`](../.claude/skills/awb-plan-then-code/) (plan before code).
 
 ## Why the gates exist — the economics
 
@@ -151,7 +151,7 @@ against the catalog and recommend one *with a rationale*, comparing it on a fixe
 ## Phase 4 — Council debate (LARGE; skip low-risk SMALL)
 
 Pressure-test the design from independent viewpoints before building — the same idea as
-[`example-stress-test`](../.claude/skills/example-stress-test/), applied to a UI. Use a fixed set of
+[`awb-stress-test`](../.claude/skills/awb-stress-test/), applied to a UI. Use a fixed set of
 personas so blind spots surface on paper. For **public** surfaces, prioritize a structured-data/SEO
 lens, a content-accuracy ("does every claim have a source?") lens, a mobile-UX lens, and an
 accessibility lens.

@@ -37,7 +37,7 @@ README_FIXTURE = """\
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **99**, green in CI (...) |
 | Runnable demos | **99** (`examples/`) |
-| Example skills | **99** (...) |
+| Skills | **99** (...) |
 | Standalone tools | **99** (`a`, `b`) |
 
 python -m pytest -q                 # 99 tests

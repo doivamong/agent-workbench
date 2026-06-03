@@ -50,14 +50,14 @@ doc) · **REJECT** (domain-locked, redundant, or no original method).
 
 | Proposed skill | Tier | Generic core | Mandatory "does NOT do" caveat |
 |---|---|---|---|
-| `example-cook` | workflow (advanced) | Graduated oversight modes (interactive/fast/auto) + a workflow that *orchestrates* guard skills + multi-perspective planning (3 parallel planner sub-agents, then merge convergent/divergent/unique) | Does not enforce anything; it is a bypassable exemplar, not a gate |
-| `example-external-ref` | workflow | Responsible external-code reuse: a 2-axis license decision matrix (port-code vs salvage-concept), the idea/expression boundary, an injection guard for fetched content, and supply-chain red-flag signals | A license-classification seatbelt, **not legal advice**; avoiding copyright ≠ avoiding patents |
+| `awb-cook` | workflow (advanced) | Graduated oversight modes (interactive/fast/auto) + a workflow that *orchestrates* guard skills + multi-perspective planning (3 parallel planner sub-agents, then merge convergent/divergent/unique) | Does not enforce anything; it is a bypassable exemplar, not a gate |
+| `awb-external-ref` | workflow | Responsible external-code reuse: a 2-axis license decision matrix (port-code vs salvage-concept), the idea/expression boundary, an injection guard for fetched content, and supply-chain red-flag signals | A license-classification seatbelt, **not legal advice**; avoiding copyright ≠ avoiding patents |
 | `example-premortem` | feature/analysis | Multi-persona pre-mortem (independent analysis → debate → GO/CAUTION/STOP) **plus** a 12-dimension edge-case checklist (as a `references/` file) | Reasons about a *proposal* from descriptions; does not validate code; verdicts are opinion, not proof |
-| `example-tdd` | workflow | Red-green-refactor as **vertical slices** (one failing test → minimal impl → repeat), with the silent-skip trap (a mis-named test file collects 0 tests yet exits green) | Passing tests prove only what they assert; adapted from upstream MIT work |
-| `example-optimize` | feature | Measure → top-3 bottlenecks → fix → verify, with a **mandatory before/after table** and a banned-behaviors list (no fix without a baseline) | Ships no profiler engine; thresholds are heuristics to calibrate per app |
-| `example-output-guard` | guard | Semantic-completeness discipline for long generation: no truncation, placeholders, `...`, or "for brevity"; a clean-breakpoint continuation protocol | Guarantees completeness, not correctness/compilation; literal-token greps miss semantically incomplete code |
-| `example-using-skills` (+ a `SessionStart` routing-inject hook) | meta | An always-on routing map: tier-ordered trigger→skill table, conflict resolution (**match on the object, not the verb**), and a "if a skill might apply, invoke it" mandate | A routing nudge; does not guarantee the agent picks correctly |
-| `example-dead-code-audit` | audit | On-request cleanup sweep whose value is a **hard gate against false-positive dead-code claims**: a candidate is "dead" only when multiple independent cross-checks all come back empty | Static finders over-report on template-driven / dynamically-dispatched code; never auto-delete |
+| `awb-tdd` | workflow | Red-green-refactor as **vertical slices** (one failing test → minimal impl → repeat), with the silent-skip trap (a mis-named test file collects 0 tests yet exits green) | Passing tests prove only what they assert; adapted from upstream MIT work |
+| `awb-optimize` | feature | Measure → top-3 bottlenecks → fix → verify, with a **mandatory before/after table** and a banned-behaviors list (no fix without a baseline) | Ships no profiler engine; thresholds are heuristics to calibrate per app |
+| `awb-output-guard` | guard | Semantic-completeness discipline for long generation: no truncation, placeholders, `...`, or "for brevity"; a clean-breakpoint continuation protocol | Guarantees completeness, not correctness/compilation; literal-token greps miss semantically incomplete code |
+| `awb-using-skills` (+ a `SessionStart` routing-inject hook) | meta | An always-on routing map: tier-ordered trigger→skill table, conflict resolution (**match on the object, not the verb**), and a "if a skill might apply, invoke it" mandate | A routing nudge; does not guarantee the agent picks correctly |
+| `awb-dead-code-audit` | audit | On-request cleanup sweep whose value is a **hard gate against false-positive dead-code claims**: a candidate is "dead" only when multiple independent cross-checks all come back empty | Static finders over-report on template-driven / dynamically-dispatched code; never auto-delete |
 
 **Tier coverage after these land:** Workflow, Guard, Feature, Audit, and the Meta routing layer
 all have at least one runnable exemplar (Feature and Audit are currently empty).
@@ -66,8 +66,8 @@ all have at least one runnable exemplar (Feature and Audit are currently empty).
 
 | Source capability | Nugget worth keeping | Lands in |
 |---|---|---|
-| `review` (private 3-stage) | A 0–100 confidence-scoring rubric + a scope gate that filters adversarial false positives | `example-review` |
-| `debug` (private) | A "build a fast deterministic pass/fail loop first" step, the test-collection trap, and a 3-failure escalation template | `example-debug` |
+| `review` (private 3-stage) | A 0–100 confidence-scoring rubric + a scope gate that filters adversarial false positives | `awb-review` |
+| `debug` (private) | A "build a fast deterministic pass/fail loop first" step, the test-collection trap, and a 3-failure escalation template | `awb-debug` |
 | `session-handover` (private) | The **Cold Reader Test** (a fresh agent reads your handover cold; ship only if it needs ≤1 clarification) + a severity-graded integrity gate | `docs/session-preservation.md` |
 | `session-save` (private) | An "anchored-iterative" handover template + a merge-don't-regenerate rule | `docs/session-preservation.md` |
 | `lessons-audit` (private) | A lesson-value scoring frame (gates → score → severity-rescue) + a "dare to report zero lessons" honesty gate | `docs/lessons-as-rules.md` |
@@ -105,7 +105,7 @@ all have at least one runnable exemplar (Feature and Audit are currently empty).
 | A code-graph assist skill | Ships **no engine** — it only calls an external graph server. Shipping the skill without the engine would oversell (a blueprint masquerading as shipped) |
 | A "zoom out one layer" skill | Its generic core is an unmodified third-party MIT skill; after stripping domain vocabulary nothing original remains — link upstream instead |
 | An ETL-pipeline guard | Almost entirely the private app's pipeline internals; the one transferable idea (navigate to the right section; beware *silent* data corruption) is too thin to ship alone |
-| A research-workflow skill | Duplicates the existing `example-research`; salvage only its banned-behaviors list + mandatory-comparison-table |
+| A research-workflow skill | Duplicates the existing `awb-research`; salvage only its banned-behaviors list + mandatory-comparison-table |
 | Architecture / config / ETL guards *as skills* | Their value is determinism → they belong in the invariant tool / lint / hooks, not in bypassable skills |
 | Brand UI skills *as ship items* | Domain-locked (a specific brand palette, token prefixes, component catalog). Keep the README's reserved `_your-ui-guide_` placeholder; ship the method (section D), not the brand |
 
@@ -131,15 +131,15 @@ independently shippable; read each result before starting the next.
   do" line** (makes the honesty contract greppable).
 
 **Wave 1 — The meta gap + correct-mechanism guards.**
-- `example-using-skills` + the `SessionStart` routing-inject hook.
-- `example-output-guard`.
+- `awb-using-skills` + the `SessionStart` routing-inject hook.
+- `awb-output-guard`.
 - Reclassify: the file-CRUD sync guard → `PostToolUse` hook + manifest/drift tool; fill the
   `_your-config-guard_` placeholder.
 - `docs/guard-mechanisms.md`.
 
 **Wave 2 — The capability skills (gap-fillers).**
-- `example-tdd`, `example-optimize`, `example-premortem`, `example-dead-code-audit`,
-  `example-cook`, `example-external-ref` (+ its `references/` license-matrix and salvage-path).
+- `awb-tdd`, `awb-optimize`, `example-premortem`, `awb-dead-code-audit`,
+  `awb-cook`, `awb-external-ref` (+ its `references/` license-matrix and salvage-path).
 
 **Wave 3 — Harvest nuggets** (section B) into the existing skills and docs.
 

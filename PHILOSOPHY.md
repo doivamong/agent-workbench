@@ -60,7 +60,7 @@ satellite contradict it.
 
 [`tests/test_philosophy_anchor.py`](tests/test_philosophy_anchor.py) is a CI tripwire: it checks
 that the satellites still link here and that the canonical tenet wording lives only in this file.
-The [`example-review`](.claude/skills/example-review/SKILL.md) skill adds the semantic check a
+The [`awb-review`](.claude/skills/awb-review/SKILL.md) skill adds the semantic check a
 regex can't. **Honest limit:** this keeps the public surface, adopters, and a future repo seeded
 from this file aligned — it does **not** govern this repo's own private build/port pipeline,
 which has its own internal charter.

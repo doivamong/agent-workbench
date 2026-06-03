@@ -19,7 +19,7 @@ STALE = """\
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **1**, green in CI (...) |
 | Runnable demos | **1** (`examples/`) |
-| Example skills | **1** (...) |
+| Skills | **1** (...) |
 | Standalone tools | **1** (`a`) |
 
 python -m pytest -q                 # 1 tests

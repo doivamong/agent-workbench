@@ -68,7 +68,7 @@ def find_signals(prompt: str, skill_names: list[str]) -> list[tuple[str, str]]:
 
     'invoke' when the prompt has `/<skill>` (a real slash command, not a path); otherwise
     'mention' for the bare name. Matching is case-insensitive and word-bounded so a common
-    word like 'review' does not match the skill 'example-review'."""
+    word like 'review' does not match the skill 'awb-review'."""
     low = prompt.lower()
     found: list[tuple[str, str]] = []
     for name in skill_names:

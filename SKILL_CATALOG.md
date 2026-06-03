@@ -23,10 +23,10 @@ Caveat** says where it lives plus the honest limit that travels with it.
 | **ADOPTER-FILLS** | A reserved placeholder. The *shape* ships; the content is domain-specific and you fill it (your config, your brand, your invariants). |
 | **REJECTED** | Evaluated and deliberately not shipped — domain-locked, redundant, or no original method left after genericizing. The reason is the point. |
 
-> **The authoritative count of LIVE example skills is gated in the README** ("At a glance"), kept
+> **The authoritative count of LIVE skills is gated in the README** ("At a glance"), kept
 > honest by `tools/readme_metrics.py --check`. This catalog is a *map*, not a counter — if a number
 > here and the README ever disagree, the README wins. As of this writing the kit ships **15 live
-> example skills** across all five tiers.
+> skills** across all five tiers.
 
 ---
 
@@ -39,31 +39,31 @@ guard-tier skill states what it does **not** do (the honesty contract `skill_lin
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
-| Plan → implement → test → review a non-trivial change | workflow | LIVE | [`example-plan-then-code`](.claude/skills/example-plan-then-code/) · a bypassable exemplar, not a gate |
+| Plan → implement → test → review a non-trivial change | workflow | LIVE | [`awb-plan-then-code`](.claude/skills/awb-plan-then-code/) · a bypassable exemplar, not a gate |
 | Turn a vague, multi-part request into a crisp spec before working | workflow | LIVE | [`prompt-refiner`](.claude/skills/prompt-refiner/) · paired with the `prompt-refiner-inject.py` hook; refines wording, does not guess intent |
-| Understand before building — scope, read the code, compare ≥2 options | workflow | LIVE | [`example-research`](.claude/skills/example-research/) · recommends, does not decide for you |
-| Package settled work into a cold-readable handover | workflow | LIVE | [`example-handover`](.claude/skills/example-handover/) · only for work finished enough to hand off |
-| Pressure-test a change on paper before building (lenses → GO/CAUTION/STOP + edge-case list) | workflow | LIVE | [`example-stress-test`](.claude/skills/example-stress-test/) · verdicts are reasoned opinion, not proof; absorbed the pre-mortem nugget (see Rejected) |
-| Red-green-refactor in vertical slices | workflow | LIVE | [`example-tdd`](.claude/skills/example-tdd/) · passing tests prove only what they assert; guards the silent-skip (0-collected) trap |
-| Advanced build — graduated oversight + multi-perspective planning, orchestrating the guards | workflow | LIVE | [`example-cook`](.claude/skills/example-cook/) · enforces nothing; a heavier exemplar for higher-stakes builds |
-| Responsibly reuse outside code — license decision, idea/expression split, injection + supply-chain checks | workflow | LIVE | [`example-external-ref`](.claude/skills/example-external-ref/) · a classification seatbelt, **not legal advice** |
+| Understand before building — scope, read the code, compare ≥2 options | workflow | LIVE | [`awb-research`](.claude/skills/awb-research/) · recommends, does not decide for you |
+| Package settled work into a cold-readable handover | workflow | LIVE | [`awb-handover`](.claude/skills/awb-handover/) · only for work finished enough to hand off |
+| Pressure-test a change on paper before building (lenses → GO/CAUTION/STOP + edge-case list) | workflow | LIVE | [`awb-stress-test`](.claude/skills/awb-stress-test/) · verdicts are reasoned opinion, not proof; absorbed the pre-mortem nugget (see Rejected) |
+| Red-green-refactor in vertical slices | workflow | LIVE | [`awb-tdd`](.claude/skills/awb-tdd/) · passing tests prove only what they assert; guards the silent-skip (0-collected) trap |
+| Advanced build — graduated oversight + multi-perspective planning, orchestrating the guards | workflow | LIVE | [`awb-cook`](.claude/skills/awb-cook/) · enforces nothing; a heavier exemplar for higher-stakes builds |
+| Responsibly reuse outside code — license decision, idea/expression split, injection + supply-chain checks | workflow | LIVE | [`awb-external-ref`](.claude/skills/awb-external-ref/) · a classification seatbelt, **not legal advice** |
 
 ### Guard (4)
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
-| Review a change in three passes (spec → build quality → adversarial) | guard | LIVE | [`example-review`](.claude/skills/example-review/) · model-invoked and bypassable; not a whole-codebase audit |
-| Debug methodically — reproduce → root cause → fix → prove | guard | LIVE | [`example-debug`](.claude/skills/example-debug/) · for an unknown cause, not a known one-line fix |
-| Keep long generation complete — no truncation / placeholders / "for brevity" | guard | LIVE | [`example-output-guard`](.claude/skills/example-output-guard/) · guarantees completeness, not correctness |
-| Catch the two silent config-access traps (wrong context; nested key → silent `None`) | guard | LIVE | [`example-config-guard`](.claude/skills/example-config-guard/) · the **advisory** layer over the deterministic `config-flat-access` invariant |
+| Review a change in three passes (spec → build quality → adversarial) | guard | LIVE | [`awb-review`](.claude/skills/awb-review/) · model-invoked and bypassable; not a whole-codebase audit |
+| Debug methodically — reproduce → root cause → fix → prove | guard | LIVE | [`awb-debug`](.claude/skills/awb-debug/) · for an unknown cause, not a known one-line fix |
+| Keep long generation complete — no truncation / placeholders / "for brevity" | guard | LIVE | [`awb-output-guard`](.claude/skills/awb-output-guard/) · guarantees completeness, not correctness |
+| Catch the two silent config-access traps (wrong context; nested key → silent `None`) | guard | LIVE | [`awb-config-guard`](.claude/skills/awb-config-guard/) · the **advisory** layer over the deterministic `config-flat-access` invariant |
 
 ### Feature · Audit · Meta (3)
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
-| Make code measurably faster — baseline → measure → fix top bottleneck → re-measure → before/after table | feature | LIVE | [`example-optimize`](.claude/skills/example-optimize/) · ships no profiler; needs a measurable goal and a baseline |
-| Find genuinely dead code behind a false-positive gate | audit | LIVE | [`example-dead-code-audit`](.claude/skills/example-dead-code-audit/) · static finders over-report on dynamic dispatch; never auto-deletes |
-| Route to the right skill (tier precedence, match the object not the verb) | meta | LIVE | [`example-using-skills`](.claude/skills/example-using-skills/) · a routing nudge; never does the work itself. Paired with the `skill_routing_inject.py` SessionStart hook |
+| Make code measurably faster — baseline → measure → fix top bottleneck → re-measure → before/after table | feature | LIVE | [`awb-optimize`](.claude/skills/awb-optimize/) · ships no profiler; needs a measurable goal and a baseline |
+| Find genuinely dead code behind a false-positive gate | audit | LIVE | [`awb-dead-code-audit`](.claude/skills/awb-dead-code-audit/) · static finders over-report on dynamic dispatch; never auto-deletes |
+| Route to the right skill (tier precedence, match the object not the verb) | meta | LIVE | [`awb-using-skills`](.claude/skills/awb-using-skills/) · a routing nudge; never does the work itself. Paired with the `skill_routing_inject.py` SessionStart hook |
 
 ---
 
@@ -76,7 +76,7 @@ behind the choice is [`docs/guard-mechanisms.md`](docs/guard-mechanisms.md).
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
 | Keep the file-set in sync (a new/removed source file must update its dependents) | guard → hook + tool | LIVE | [`tools/sync_manifest.py`](tools/sync_manifest.py) (`--check` gate) + `sync_guard.py` PostToolUse nudge · the tool is authoritative, the nudge is advisory |
-| Catch a config read in the wrong context / at the wrong nesting level | guard → invariant + skill | LIVE | `config-flat-access` invariant in [`tools/invariants.py`](tools/invariants.py) (deterministic) + the advisory `example-config-guard` (judgment) |
+| Catch a config read in the wrong context / at the wrong nesting level | guard → invariant + skill | LIVE | `config-flat-access` invariant in [`tools/invariants.py`](tools/invariants.py) (deterministic) + the advisory `awb-config-guard` (judgment) |
 | Block common destructive shell commands | guard → hook | LIVE | [`block_dangerous.py`](.claude/hooks/scripts/block_dangerous.py) PreToolUse · a **seatbelt, not a security boundary** — a determined operator evades any string matcher |
 
 ---
@@ -88,8 +88,8 @@ core and folded into something that already ships, rather than added as a new sk
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
-| Confidence-scored review with a scope gate that filters adversarial false positives | guard | LIVE (harvested) | inside [`example-review`](.claude/skills/example-review/) · a score tells you to *verify*, not to *fix* |
-| Fast deterministic pass/fail loop first; test-collection trap; 3-failure escalation | guard | LIVE (harvested) | inside [`example-debug`](.claude/skills/example-debug/) |
+| Confidence-scored review with a scope gate that filters adversarial false positives | guard | LIVE (harvested) | inside [`awb-review`](.claude/skills/awb-review/) · a score tells you to *verify*, not to *fix* |
+| Fast deterministic pass/fail loop first; test-collection trap; 3-failure escalation | guard | LIVE (harvested) | inside [`awb-debug`](.claude/skills/awb-debug/) |
 | Iterative one-question "grill mode" + a 4-tier clarity scale | workflow | LIVE (harvested) | inside [`prompt-refiner`](.claude/skills/prompt-refiner/) |
 | Cold Reader Test + a severity-graded handover integrity gate + merge-don't-regenerate | — | BLUEPRINT | [`docs/session-preservation.md`](docs/session-preservation.md) |
 | Lesson-value scoring (gates → score → severity-rescue) + a "dare to report zero" honesty gate | — | BLUEPRINT | [`docs/lessons-as-rules.md`](docs/lessons-as-rules.md) |
@@ -135,11 +135,11 @@ The reason a thing is *not* here is part of the map. (Full debate: roadmap [sect
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
-| A standalone pre-mortem skill | feature | REJECTED | ~90% redundant with [`example-stress-test`](.claude/skills/example-stress-test/); its two unique nuggets (an adversarial-debate + pre-mortem round, and Integration/Compliance failure axes) were **harvested** into it instead |
+| A standalone pre-mortem skill | feature | REJECTED | ~90% redundant with [`awb-stress-test`](.claude/skills/awb-stress-test/); its two unique nuggets (an adversarial-debate + pre-mortem round, and Integration/Compliance failure axes) were **harvested** into it instead |
 | A code-graph assist skill | meta | REJECTED | ships **no engine** — it only calls an external graph server; shipping the skill alone would oversell. Its durable *lesson* lives in [`docs/external-tool-reliability.md`](docs/external-tool-reliability.md) |
 | A "zoom out one layer" skill | workflow | REJECTED | its generic core is an unmodified third-party MIT skill; nothing original remains after genericizing — link upstream instead |
 | An ETL-pipeline guard | guard | REJECTED | almost entirely a specific app's pipeline internals; the one transferable idea (beware *silent* data corruption) is too thin to ship alone |
-| A separate research-workflow skill | workflow | REJECTED | duplicates [`example-research`](.claude/skills/example-research/); only its banned-behaviors list + mandatory-comparison-table were worth keeping |
+| A separate research-workflow skill | workflow | REJECTED | duplicates [`awb-research`](.claude/skills/awb-research/); only its banned-behaviors list + mandatory-comparison-table were worth keeping |
 | Architecture / config / ETL guards **as skills** | guard | REJECTED | their value is *determinism* → they belong in the invariant tool / lint / hooks, not in bypassable skills (see [`docs/guard-mechanisms.md`](docs/guard-mechanisms.md)) |
 | Brand UI skills **as ship items** | guard | REJECTED | domain-locked (a specific palette, token prefixes, component catalog) → ADOPTER-FILLS, not a ship item; ship the method (section 4), not the brand |
 

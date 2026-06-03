@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SessionStart hook — inject a compact, tier-ordered skill routing map every session.
 
-Pairs with the `example-using-skills` meta-skill (the routing *method*). This hook supplies
+Pairs with the `awb-using-skills` meta-skill (the routing *method*). This hook supplies
 the *data*: it reads `.claude/skills/skill-registry.md` — the single source of truth — and prints
 a short "skill → fires when → does NOT fire when" map, ordered by tier (Workflow > Guard > Feature
 > Audit), so the agent starts every session already knowing what is available and when each fires.
@@ -87,7 +87,7 @@ def build_routing_map(registry_text: str) -> str | None:
         "[SKILL ROUTING — auto] If a skill might apply (even ~1% chance), invoke it. Tie-break: "
         "Workflow>Guard>Feature>Audit; match the OBJECT not the verb; domain-specific beats "
         "general; if unsure, ask. Source of truth: .claude/skills/skill-registry.md "
-        "(see example-using-skills for the full protocol).",
+        "(see awb-using-skills for the full protocol).",
     ]
     for tier in tier_sequence:
         group = [r for r in rows if r["tier"] == tier]

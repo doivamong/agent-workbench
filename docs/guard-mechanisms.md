@@ -11,7 +11,7 @@ in [`PHILOSOPHY.md`](../PHILOSOPHY.md) — *"best-fit, honest about limits, not 
 |---|---|---|---|---|
 | **Hook** | deterministically, on an event (a tool call, a prompt, a compaction) | no — the harness runs it every time | the check must *always* fire and the trigger is a concrete event | [`block_dangerous.py`](../.claude/hooks/scripts/block_dangerous.py) (PreToolUse), `post_edit_simplify.py` (PostToolUse) |
 | **Tool / CI gate** | when invoked (commit, CI, by hand) | only by not running it — but pre-commit/CI runs it for you | the check is deterministic and you want a hard gate with history | [`leak_scan.py`](../tools/leak_scan.py), [`invariants.py`](../tools/invariants.py), [`skill_lint.py`](../tools/skill_lint.py) |
-| **Skill** | when the model matches its trigger | yes — the model can skip it or be talked out of it | the check needs *judgment* a rule can't encode (semantic completeness, "is the root cause right?") | `example-review`, `example-debug`, `example-output-guard` |
+| **Skill** | when the model matches its trigger | yes — the model can skip it or be talked out of it | the check needs *judgment* a rule can't encode (semantic completeness, "is the root cause right?") | `awb-review`, `awb-debug`, `awb-output-guard` |
 | **Sub-agent** | when you spawn it | yes (you choose to run it) | you want an independent pass in a fresh context that didn't write the code | [`silent-failure-hunter`](sub-agents.md) |
 
 ## The decision rule
