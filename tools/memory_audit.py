@@ -35,13 +35,16 @@ import re
 import sys
 from pathlib import Path
 
+try:  # tools/ on sys.path: a direct script run, or the test suite (see tests/conftest.py)
+    from memory_budget import INDEX_MAX_BYTES, INDEX_MAX_LINES  # shared load budget — never re-declare
+except ModuleNotFoundError:  # imported as a package, e.g. `from tools.memory_audit import ...` in a demo
+    from tools.memory_budget import INDEX_MAX_BYTES, INDEX_MAX_LINES
+
 VALID_TYPES = {"user", "feedback", "project", "reference"}
 INDEX_NAME = "MEMORY.md"
 SKIP = {INDEX_NAME, "README.md"}
-INDEX_MAX_LINES = 200  # the index is loaded every session; keep it small
-# The following are tunable starting points, not measured truths — adjust per project.
-INDEX_MAX_BYTES = 25_600     # Claude Code (v2.1.59+) loads the first 200 lines OR ~25 KB of MEMORY.md;
-#                              past this, later entries silently truncate out of recall (size, not lines)
+# INDEX_MAX_BYTES / INDEX_MAX_LINES come from memory_budget (shared with memory_recall_doctor, so the
+# two can never drift). The rest are tunable starting points, not measured truths — adjust per project.
 INDEX_LINE_MAX_CHARS = 200   # a single index entry this long bloats recall (distinct from line COUNT)
 TOTAL_FACTS_MAX_KB = 128     # total on-disk size of all fact files (on-demand, but a bloat signal)
 NEAR_DUP_JACCARD = 0.7       # description token overlap above which two facts look like duplicates
@@ -163,7 +166,8 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
     if index_bytes > INDEX_MAX_BYTES:
         out.append(("warn", INDEX_NAME,
                     f"index is {index_bytes / 1024:.0f} KB (> {INDEX_MAX_BYTES / 1024:.0f} KB); the "
-                    "session-start load truncates near here, silently dropping later entries"))
+                    "session-start load truncates near here, silently dropping later entries; "
+                    "archive stale project facts to recover budget (governance section 7)"))
 
     # Per-entry char budget — distinct from the line COUNT above: one overlong line bloats recall.
     long_entries = [ln for ln in index_text.splitlines() if len(ln) > INDEX_LINE_MAX_CHARS]
@@ -187,7 +191,8 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
             if sim >= NEAR_DUP_JACCARD:
                 out.append(("warn", token_sets[i][0],
                             f"description ~{sim * 100:.0f}% similar to {token_sets[j][0]} "
-                            "(possible near-duplicate; merge or differentiate)"))
+                            "(possible near-duplicate; merge, differentiate, or run the external "
+                            "consolidate-memory pass; governance section 7)"))
     return out
 
 
