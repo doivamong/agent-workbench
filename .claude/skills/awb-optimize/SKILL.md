@@ -12,7 +12,7 @@ tier: feature
 oversight: low
 ---
 
-# Example: Optimize (measure-driven)
+# Optimize (measure-driven)
 
 > **Announce on activation:** "Using awb-optimize — baseline first, then measure → fix → verify."
 

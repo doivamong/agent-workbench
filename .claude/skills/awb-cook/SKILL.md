@@ -14,7 +14,7 @@ tier: workflow
 oversight: high
 ---
 
-# Example: Cook (advanced orchestration workflow)
+# Cook (advanced orchestration workflow)
 
 > **Announce on activation:** "Using awb-cook — pick an oversight mode, plan from several angles,
 > then build through the guard skills."

@@ -25,7 +25,7 @@ Caveat** says where it lives plus the honest limit that travels with it.
 
 > **The authoritative count of LIVE skills is gated in the README** ("At a glance"), kept
 > honest by `tools/readme_metrics.py --check`. This catalog is a *map*, not a counter — if a number
-> here and the README ever disagree, the README wins. As of this writing the kit ships **15 live
+> here and the README ever disagree, the README wins. As of this writing the kit ships **16 live
 > skills** across all five tiers.
 
 ---
@@ -35,7 +35,7 @@ Caveat** says where it lives plus the honest limit that travels with it.
 The runnable exemplars. Each is a working reference whose *shape* you copy, not its content. Every
 guard-tier skill states what it does **not** do (the honesty contract `skill_lint.py` greps for).
 
-### Workflow (8)
+### Workflow (9)
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
@@ -47,6 +47,7 @@ guard-tier skill states what it does **not** do (the honesty contract `skill_lin
 | Red-green-refactor in vertical slices | workflow | LIVE | [`awb-tdd`](.claude/skills/awb-tdd/) · passing tests prove only what they assert; guards the silent-skip (0-collected) trap |
 | Advanced build — graduated oversight + multi-perspective planning, orchestrating the guards | workflow | LIVE | [`awb-cook`](.claude/skills/awb-cook/) · enforces nothing; a heavier exemplar for higher-stakes builds |
 | Responsibly reuse outside code — license decision, idea/expression split, injection + supply-chain checks | workflow | LIVE | [`awb-external-ref`](.claude/skills/awb-external-ref/) · a classification seatbelt, **not legal advice** |
+| Mine a finished session for durable lessons — score against a fixed bar, write only approved survivors to live memory | workflow | LIVE | [`awb-lessons-capture`](.claude/skills/awb-lessons-capture/) · an honesty overlay on auto-memory; the honest output can be zero |
 
 ### Guard (4)
 
@@ -151,7 +152,7 @@ The reason a thing is *not* here is part of the map. (Full debate: roadmap [sect
   it is the best design, nor that it will fit your project. Challenge any verdict; the roadmap records
   the reasoning so you can.
 - **Statuses drift.** This file is hand-maintained. The one number under machine guard is the LIVE
-  example-skill count in the README; everything else here is only as current as its last edit. If a
+  skill count in the README; everything else here is only as current as its last edit. If a
   link 404s or a status looks stale, trust the tree over this page.
 - **"Generic core only."** Capabilities distilled from a private codebase ship as the transferable
   method with all domain content removed. Where a capability needs domain content to be useful, it is

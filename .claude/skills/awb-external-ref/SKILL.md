@@ -12,7 +12,7 @@ tier: workflow
 oversight: high
 ---
 
-# Example: External reference (responsible reuse)
+# External reference (responsible reuse)
 
 > **Announce on activation:** "Using awb-external-ref — classify the licence, then port-with-notice
 > or salvage-the-concept."

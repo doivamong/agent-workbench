@@ -151,7 +151,7 @@ flowchart TB
 <summary><b>Deep-dive: the skill system (tiers, registry & skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Fifteen runnable skills ship as
+agent knows which takes precedence when several match. Sixteen runnable skills ship as
 working references:
 
 | Skill | Tier | Fires when | Role |
@@ -171,6 +171,7 @@ working references:
 | `awb-external-ref` | workflow | about to copy/adapt outside code ("can we use this / port this") | Classify the licence → port-with-notice or salvage-the-concept; injection + supply-chain checks |
 | `awb-optimize` | feature | "it's too slow / optimize / cut latency" with a measurable goal | Baseline → measure → fix the top bottleneck → re-measure → before/after table |
 | `awb-dead-code-audit` | audit | "find unused / dead code", a post-refactor prune | Calls a symbol dead only when every independent cross-check is empty; never auto-deletes |
+| `awb-lessons-capture` | workflow | end of a session, "capture the lessons / memory retro", after a surprising bug or correction | Mines the session for durable lessons, scores each, writes only the approved ones to live memory |
 
 The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
 single grep-able index of trigger / do-not-trigger boundaries; the

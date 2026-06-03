@@ -13,7 +13,7 @@ tier: workflow
 oversight: low
 ---
 
-# Example: Test-Driven Development (vertical slice)
+# Test-Driven Development (vertical slice)
 
 > **Announce on activation:** "Using awb-tdd — red-green-refactor in vertical slices."
 

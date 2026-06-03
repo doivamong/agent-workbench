@@ -11,7 +11,7 @@ tier: audit
 oversight: high
 ---
 
-# Example: Dead-code audit (false-positive gated)
+# Dead-code audit (false-positive gated)
 
 > **Announce on activation:** "Using awb-dead-code-audit — cross-checking before calling anything dead."
 

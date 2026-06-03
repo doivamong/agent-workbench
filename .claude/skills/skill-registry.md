@@ -47,3 +47,7 @@ When more than one skill could match a request:
 
 Replace the placeholder rows with your real skills. The non-placeholder rows correspond to the
 runnable skills in this folder (the README metrics block carries the live count).
+
+> **Naming convention:** the kit's skills use the `awb-` prefix. `prompt-refiner` deliberately keeps
+> its bare name because the `prompt-refiner-inject.py` SessionStart-paired hook references the skill by
+> that name — don't "fix" it to `awb-prompt-refiner` without also updating that hook.
