@@ -24,7 +24,16 @@ Lessons live at the narrowest scope that fits; don't duplicate across layers.
 |-------|----------|--------|------------|
 | **L1 — Core config** | `CLAUDE.md` / `AGENTS.md` | always, every session | human; keep it < ~200 lines |
 | **L2 — Path-scoped rules** | `.claude/rules/*.md` | only when editing a path that matches the rule's `paths:` | human |
-| **L3 — Auto memory** | `memory/` (per-machine, gitignored) | `MEMORY.md` index each session; topic files on demand | the agent |
+| **L3 — Auto memory** | the per-project path `~/.claude/projects/<id>/memory/` (per-machine) | `MEMORY.md` index each session (first 200 lines / ~25 KB); topic files on demand | the agent (and you) |
+
+> **Where this actually lives — read before curating facts.** As of Claude Code v2.1.59+, the
+> harness auto-loads `MEMORY.md` (the first 200 lines, or ~25 KB) from the **per-project path**
+> `~/.claude/projects/<mangled-cwd>/memory/` — *not* from this repo's `memory/`. **This repo's
+> `memory/` is a committed reference template** (example facts you replace), not the live store;
+> nothing loads it. Curate your real facts at the per-project path (or set `autoMemoryDirectory`
+> in `.claude/settings.json`), and run `python tools/memory_recall_doctor.py` to confirm the
+> wiring. (An earlier version of this doc labelled `memory/` "per-machine, gitignored" — that was
+> wrong: the repo dir is a committed template; the *live* store is the per-project path.)
 
 ---
 
@@ -43,18 +52,19 @@ metadata:
 ```
 
 `feedback` and `project` facts add **Why:** and **How to apply:** lines in the body. Link related
-memories with `[[other-name]]` — a convention your recall step resolves, not an auto-followed
-link.
+memories with `[[other-name]]` — a **convention only**: nothing on disk auto-follows it (the kit
+ships no resolver), so treat it as a pointer, not a guaranteed jump.
 
 ## 3. The index-gating discipline (the working core)
 
-Recall is **index-gated**: only `MEMORY.md` auto-loads each session (the agent follows a link to
-a topic file only when it needs the detail). The whole system's cost control rests on keeping
-that index small, so this is the one rule worth enforcing:
+Recall is **index-gated**: only the live `MEMORY.md` (at the per-project path — see §1) auto-loads
+each session; the agent follows a link to a topic file only when it needs the detail. The whole
+system's cost control rests on keeping that index small, so this is the one rule worth enforcing:
 
 - **Each `MEMORY.md` entry is a single line**, target ≤ 200 characters including markup.
-- The session-start load reads roughly the first ~24 KB of `MEMORY.md`. Long entries push later
-  entries past that limit, and they are silently **truncated** — recall lost, with no error.
+- The session-start load reads roughly the first **200 lines, or ~25 KB**, of `MEMORY.md` (Claude
+  Code v2.1.59+). Entries past that are silently **truncated** — recall lost, with no error;
+  `python tools/memory_recall_doctor.py` flags an over-budget index.
 - Detail belongs in the topic file body. Trust that a future session follows the link.
 
 ```markdown
@@ -94,7 +104,7 @@ enough to need them, not before.
 ## 5. Retention principle
 
 If you do automate maintenance, one rule keeps it safe: **reads are safe to automate; writes and
-deletes need a human in the loop.** The memory dir is outside git — there's no `git checkout` to
+deletes need a human in the loop.** The live memory dir (the per-project store) is outside git — there's no `git checkout` to
 undo a bad bulk edit — so snapshot before any mutation and run such tools manually, never from a
 hook or cron. And never age-sweep `feedback` (timeless lessons); only session-scoped `project`
 entries should decay.

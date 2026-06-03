@@ -17,8 +17,10 @@ memory/
 └── user_*.md
 ```
 
-- **`MEMORY.md`** holds one short pointer line per memory. It is the only file loaded every
-  session, so it must stay small (a couple hundred lines at most).
+- **`MEMORY.md`** holds one short pointer line per memory. The harness auto-loads it every session
+  **from the per-project path** (`~/.claude/projects/<id>/memory/`, *not* this repo's `memory/` —
+  see [`../docs/memory-governance.md`](../docs/memory-governance.md)), reading the first 200 lines /
+  ~25 KB, so it must stay small (a couple hundred lines at most).
 - **Each fact lives in its own file.** Those are read *only when relevant* — recall is gated
   by the index. To "forget" something from active recall, you remove its line from
   `MEMORY.md`; the file can stay on disk as cold storage.

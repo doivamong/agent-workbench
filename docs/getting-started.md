@@ -49,7 +49,8 @@ Open your project in Claude Code (or your agent). Immediately:
   `PreToolUse` hook.
 - **Vague prompts get flagged** to be refined first, by a `UserPromptSubmit` hook.
 - **Commits that leak a secret are refused** (if you used `--with-git-hook`).
-- **Skills** under `.claude/skills/` and a working **memory** folder under `memory/`.
+- **Skills** under `.claude/skills/` and a **memory** scaffold under `memory/` (a reference
+  template — your live corpus lives at the per-project path; see "Make it yours" below).
 
 ## 4. Make it yours
 
@@ -60,7 +61,10 @@ Open your project in Claude Code (or your agent). Immediately:
   "must never break" rules. Enable the invariants hook in `.pre-commit-config.yaml`.
 - **Leak scanner:** keep a private deny-list (gitignored) of your project's identifiers and run
   `python tools/leak_scan.py . --denylist your-denylist.txt` to verify exports.
-- **Memory:** start adding facts under `memory/` and indexing them in `memory/MEMORY.md`. See
+- **Memory:** the copied `memory/` holds **example facts to replace**. Claude Code (v2.1.59+)
+  auto-loads `MEMORY.md` from the per-project path (`~/.claude/projects/<id>/memory/`), *not* this
+  repo's `memory/` — so curate your real facts there (or set `autoMemoryDirectory`), then run
+  `python tools/memory_recall_doctor.py` to verify the wiring. See
   [`memory/README.md`](../memory/README.md) and [`memory-governance.md`](memory-governance.md).
 - **Project rules:** adapt [`../CLAUDE.md`](../CLAUDE.md) / [`../AGENTS.md`](../AGENTS.md) to your
   project's golden rules.

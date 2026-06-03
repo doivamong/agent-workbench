@@ -39,6 +39,7 @@ COPY_MAP = [
     ("tools/invariants.py", "tools/invariants.py"),
     ("tools/affected_tests.py", "tools/affected_tests.py"),
     ("tools/memory_audit.py", "tools/memory_audit.py"),
+    ("tools/memory_recall_doctor.py", "tools/memory_recall_doctor.py"),
     ("tools/skill_lint.py", "tools/skill_lint.py"),
     ("tools/skill_usage_report.py", "tools/skill_usage_report.py"),
     ("scripts/secrets_guard.py", "scripts/secrets_guard.py"),
@@ -283,6 +284,10 @@ def main(argv: list[str] | None = None) -> int:
     print("\nThen open the project in Claude Code. Dangerous Bash commands will be")
     print("blocked and vague prompts will be flagged. See .claude/skills/README.md to")
     print("start using the skill system, and memory/README.md for the memory system.")
+    print("\nMEMORY: the copied memory/ holds EXAMPLE facts (a reference template) - replace them")
+    print("with your own. Claude Code (v2.1.59+) auto-loads MEMORY.md from a per-project path")
+    print("(~/.claude/projects/<id>/memory/), NOT this repo's memory/ - so curate facts there (or")
+    print("point autoMemoryDirectory at it). Run 'python tools/memory_recall_doctor.py' to verify.")
     return 0
 
 

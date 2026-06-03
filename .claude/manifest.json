@@ -10,27 +10,27 @@
     ".claude/hooks/lib/handover_utils.py": {
       "category": ".claude/hooks",
       "lines": 42,
-      "bytes": 1491
+      "bytes": 1450
     },
     ".claude/hooks/lib/hook_logger.py": {
       "category": ".claude/hooks",
       "lines": 76,
-      "bytes": 2491
+      "bytes": 2416
     },
     ".claude/hooks/lib/session_breadcrumb.py": {
       "category": ".claude/hooks",
       "lines": 75,
-      "bytes": 3096
+      "bytes": 3022
     },
     ".claude/hooks/lib/stdio_utf8.py": {
       "category": ".claude/hooks",
       "lines": 35,
-      "bytes": 1681
+      "bytes": 1647
     },
     ".claude/hooks/prompt-refiner-inject.py": {
       "category": ".claude/hooks",
       "lines": 222,
-      "bytes": 8979
+      "bytes": 8758
     },
     ".claude/hooks/scripts/block_dangerous.py": {
       "category": ".claude/hooks",
@@ -40,32 +40,32 @@
     ".claude/hooks/scripts/compact_restore.py": {
       "category": ".claude/hooks",
       "lines": 93,
-      "bytes": 3422
+      "bytes": 3330
     },
     ".claude/hooks/scripts/context_tracker.py": {
       "category": ".claude/hooks",
       "lines": 145,
-      "bytes": 5266
+      "bytes": 5122
     },
     ".claude/hooks/scripts/post_edit_simplify.py": {
       "category": ".claude/hooks",
       "lines": 159,
-      "bytes": 5952
+      "bytes": 5794
     },
     ".claude/hooks/scripts/precompact_backup.py": {
       "category": ".claude/hooks",
       "lines": 79,
-      "bytes": 2693
+      "bytes": 2615
     },
     ".claude/hooks/scripts/session_end.py": {
       "category": ".claude/hooks",
       "lines": 68,
-      "bytes": 2591
+      "bytes": 2524
     },
     ".claude/hooks/scripts/session_start.py": {
       "category": ".claude/hooks",
       "lines": 98,
-      "bytes": 4058
+      "bytes": 3961
     },
     ".claude/hooks/scripts/skill_routing_inject.py": {
       "category": ".claude/hooks",
@@ -75,7 +75,7 @@
     ".claude/hooks/scripts/skill_usage_logger.py": {
       "category": ".claude/hooks",
       "lines": 136,
-      "bytes": 5258
+      "bytes": 5123
     },
     ".claude/hooks/scripts/sync_guard.py": {
       "category": ".claude/hooks",
@@ -85,7 +85,7 @@
     ".claude/rules/command-writing-style.md": {
       "category": ".claude/rules",
       "lines": 250,
-      "bytes": 8659
+      "bytes": 8410
     },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
@@ -100,7 +100,7 @@
     ".claude/skills/SKILL_TEMPLATE.md": {
       "category": ".claude/skills",
       "lines": 58,
-      "bytes": 2204
+      "bytes": 2147
     },
     ".claude/skills/example-config-guard/SKILL.md": {
       "category": ".claude/skills",
@@ -130,7 +130,7 @@
     ".claude/skills/example-handover/SKILL.md": {
       "category": ".claude/skills",
       "lines": 86,
-      "bytes": 5148
+      "bytes": 5063
     },
     ".claude/skills/example-optimize/SKILL.md": {
       "category": ".claude/skills",
@@ -145,12 +145,12 @@
     ".claude/skills/example-plan-then-code/SKILL.md": {
       "category": ".claude/skills",
       "lines": 47,
-      "bytes": 2207
+      "bytes": 2161
     },
     ".claude/skills/example-research/SKILL.md": {
       "category": ".claude/skills",
       "lines": 57,
-      "bytes": 3206
+      "bytes": 3150
     },
     ".claude/skills/example-review/SKILL.md": {
       "category": ".claude/skills",
@@ -190,7 +190,7 @@
     "tools/affected_tests.py": {
       "category": "tools",
       "lines": 373,
-      "bytes": 13508
+      "bytes": 13136
     },
     "tools/check_context_budget.py": {
       "category": "tools",
@@ -200,7 +200,7 @@
     "tools/check_requirements_diff.py": {
       "category": "tools",
       "lines": 98,
-      "bytes": 3964
+      "bytes": 3867
     },
     "tools/invariants.py": {
       "category": "tools",
@@ -219,13 +219,18 @@
     },
     "tools/memory_audit.py": {
       "category": "tools",
-      "lines": 182,
-      "bytes": 8193
+      "lines": 211,
+      "bytes": 10507
+    },
+    "tools/memory_recall_doctor.py": {
+      "category": "tools",
+      "lines": 139,
+      "bytes": 6835
     },
     "tools/memory_snapshot.py": {
       "category": "tools",
       "lines": 200,
-      "bytes": 8447
+      "bytes": 8248
     },
     "tools/readme_metrics.py": {
       "category": "tools",
@@ -240,7 +245,7 @@
     "tools/skill_usage_report.py": {
       "category": "tools",
       "lines": 257,
-      "bytes": 10823
+      "bytes": 10567
     },
     "tools/sync_manifest.py": {
       "category": "tools",

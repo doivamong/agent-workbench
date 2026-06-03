@@ -8,9 +8,11 @@ rots. This tool is the missing tripwire. It flags, against a memory/ directory:
 
   ERROR  - a fact file with missing/invalid frontmatter (name, description, type)
   ERROR  - an index line pointing at a file that does not exist (dangling link)
-  ERROR  - a [[wiki-link]] that resolves to no known memory name
+  WARN   - a fact using a flat top-level 'type:' (canonical is nested metadata.type)
+  WARN   - a fact whose name does not match its filename under kebab/underscore folding
+  WARN   - a [[wiki-link]] that resolves to no known memory name
   WARN   - a fact file not referenced from the index (orphan / cold storage)
-  WARN   - the index exceeding its line-count budget (it is loaded every session)
+  WARN   - the index over its line-count OR byte-size budget (it is loaded every session)
   WARN   - an index entry over the per-line char budget, or facts over a total-KB budget
   WARN   - two facts whose descriptions look near-duplicate (detect-only; you decide to merge)
 
@@ -34,6 +36,8 @@ INDEX_NAME = "MEMORY.md"
 SKIP = {INDEX_NAME, "README.md"}
 INDEX_MAX_LINES = 200  # the index is loaded every session; keep it small
 # The following are tunable starting points, not measured truths — adjust per project.
+INDEX_MAX_BYTES = 25_600     # Claude Code (v2.1.59+) loads the first 200 lines OR ~25 KB of MEMORY.md;
+#                              past this, later entries silently truncate out of recall (size, not lines)
 INDEX_LINE_MAX_CHARS = 200   # a single index entry this long bloats recall (distinct from line COUNT)
 TOTAL_FACTS_MAX_KB = 128     # total on-disk size of all fact files (on-demand, but a bloat signal)
 NEAR_DUP_JACCARD = 0.7       # description token overlap above which two facts look like duplicates
@@ -105,13 +109,30 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
             out.append(("error", f.name, "frontmatter missing 'name'"))
         else:
             names[fm["name"]] = f.name
+            # Identity (advisory): the name should equal the filename stem under kebab<->underscore
+            # folding (the kit's convention: name 'feedback-x' <-> file 'feedback_x.md'). Drift means
+            # a [[wiki-link]] by name and the file can diverge. WARN, never ERROR — real corpora use
+            # free-text names this cannot bind, and the kit cannot rename a read-only source corpus.
+            if fm["name"].strip().replace("_", "-").lower() != f.stem.replace("_", "-").lower():
+                out.append(("warn", f.name,
+                            f"frontmatter name {fm['name']!r} does not match filename stem "
+                            f"{f.stem!r} under kebab/underscore folding"))
         if not fm.get("description"):
             out.append(("error", f.name, "frontmatter missing 'description'"))
         else:
             descs.append((f.name, fm["description"]))
-        mtype = fm.get("metadata", {}).get("type")
+        # Type may be canonical nested (metadata.type) or flat top-level (type:) — the latter is the
+        # shape some source corpora ship (e.g. one migrated in). Prefer nested when present so a real
+        # nested error is never masked by a stray flat key; fall back to flat, and flag the flat form.
+        nested_type = fm.get("metadata", {}).get("type")
+        flat_type = fm.get("type")
+        mtype = nested_type if nested_type is not None else flat_type
         if mtype not in VALID_TYPES:
-            out.append(("error", f.name, f"metadata.type {mtype!r} not in {sorted(VALID_TYPES)}"))
+            out.append(("error", f.name,
+                        f"type {mtype!r} not in {sorted(VALID_TYPES)} (set metadata.type or top-level type)"))
+        elif nested_type is None and flat_type is not None:
+            out.append(("warn", f.name,
+                        "uses flat top-level 'type:'; canonical form is nested 'metadata.type'"))
         if f.name not in index_text:
             out.append(("warn", f.name, "not referenced in MEMORY.md (orphan / cold storage)"))
 
@@ -131,6 +152,14 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
     if index_lines > INDEX_MAX_LINES:
         out.append(("warn", INDEX_NAME,
                     f"index is {index_lines} lines (> {INDEX_MAX_LINES}); it loads every session"))
+
+    # Byte size — distinct from line count: a short index of long lines can still blow the load
+    # budget. This is the truncation that silently drops later entries from recall.
+    index_bytes = len(index_text.encode("utf-8"))
+    if index_bytes > INDEX_MAX_BYTES:
+        out.append(("warn", INDEX_NAME,
+                    f"index is {index_bytes / 1024:.0f} KB (> {INDEX_MAX_BYTES / 1024:.0f} KB); the "
+                    "session-start load truncates near here, silently dropping later entries"))
 
     # Per-entry char budget — distinct from the line COUNT above: one overlong line bloats recall.
     long_entries = [ln for ln in index_text.splitlines() if len(ln) > INDEX_LINE_MAX_CHARS]
