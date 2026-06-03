@@ -42,7 +42,8 @@ When more than one skill could match a request:
 | `example-dead-code-audit` | audit | "find unused / dead code", post-refactor or pre-release prune, "is this called anywhere?" | "this function is too long" (a structural concern); bug hunting (review/debug); code already known-dead |
 | `example-cook` | workflow | "cook this / run the full workflow / build X with checkpoints / plan from a few angles", larger or higher-stakes builds | a routine single-file change (plan-then-code); a one-line fix; a question; no sub-agent fan-out wanted |
 | `example-external-ref` | workflow | about to copy/adapt outside code (GitHub/snippet/blog/LLM), "can we use this / port this / adopt this approach" | writing original code; a vetted dependency via the normal process; a licensing question with no code in play |
+| `example-lessons-capture` | workflow | end of a session, "capture the lessons / memory retro / what's worth remembering", after a surprising bug, a correction, or a counter-intuitive trap | a quick mid-session note; packaging unfinished work for next session (handover); promoting a recurring lesson to a rule (a human call); a session where nothing surprising happened (the honest output is zero) |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 
-Replace the placeholder rows with your real skills. The ten non-placeholder rows correspond to
-the runnable example skills in this folder (five workflows + four guards + one meta routing skill).
+Replace the placeholder rows with your real skills. The non-placeholder rows correspond to the
+runnable example skills in this folder (the README metrics block carries the live count).
