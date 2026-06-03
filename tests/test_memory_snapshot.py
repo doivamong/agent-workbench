@@ -82,3 +82,57 @@ def test_main_snapshot_then_list(tmp_path):
     d = _mem(tmp_path, {"a.md": "A"})
     assert ms.main(["--dir", str(d), "snapshot"]) == 0
     assert ms.main(["--dir", str(d), "list"]) == 0
+
+
+def _pre_restore_snaps(d) -> list:
+    """Snapshots created automatically by `restore --apply` (the pre-restore safety net)."""
+    return [s for s in ms.list_snapshots(d) if ms.PRE_RESTORE_LABEL in s.name]
+
+
+def test_restore_apply_snapshots_current_state_before_overwrite(tmp_path):
+    # A bad restore should itself be reversible: `restore --apply` first captures the
+    # CURRENT (about-to-be-overwritten) state into a pre-restore snapshot.
+    d = _mem(tmp_path, {"a.md": "original"})
+    ms.main(["--dir", str(d), "snapshot"])              # user snapshot: a.md == "original"
+    (d / "a.md").write_text("DAMAGED", encoding="utf-8")  # current state we are about to discard
+    ms.main(["--dir", str(d), "restore", "--latest", "--apply"])
+
+    assert (d / "a.md").read_text(encoding="utf-8") == "original"  # restore happened
+    pre = _pre_restore_snaps(d)
+    assert len(pre) == 1                                  # exactly one pre-restore safety net
+    assert (pre[0] / "a.md").read_text(encoding="utf-8") == "DAMAGED"  # holds the pre-restore state
+
+
+def test_latest_skips_pre_restore_snapshot(tmp_path):
+    # Footgun guard: the pre-restore snapshot is the NEWEST on disk after a restore, but a
+    # following `restore --latest` must NOT pick it (that would re-apply the just-discarded
+    # state). --latest resolves to the latest USER snapshot, never an auto pre-restore one.
+    d = _mem(tmp_path, {"a.md": "original"})
+    ms.main(["--dir", str(d), "snapshot"])               # user snapshot: a.md == "original"
+    (d / "a.md").write_text("DAMAGED", encoding="utf-8")
+    ms.main(["--dir", str(d), "restore", "--latest", "--apply"])  # creates a pre-restore snap (DAMAGED)
+
+    snap = ms.resolve_snapshot(d, ref=None, latest=True)
+    assert ms.PRE_RESTORE_LABEL not in snap.name          # not the auto backup
+    assert (snap / "a.md").read_text(encoding="utf-8") == "original"  # the user snapshot
+
+
+def test_dry_run_restore_takes_no_pre_restore_snapshot(tmp_path):
+    # A preview writes nothing — including no pre-restore snapshot.
+    d = _mem(tmp_path, {"a.md": "original"})
+    ms.main(["--dir", str(d), "snapshot"])
+    (d / "a.md").write_text("DAMAGED", encoding="utf-8")
+    ms.main(["--dir", str(d), "restore", "--latest"])    # no --apply
+    assert _pre_restore_snaps(d) == []
+
+
+def test_kill_switch_blocks_pre_restore_snapshot(tmp_path, monkeypatch):
+    # The pre-restore snapshot is itself a write; the kill switch must stop it too (it is taken
+    # only after the kill-switch check), so a disabled-automation run touches nothing.
+    d = _mem(tmp_path, {"a.md": "original"})
+    ms.main(["--dir", str(d), "snapshot"])
+    (d / "a.md").write_text("DAMAGED", encoding="utf-8")
+    monkeypatch.setenv(ms.KILL_SWITCH_ENV, "0")
+    ms.main(["--dir", str(d), "restore", "--latest", "--apply"])
+    assert _pre_restore_snaps(d) == []
+    assert (d / "a.md").read_text(encoding="utf-8") == "DAMAGED"  # nothing written
