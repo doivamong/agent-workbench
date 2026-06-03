@@ -36,8 +36,8 @@ INDEX_NAME = "MEMORY.md"
 SKIP = {INDEX_NAME, "README.md"}
 INDEX_MAX_LINES = 200  # the index is loaded every session; keep it small
 # The following are tunable starting points, not measured truths — adjust per project.
-INDEX_MAX_BYTES = 24_576     # the session-start load reads ~the first 24 KB of the index; past this,
-#                              later entries silently truncate out of recall (size, not line count)
+INDEX_MAX_BYTES = 25_600     # Claude Code (v2.1.59+) loads the first 200 lines OR ~25 KB of MEMORY.md;
+#                              past this, later entries silently truncate out of recall (size, not lines)
 INDEX_LINE_MAX_CHARS = 200   # a single index entry this long bloats recall (distinct from line COUNT)
 TOTAL_FACTS_MAX_KB = 128     # total on-disk size of all fact files (on-demand, but a bloat signal)
 NEAR_DUP_JACCARD = 0.7       # description token overlap above which two facts look like duplicates
