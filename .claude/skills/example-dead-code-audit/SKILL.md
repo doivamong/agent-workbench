@@ -32,6 +32,14 @@ plugin discovery), string/declarative references (templates, config, serializati
 decorators, CLI entry points), an external/public-API surface, or framework hooks (fixtures, signal
 handlers). A grep that finds zero call sites found zero *literal* ones — not zero *uses*.
 
+## Reader-dead is not feature-dead
+
+A symbol with no live *reader* can still have a live *writer*. A scheduled task, cron job, or ETL
+step may keep populating a table or file that nothing reads any more — so deleting the dead reader
+leaves the producer running, accruing orphaned data silently. When you audit a *feature* for removal
+(not just a single symbol), trace the **write** side too: who still produces this, and is a scheduler
+/ cron registration keeping it alive? A dead reader is one signal, never the whole verdict.
+
 ## Process
 
 1. **Gather candidates** from the language's unused-symbol finder (or grep). This is the input, not

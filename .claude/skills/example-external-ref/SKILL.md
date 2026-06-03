@@ -44,7 +44,10 @@ your own version. When in doubt, salvage and re-author.
 
 1. **Classify the licence.** Find the LICENSE / SPDX header and map it with
    [`references/license-matrix.md`](references/license-matrix.md). **No licence = all rights
-   reserved by default** — not "free to take".
+   reserved by default** — not "free to take". And don't trust a convenience API to classify it:
+   `gh repo view --json licenseInfo` (and the web "License: —" label) is heuristic and reports NONE for
+   repos that *do* ship a valid LICENSE — confirm with `gh api repos/<owner>/<repo>/license`, which
+   reads the file itself.
 2. **HARD GATE: decide port vs salvage from the licence.** Permissive → port OK *with notice*.
    Copyleft → porting pulls its obligations onto your project; usually salvage. Proprietary /
    no-licence / unclear → salvage the concept or stop, and confirm with a human.
