@@ -158,3 +158,10 @@ def test_index_byte_budget_warn_when_line_checks_pass(tmp_path, monkeypatch):
 def test_small_index_no_byte_warn(tmp_path):
     _mem(tmp_path, "- [a.md](a.md)\n", {"a.md": _fact("alpha", "d")})
     assert not any("truncat" in msg for _, _, msg in memory_audit.audit(tmp_path))
+
+
+def test_index_line_count_warn(tmp_path, monkeypatch):
+    # make-it-go-red for the 200-line index budget (mirrors the byte-gate test's discipline).
+    monkeypatch.setattr(memory_audit, "INDEX_MAX_LINES", 1)
+    _mem(tmp_path, "- [a.md](a.md)\n", {"a.md": _fact("alpha", "d")})
+    assert any(sev == "warn" and "lines (> " in msg for sev, _, msg in memory_audit.audit(tmp_path))

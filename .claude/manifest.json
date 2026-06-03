@@ -224,8 +224,8 @@
     },
     "tools/memory_recall_doctor.py": {
       "category": "tools",
-      "lines": 139,
-      "bytes": 6835
+      "lines": 142,
+      "bytes": 7183
     },
     "tools/memory_snapshot.py": {
       "category": "tools",
