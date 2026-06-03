@@ -66,7 +66,11 @@ Scan the session for the things that actually generate a lesson, not for "what I
 - a **counter-intuitive surprise** — "I expected X, it was Y";
 - a point where the **user corrected you**;
 - a **domain trap** (a sharp edge specific to this codebase or stack);
-- a **decision with a counter-default rationale** (you chose the non-obvious option for a reason).
+- a **decision with a counter-default rationale** (you chose the non-obvious option for a reason);
+- a **recurring mistake in your OWN process** — a place the user corrected you, you reversed
+  yourself, you declared "done" prematurely, or you relayed a claim you had not checked. This is the
+  lesson a retro most often dodges, and since the kit's mission is *reliable agents* it is the most
+  on-mission kind — do not skip it because it is uncomfortable.
 
 Classify each as a **lesson** (a durable "do it this way / not that way"), a **retro** (a
 narration of what happened), or a **decision** (a choice and its rationale). Only **lessons** —
@@ -77,6 +81,11 @@ and decisions whose rationale is strong enough to re-bind a future session — p
 Write each candidate as **one line**: *symptom -> root cause -> the correct way*. Merge obvious
 near-duplicates now. **Checkpoint immediately:** dump this raw list to a scratch file before you
 go further — it is cheap insurance if the session's context runs out mid-retro.
+
+**Then synthesize — look ACROSS the candidates for the pattern.** Before you gate, ask: do several
+events share a common root cause or a recurring behavioural pattern? The pattern (e.g. "I kept
+asserting before verifying") is usually more valuable than any single atom, and a per-candidate
+pipeline is blind to it — so add the pattern itself as a candidate and gate it like the rest.
 
 ### P2 — Gate, then score
 
@@ -114,7 +123,9 @@ value_score = non_obvious + reusable + actionable - cliche_risk
 
 **Mandatory report-zero honesty gate.** If no candidate reaches GEM or KEEP, say so plainly —
 *"this session produced no durable lesson"* — and stop. Never lower the bar to manufacture one. A
-session that yields zero gems is the normal case, not a failure of the retro.
+session that yields zero gems is the normal case, not a failure of the retro. **And the inverse:**
+do not let "report zero" become cover for dodging the uncomfortable lesson about your *own* process
+(P0) — a comfortable technical finding does not discharge a real self-lesson you would rather not write.
 
 ### P4 — HARD GATE: present, then wait
 
