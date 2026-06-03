@@ -31,9 +31,11 @@ import re
 import sys
 from pathlib import Path
 
-# Keep in lockstep with tools/memory_audit.py — the harness MEMORY.md load budget.
-INDEX_MAX_BYTES = 25_600   # Claude Code v2.1.59+ loads the first ~25 KB ...
-INDEX_MAX_LINES = 200      # ... or the first 200 lines of MEMORY.md, whichever comes first.
+try:  # tools/ on sys.path: a direct script run, or the test suite (see tests/conftest.py)
+    from memory_budget import INDEX_MAX_BYTES, INDEX_MAX_LINES  # shared load budget — never re-declare
+except ModuleNotFoundError:  # imported as a package, e.g. `from tools.memory_recall_doctor import ...`
+    from tools.memory_budget import INDEX_MAX_BYTES, INDEX_MAX_LINES
+
 INDEX_NAME = "MEMORY.md"
 SKIP = {INDEX_NAME, "README.md"}
 

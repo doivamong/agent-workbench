@@ -177,6 +177,33 @@ fail.
 
 ---
 
+## 7. Deferred capabilities & triggers
+
+A capability we chose **not** to build is recorded here — in this committed, greppable file, never
+only in a handover or in human memory. A defer that lives only in a handover silently dies, and that
+forgetting is the exact failure the memory system exists to fight. The **Trigger is a gate**: if you
+cannot name a concrete, falsifiable condition that would make the capability worth building, it is a
+*reject* (say why), not a defer. A **measurable** trigger is also wired into a read-only audit WARN,
+so the tool surfaces it the moment the condition fires; an **incident** trigger (a recall-miss, a new
+third-party mutator) is noticed in the moment and recorded here. The kit never *acts* on a trigger —
+surfacing is read-only; building the capability is a human decision (see §5, §6).
+
+| Capability (deferred — do NOT build yet) | Why deferred (+ the alternative in use) | Trigger to revisit (concrete, falsifiable) | Self-surface channel | Recorded |
+|---|---|---|---|---|
+| **Query / recall CLI** | the reference implementation built one and left it wired into none of its skills — unused even at a multi-hundred-fact corpus; the agent's Grep/Read *is* recall at this scale | a real recall-miss incident: the agent fails to find a fact that exists on disk | this register (incident — noticed in the moment) | 2026-06-04 |
+| **Decay / archival lister** (read-only `--list`, never `--apply`) | automated age-sweep is a documented wreck (git-log invalidation flagged the majority of files, §6); archiving today is the manual one-line index edit (§3) | the live index repeatedly trips the ~25 KB / 200-line load budget | `memory_audit` index byte-size / line-count WARN (now names this remedy + §7) | 2026-06-04 |
+| **Consolidation / merge organ** | the external `anthropic-skills:consolidate-memory` plugin already merges duplicates — re-building it is feature-to-look-bigger | two+ facts trip the near-duplicate WARN (descriptions ≥ 70% token overlap) | `memory_audit` near-duplicate WARN (now names the external pass + §7) | 2026-06-04 |
+| **MEMORY.md index generator** | hand-maintaining the small index is cheap, and a generator is a *write* tool (writes need a human, §5) | the hand-edited index repeatedly drifts from the facts on disk (recurring dangling-index-link ERRORs) | `memory_audit` dangling-index-link ERROR (already fires loudly) + this register | 2026-06-04 |
+| **`[[wiki-link]]` resolver** | the links are a human-readable convention with no consumer — the capture skill does not follow resolved links | a built workflow/skill step actually consumes resolved links | this register (the dangling-wiki-link WARN flags broken links, but not "a consumer was built") | 2026-06-04 |
+| **Importable snapshot precondition** (the code half of "snapshot before any mutation") | only one mutator exists — the manual `memory_snapshot.py`; the doc + snapshot + recall-doctor halves already shipped | a real third-party mutator of the live memory dir appears (anything but `memory_snapshot` writes there) | this register + the `defer-discipline` rule (fires when a memory tool is added) | 2026-06-04 |
+| **`tools/memory/` package** (restructure the flat `memory_*.py` into a package) | only four memory tools exist (`audit`, `recall_doctor`, `snapshot`, `budget`); nesting adds import churn ahead of need | ≥ ~5 memory tools live under `tools/` | this register + the `defer-discipline` rule (its `paths:` covers `tools/memory_*.py`) | 2026-06-04 |
+
+> Recording a defer is a **human/agent judgment write**, not an auto-generated row — the kit never
+> writes this table for you (writes need a human, §5). To revisit an item, build it only *after* its
+> trigger has actually fired, then delete its row.
+
+---
+
 ## Related
 
 A HANDOVER is *session-scoped* working state, a different thing from these *durable* memories —

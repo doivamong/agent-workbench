@@ -76,6 +76,15 @@ def test_near_duplicate_descriptions_warn(tmp_path):
     assert [f for f in findings if f[0] == "error"] == []  # detect-only, never an error
 
 
+def test_near_duplicate_warn_points_at_consolidate_remedy(tmp_path):
+    # The measurable near-dup trigger must self-surface its deferred remedy (governance section 7).
+    same = "deploy the staging server every friday afternoon"
+    _mem(tmp_path, "- [a.md](a.md)\n- [b.md](b.md)\n",
+         {"a.md": _fact("alpha", same), "b.md": _fact("beta", same)})
+    msg = next(m for sev, _, m in memory_audit.audit(tmp_path) if "near-duplicate" in m)
+    assert "consolidate" in msg and "section 7" in msg
+
+
 def test_distinct_descriptions_no_near_dup(tmp_path):
     _mem(tmp_path, "- [a.md](a.md)\n- [b.md](b.md)\n",
          {"a.md": _fact("alpha", "cats sleep all day long"),
@@ -153,6 +162,14 @@ def test_index_byte_budget_warn_when_line_checks_pass(tmp_path, monkeypatch):
     assert any(sev == "warn" and "KB" in msg and "truncat" in msg for sev, _, msg in findings)
     # the per-line-char and line-count warnings must NOT be what fired here
     assert not any("chars" in msg for _, _, msg in findings)
+
+
+def test_index_byte_budget_warn_points_at_archival_remedy(tmp_path, monkeypatch):
+    # The measurable byte-budget trigger must self-surface its deferred remedy (governance section 7).
+    monkeypatch.setattr(memory_audit, "INDEX_MAX_BYTES", 100)
+    _mem(tmp_path, "- [a.md](a.md) - " + "x" * 150 + "\n", {"a.md": _fact("alpha", "d")})
+    msg = next(m for sev, _, m in memory_audit.audit(tmp_path) if "truncat" in m)
+    assert "archiv" in msg and "section 7" in msg
 
 
 def test_small_index_no_byte_warn(tmp_path):

@@ -87,6 +87,11 @@
       "lines": 250,
       "bytes": 8410
     },
+    ".claude/rules/defer-discipline.md": {
+      "category": ".claude/rules",
+      "lines": 52,
+      "bytes": 3382
+    },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
       "lines": 65,
@@ -224,13 +229,18 @@
     },
     "tools/memory_audit.py": {
       "category": "tools",
-      "lines": 250,
-      "bytes": 12698
+      "lines": 255,
+      "bytes": 12846
+    },
+    "tools/memory_budget.py": {
+      "category": "tools",
+      "lines": 14,
+      "bytes": 805
     },
     "tools/memory_recall_doctor.py": {
       "category": "tools",
-      "lines": 142,
-      "bytes": 7183
+      "lines": 144,
+      "bytes": 7158
     },
     "tools/memory_snapshot.py": {
       "category": "tools",
