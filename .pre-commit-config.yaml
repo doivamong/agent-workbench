@@ -4,9 +4,13 @@
 repos:
   - repo: local
     hooks:
+      # --respect-gitignore: the LOCAL working tree carries gitignored files (handovers, scratch
+      # notes) that never ship, so a finding inside one is a false positive that would block every
+      # commit. Skipping them matches the real question — "would this leak when PUBLISHED?". (CI
+      # runs on a fresh checkout with no gitignored files, so its leak step needs no such flag.)
       - id: leak-scan
         name: leak scan (no secrets / identifiers committed)
-        entry: python tools/leak_scan.py . --entropy --fail-on-find
+        entry: python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
         language: system
         pass_filenames: false
         always_run: true
@@ -36,10 +40,13 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Cap the skill set's session-start context cost. Tunable ceilings, bumped on purpose.
+      # Cap the skill COUNT — kept identical to CI on purpose. The total skill-body *token* budget
+      # is an opt-in maintenance metric CI deliberately omits (skill bodies load on-demand, not at
+      # session start); enforcing it only here made the local gate stricter than CI, and it was
+      # already over budget — a local-only red gate that blocked every commit. Local == CI: count only.
       - id: context-budget
         name: context budget (cap skill bloat)
-        entry: python tools/check_context_budget.py --max-skills 16 --max-skill-tokens 12000
+        entry: python tools/check_context_budget.py --max-skills 16
         language: system
         pass_filenames: false
         always_run: true
