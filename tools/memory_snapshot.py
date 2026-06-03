@@ -14,6 +14,11 @@ Operations:
   restore    copy a snapshot's files back over the memory dir. ADDITIVE: it never deletes
              files created after the snapshot — it only restores what the snapshot holds,
              so a memory written later is preserved, not lost. Dry-run unless --apply.
+             With --apply it first snapshots the CURRENT state (label ``pre-restore``) so a
+             wrong restore is reversible too — restore is itself a mutation, and snapshot-
+             before-mutate applies to it. ``--latest`` always skips those ``pre-restore``
+             backups (else the next ``restore --latest`` would re-apply the state you just
+             discarded); reach one explicitly with ``--from`` to undo a bad restore.
 
 Only top-level files are captured (``-maxdepth 1``): ``.snapshots/`` and any backup
 subdirectories are skipped, so snapshots never nest inside snapshots.
@@ -36,6 +41,10 @@ from pathlib import Path
 KILL_SWITCH_ENV = "AGENT_MEMORY_AUTOMATION"
 SNAPSHOT_DIRNAME = ".snapshots"
 DEFAULT_KEEP = 10
+# Label for the snapshot ``restore --apply`` takes of the CURRENT state before overwriting it,
+# so a wrong restore is itself reversible. ``--latest`` skips these (see resolve_snapshot) — else
+# the next ``restore --latest`` would pick this backup of the just-discarded state and re-apply it.
+PRE_RESTORE_LABEL = "pre-restore"
 
 # Windows pythonw.exe can hand us a non-UTF stdout; keep prints from crashing.
 # (When a second tool needs this, lift it into a shared util — see PORT_CATALOG "W1-util".)
@@ -105,7 +114,15 @@ def resolve_snapshot(memory_dir: Path, ref: str | None, latest: bool) -> Path:
     if not snaps:
         raise FileNotFoundError(f"no snapshots in {_snapshot_root(memory_dir)}")
     if latest:
-        return snaps[-1]
+        # Skip auto pre-restore backups: --latest means the latest snapshot YOU took, never the
+        # one restore made of the state it overwrote (picking that would re-apply discarded state).
+        # A pre-restore backup is still reachable explicitly via --from to undo a bad restore.
+        user_snaps = [s for s in snaps if PRE_RESTORE_LABEL not in s.name]
+        if not user_snaps:
+            raise FileNotFoundError(
+                f"only pre-restore snapshots in {_snapshot_root(memory_dir)}; "
+                "pass --from <name> to restore one explicitly")
+        return user_snaps[-1]
     if not ref:
         raise FileNotFoundError("need --latest or --from <snapshot>")
     exact = [s for s in snaps if s.name == ref]
@@ -183,6 +200,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.apply and automation_disabled():
         print(f"KILL SWITCH: {KILL_SWITCH_ENV}=0 -> restore --apply refuses to write. Nothing touched.")
         return 0
+    if args.apply:
+        # Snapshot the current state before overwriting it, so a wrong restore is reversible too
+        # (this is itself a mutation; honor snapshot-before-mutate). Comes AFTER the kill switch.
+        pre = snapshot_memory(memory_dir, label=PRE_RESTORE_LABEL)
+        print(f"pre-restore snapshot: {pre.name}")
     restored, preserved = restore_snapshot(memory_dir, snap, apply=args.apply)
     mode = "RESTORED" if args.apply else "DRY-RUN (pass --apply to write)"
     print(f"{mode} from {snap.name}: {len(restored)} file(s)")
