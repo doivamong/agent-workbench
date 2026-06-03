@@ -165,3 +165,55 @@ def test_index_line_count_warn(tmp_path, monkeypatch):
     monkeypatch.setattr(memory_audit, "INDEX_MAX_LINES", 1)
     _mem(tmp_path, "- [a.md](a.md)\n", {"a.md": _fact("alpha", "d")})
     assert any(sev == "warn" and "lines (> " in msg for sev, _, msg in memory_audit.audit(tmp_path))
+
+
+# --- opt-in --promotion-readiness flag (buckets by metadata.group, never by name) ---
+
+def _grouped_fact(name: str, group: str, desc: str = "d", typ: str = "feedback") -> str:
+    return (f"---\nname: {name}\ndescription: {desc}\nmetadata:\n"
+            f"  type: {typ}\n  group: {group}\n---\n\nbody\n")
+
+
+def test_promotion_readiness_inactive_when_no_group(tmp_path):
+    # Facts have names (they always do) but no metadata.group -> exactly the INACTIVE line. This
+    # also proves names are NEVER a fallback bucket key (no "group <name>: 1 member" output).
+    _mem(tmp_path, "- [alpha.md](alpha.md)\n- [beta.md](beta.md)\n",
+         {"alpha.md": _fact("alpha", "one"), "beta.md": _fact("beta", "two")})
+    assert memory_audit.promotion_readiness(tmp_path) == [
+        "promotion grouping INACTIVE (no metadata.group present)"]
+
+
+def test_promotion_readiness_reports_shared_group(tmp_path):
+    # make-it-go-red: 3 facts sharing one metadata.group -> that group is reported as 3 members.
+    files = {f"fact-{i}.md": _grouped_fact(f"fact-{i}", "config-reads") for i in range(3)}
+    _mem(tmp_path, "".join(f"- [fact-{i}.md](fact-{i}.md)\n" for i in range(3)), files)
+    assert memory_audit.promotion_readiness(tmp_path) == [
+        "group config-reads: 3 member files - counts files, not distinct sessions; "
+        "cannot prove recurrence"]
+
+
+def test_promotion_readiness_buckets_by_group_not_name(tmp_path):
+    # Three facts with DISTINCT names but the SAME group collapse into ONE group keyed by the
+    # group value -- proving the bucket key is metadata.group, never the per-fact unique name.
+    files = {"x.md": _grouped_fact("alpha", "shared"),
+             "y.md": _grouped_fact("beta", "shared"),
+             "z.md": _grouped_fact("gamma", "shared")}
+    _mem(tmp_path, "- [x.md](x.md)\n- [y.md](y.md)\n- [z.md](z.md)\n", files)
+    report = memory_audit.promotion_readiness(tmp_path)
+    assert len(report) == 1
+    assert report[0].startswith("group shared: 3 member files")
+
+
+def test_promotion_readiness_flag_off_by_default(tmp_path, capsys):
+    # Without the flag the default audit output carries nothing promotion-related.
+    _mem(tmp_path, "- [alpha.md](alpha.md)\n", {"alpha.md": _grouped_fact("alpha", "g")})
+    memory_audit.main([str(tmp_path)])
+    assert "promotion" not in capsys.readouterr().out
+
+
+def test_promotion_readiness_flag_adds_report(tmp_path, capsys):
+    _mem(tmp_path, "- [alpha.md](alpha.md)\n", {"alpha.md": _grouped_fact("alpha", "g")})
+    memory_audit.main([str(tmp_path), "--promotion-readiness"])
+    out = capsys.readouterr().out
+    assert "group g: 1 member files" in out
+    assert "promote" not in out  # never the imperative 'promote' -- a hint, not a trigger

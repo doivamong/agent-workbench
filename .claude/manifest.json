@@ -219,8 +219,8 @@
     },
     "tools/memory_audit.py": {
       "category": "tools",
-      "lines": 211,
-      "bytes": 10507
+      "lines": 250,
+      "bytes": 12698
     },
     "tools/memory_recall_doctor.py": {
       "category": "tools",

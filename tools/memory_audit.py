@@ -17,8 +17,12 @@ rots. This tool is the missing tripwire. It flags, against a memory/ directory:
   WARN   - two facts whose descriptions look near-duplicate (detect-only; you decide to merge)
 
 Usage:
-    python tools/memory_audit.py [memory_dir]      # default: ./memory
-Exit code is non-zero when any ERROR is found (WARN alone exits 0).
+    python tools/memory_audit.py [memory_dir]                       # default: ./memory
+    python tools/memory_audit.py [memory_dir] --promotion-readiness  # + opt-in group report
+Exit code is non-zero when any ERROR is found (WARN alone exits 0). The opt-in, default-OFF
+--promotion-readiness flag adds a read-only report that buckets facts by an optional
+metadata.group field (NEVER by name); it changes neither the exit code nor the default audit
+output. See docs/memory-governance.md §4.
 
 Does NOT: judge whether a memory is *true*, *current*, or *useful* — staleness is a
 human call (a fact can name a file that was later deleted). It checks structure and
@@ -187,10 +191,39 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
     return out
 
 
+def promotion_readiness(mem_dir: Path) -> list[str]:
+    """Read-only: bucket fact files by an optional metadata.group, report group sizes.
+
+    Opt-in and advisory. Buckets by ``metadata.group`` ONLY — NEVER by ``name``. ``name`` is
+    unique per fact, so bucketing by it yields groups of one and surfaces nothing; that is the
+    exact wreck (a dedup key doubling as a unique id) documented in docs/memory-governance.md §6.
+    A group's size counts FILES, not distinct sessions, so it cannot prove a lesson recurred — it
+    is a readiness hint a human weighs, never an auto-trigger. Writes nothing. ASCII output.
+    """
+    groups: dict[str, list[str]] = {}
+    for f in sorted(p for p in mem_dir.glob("*.md") if p.name not in SKIP):
+        fm = parse_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
+        if fm is None:
+            continue
+        group = fm.get("metadata", {}).get("group")
+        if isinstance(group, str) and group.strip():
+            groups.setdefault(group.strip(), []).append(f.name)
+    if not groups:
+        return ["promotion grouping INACTIVE (no metadata.group present)"]
+    out: list[str] = []
+    for key in sorted(groups):
+        out.append(f"group {key}: {len(groups[key])} member files - counts files, not distinct "
+                   "sessions; cannot prove recurrence")
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Audit the file-based memory for hygiene problems.")
     ap.add_argument("mem_dir", nargs="?", type=Path, default=Path("memory"),
                     help="Path to the memory directory (default: ./memory)")
+    ap.add_argument("--promotion-readiness", action="store_true",
+                    help="Also print a read-only report bucketing facts by metadata.group "
+                         "(opt-in, default off; never groups by name; writes nothing).")
     args = ap.parse_args(argv)
 
     if not args.mem_dir.is_dir():
@@ -203,6 +236,12 @@ def main(argv: list[str] | None = None) -> int:
     errors = sum(1 for sev, _, _ in findings if sev == "error")
     warns = len(findings) - errors
     print(f"\n{errors} error(s), {warns} warning(s).")
+
+    if args.promotion_readiness:
+        print("\npromotion-readiness (read-only; buckets by metadata.group):")
+        for line in promotion_readiness(args.mem_dir):
+            print(line)
+
     return 1 if errors else 0
 
 
