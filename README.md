@@ -89,6 +89,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Vet third-party code before you vendor it** | A license/attribution *tripwire* — greps a file or tree for OSS-license, copyright, and "adapted-from" markers and says what each implies for reuse. Honest limit: it reads markers, not meaning — a clean result is not proof of original authorship | [`tools/license_scan.py`](tools/license_scan.py) |
 | **Keep memory honest** | A hygiene tripwire for the memory system — flags malformed frontmatter, dangling index links, orphan facts, broken `[[wiki-links]]`, and an oversized index | [`tools/memory_audit.py`](tools/memory_audit.py) |
 | **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
+| **Publish a public-safe slice of memory** | A leak-gated, **fail-closed** sync — copies only facts marked `visibility: public` (or already published) that pass `leak_scan`, into a public repo's `memory/`; strips per-session frontmatter, leaves the index human-curated, manual-run only | [`tools/memory_sync.py`](tools/memory_sync.py) |
 | **Check memory actually reaches the agent** | A read-only wiring trip-wire — the harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/`, so facts curated in the wrong dir are silently never recalled. Flags that mismatch and an over-budget live index; stat-verifies every path and writes nothing | [`tools/memory_recall_doctor.py`](tools/memory_recall_doctor.py) |
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
 | **Catch file-set drift** | A manifest gate over the source-of-truth dirs (skills, hooks, rules, tools, scripts): adding or removing a file without updating its dependent docs/wiring fails CI. Paired with a `PostToolUse` hook that nudges you the moment a new file lands | [`tools/sync_manifest.py`](tools/sync_manifest.py) |
@@ -222,10 +223,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **396**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **16** (`examples/`) |
+| Tests | **405**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **17** (`examples/`) |
 | Example skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **15** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
+| Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -255,7 +256,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 396 tests
+python -m pytest -q                 # 405 tests
 ```
 
 ## Install it into your own project
@@ -340,7 +341,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 396 tests · MIT
+**Agent Workbench** · stdlib-only core · 405 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
