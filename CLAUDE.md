@@ -32,7 +32,10 @@ path-scoped rule files (see `.claude/rules/`).*
 
 - **Plan before non-trivial changes**, then implement, then test, then review. The example
   skills in `.claude/skills/` encode this.
-- **Verify with evidence, don't guess** — run the demo/tests and read the output.
+- **Verify against ground truth, don't trust framing** — run the demo/tests and read the output;
+  check the load-bearing claim against the source. A framing you didn't author (a tool/skill's
+  description, an external audit) is just an unchecked claim — right on the facts ≠ right on cause /
+  severity / fix.
 - **Match the surrounding code's style** rather than importing your own conventions.
 
 ## Project map
