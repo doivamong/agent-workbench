@@ -90,7 +90,7 @@
     ".claude/rules/defer-discipline.md": {
       "category": ".claude/rules",
       "lines": 52,
-      "bytes": 3382
+      "bytes": 3433
     },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
@@ -139,8 +139,8 @@
     },
     ".claude/skills/example-lessons-capture/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 192,
-      "bytes": 10977
+      "lines": 203,
+      "bytes": 12158
     },
     ".claude/skills/example-optimize/SKILL.md": {
       "category": ".claude/skills",
@@ -230,17 +230,17 @@
     "tools/memory_audit.py": {
       "category": "tools",
       "lines": 255,
-      "bytes": 12846
+      "bytes": 13100
     },
     "tools/memory_budget.py": {
       "category": "tools",
       "lines": 14,
-      "bytes": 805
+      "bytes": 818
     },
     "tools/memory_recall_doctor.py": {
       "category": "tools",
       "lines": 144,
-      "bytes": 7158
+      "bytes": 7301
     },
     "tools/memory_snapshot.py": {
       "category": "tools",
