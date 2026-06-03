@@ -4,8 +4,11 @@ A file-based, human-readable memory for a long-running Claude Code project. The 
 let the agent carry forward hard-won facts — your preferences, decisions, gotchas — across
 sessions, **without** stuffing everything into context every time.
 
-This is a generic scaffold. The example memory files are made-up; replace them with yours.
-The companion design doc is [`../docs/memory-governance.md`](../docs/memory-governance.md).
+This is a generic scaffold. The `user_/project_/reference_example_*` files are made-up — replace
+them with your own. The dozen **feedback** facts (cross-stack / Windows / git craft, distilled from
+the real source codebase and domain-stripped) are *genuine* — keep them as-is or prune what doesn't
+fit your stack; they double as worked examples of the format. The companion design doc is
+[`../docs/memory-governance.md`](../docs/memory-governance.md).
 
 ## The core idea: an index gates recall
 
