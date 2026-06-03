@@ -101,6 +101,32 @@ that tunes decay, a `status` lifecycle with a resolution trail). Those are usefu
 they are **the design you'd add**, not what the scaffold ships — add them when the corpus is big
 enough to need them, not before.
 
+**Optional `metadata.group` — a hand-set promotion-readiness bucket.** When you start to suspect
+several facts are really the *same* recurring lesson, tag each with a shared, optional
+`metadata.group` slug:
+
+```yaml
+metadata:
+  type: feedback
+  group: nested-config-reads   # OPTIONAL — a shared label, the SAME string on every related fact
+```
+
+`group` is the **only** legitimate key for grouping facts toward promotion. Bucket by `group`,
+**never by `name`** — `name` is unique per fact, so bucketing by it puts every fact in a group of
+one and surfaces nothing. That is exactly the wreck in §6: there the dedup key doubled as a unique
+id, no key ever had ≥ 3 members, and auto-promotion produced zero candidates forever. `group` is
+the inverse of `name` — it is *meant* to repeat across facts.
+
+The opt-in `python tools/memory_audit.py <live-dir> --promotion-readiness` flag reports how many
+fact files share each `group`. Run it against the **live per-project dir** (see §1) — that is
+where your real facts live, not this repo's template. Treat the count as a *readiness hint, not a
+trigger*: it **counts files, not distinct sessions**, so it cannot prove a lesson actually
+recurred (a group of five could be one over-tagged session). Promotion stays the human judgment
+above — recurred across ≥ 2 sessions and still hot; the flag only points you at candidates to
+weigh. The field is optional and default-absent: without the flag the audit output is
+byte-for-byte unchanged, and with the flag on a corpus where no fact carries a `group` the report
+is a single `grouping INACTIVE` line.
+
 ## 5. Retention principle
 
 If you do automate maintenance, one rule keeps it safe: **reads are safe to automate; writes and
@@ -134,6 +160,16 @@ These cost real time to learn; the point of writing them down is so you skip the
   unsafe, but a scheduled task kept invoking it on a timer — the automation outlived the decision to
   kill the code. When you deprecate something dangerous, remove its cron/scheduler/hook entries in
   the *same* change, or the "dead" tool keeps running unattended.
+- **Automated decay never earned its keep — archival is a manual, human-gated index edit.** The
+  reference implementation's decay/age-sweep was **dead-spec**: code-complete but never run in
+  anger, and its one concrete invalidation signal (the git-log token matching above) misfired so
+  badly it was abandoned. What actually works is the cheap manual move from §3 — **delete a fact's
+  line from `MEMORY.md`** to drop it from recall (the file stays on disk). Because archiving *is*
+  removing that index line, an intentionally-archived fact then trips the audit's
+  `not referenced in MEMORY.md (orphan / cold storage)` WARN **by construction** — for a fact you
+  archived on purpose that warning is *expected and benign*, not a defect to chase. And never
+  age-sweep `feedback`: those lessons are timeless — true until the code they describe changes, not
+  until a clock runs out (only session-scoped `project` entries have a natural expiry; see §5).
 
 The meta-lesson: a memory system's failure mode is silent (a truncated index, a wrongly-decayed
 lesson). Favor read-only health checks and manual mutation over clever automation you can't see
