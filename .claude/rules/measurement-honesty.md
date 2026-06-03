@@ -37,7 +37,12 @@ measured, or selected by it? Re-measure on a representative set, or don't quote 
 `python tool.py somefile` exiting 0 does not prove the pre-commit hook or CI will pass — the gate
 often runs with different inputs (staged vs working-tree, the whole repo vs one file) and different
 args. To claim "the hook passes", run the **actual gate** (`pre-commit run`, the CI command, a real
-commit), not a bare invocation you reason about.
+commit), not a bare invocation you reason about. And right after a push, even the *real* gate's
+status API is stale: `gh pr checks --watch` exits 0 ("no checks reported") before CI registers, and
+`gh pr view --json mergeable` returns `CONFLICTING` before GitHub recomputes mergeability — both are
+async reads at face value, not results. Verify ground truth instead: the run's own conclusion by id
+(`gh run watch <id> --exit-status`, `gh run view <id> --json conclusion`) and git itself
+(`git log HEAD..origin/main`, `git merge-tree`).
 
 The thread through all four: **distinguish "I measured and didn't find it" from "it isn't there."**
 Only the first is earned by a measurement; the second usually is not.
@@ -48,6 +53,7 @@ Only the first is earned by a measurement; the second usually is not.
 - Trusting a green checker → did you verify what it covers, and watch it fail at least once?
 - Quoting a "%" → did you check the denominator and whether the sample is biased toward the property?
 - Claiming "the hook / CI passes" → did you run the real gate, not a bare script?
+- A *just-pushed* CI / merge status (`gh ... --watch`, `--json mergeable`) → is it a real result, or async state GitHub hasn't computed yet? Confirm the run's conclusion by id and git refs, not the convenience read.
 - New detector you just wrote → did you sanity-check its first output against an independent read?
 
 ## Bypass
