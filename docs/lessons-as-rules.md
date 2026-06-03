@@ -54,6 +54,10 @@ end — when you mine a just-finished session for what's worth keeping:
   rule on a single sighting — the cost of meeting it twice dwarfs the cost of one rule. Score on
   value *and* severity, not value alone.
 
+The [`example-lessons-capture`](../.claude/skills/example-lessons-capture/SKILL.md) skill is the
+organ that runs this capture discipline end to end — the report-zero gate, the value score, the
+dedup pass against the existing corpus, and a hard write-gate before anything reaches memory.
+
 ## Keeping the set honest (the anti-bloat pass)
 
 A rules folder accretes. Periodically — not every session — review it and score each rule on three

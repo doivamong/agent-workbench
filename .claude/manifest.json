@@ -132,6 +132,11 @@
       "lines": 86,
       "bytes": 5063
     },
+    ".claude/skills/example-lessons-capture/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 192,
+      "bytes": 10977
+    },
     ".claude/skills/example-optimize/SKILL.md": {
       "category": ".claude/skills",
       "lines": 60,
@@ -179,8 +184,8 @@
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
-      "lines": 49,
-      "bytes": 4787
+      "lines": 50,
+      "bytes": 5180
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
