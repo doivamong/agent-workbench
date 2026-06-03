@@ -60,8 +60,10 @@ metric: <command that prints one number>     target: <value>
   check. Keep a **guard metric you never trade away** (the test suite stays green) and watch it
   every iteration.
 - **A noisy measurement lies.** Warm vs cold caches, background load, and tiny sample sizes
-  produce deltas that aren't real. Measure on a stable setup and re-run to confirm a change
-  before you trust it.
+  produce deltas that aren't real. On Windows the cold first run also pays a Defender on-access scan
+  that a warm re-run skips, so the same code can look an order of magnitude faster the second time —
+  say which regime (cold or warm) each number came from. Measure on a stable setup and re-run to
+  confirm a change before you trust it.
 - **It does not make the change for you.** This is discipline around *your* edits plus a safety
   net — not an autonomous self-improving system. A human or agent still writes each change and
   judges the trade-offs; the loop just refuses to let an unmeasured one through.
@@ -73,6 +75,8 @@ metric: <command that prints one number>     target: <value>
 - Chasing a contributor that's a small fraction of the total — the 3% is rarely where the win is.
 - Trading readability for an improvement below your noise floor.
 - Changing several things in one iteration, so no single change can be credited or blamed.
+- Proposing to cut a periodic task's cost or frequency without confirming it actually runs every
+  cycle — an upstream skip/cache may already gate it to a fraction, so the "saving" is phantom.
 
 ## Codifying it
 
