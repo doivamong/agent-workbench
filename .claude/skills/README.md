@@ -6,7 +6,7 @@ matches it. Think of it as a reusable, model-invoked playbook: instead of re-typ
 skill and let the agent trigger it by intent.
 
 This folder is a **generic, domain-free template** of the skill system one solo developer
-evolved over months. The example skills here are re-authored from first principles — copy
+evolved over months. The skills here are re-authored from first principles — copy
 their *shape*, not their content, and fill in your own.
 
 ## Why skills beat ad-hoc prompting
@@ -73,7 +73,7 @@ One workable hierarchy (highest priority first):
 
 | Tier | Role | Example |
 |------|------|---------|
-| **Workflow** | Full multi-step processes that orchestrate other skills | `example-plan-then-code` |
+| **Workflow** | Full multi-step processes that orchestrate other skills | `awb-plan-then-code` |
 | **Guard** | Mandatory, narrow checks that must not be bypassed | a config-access guard |
 | **Feature** | Context-specific helpers | a UI-style guide |
 | **Audit** | On-request deep inspections | a dead-code audit |
@@ -98,11 +98,11 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 |------|---------|
 | [`SKILL_TEMPLATE.md`](SKILL_TEMPLATE.md) | Blank, annotated skill to copy |
 | [`skill-registry.md`](skill-registry.md) | A machine-greppable index of all skills (single source of truth for triggers) |
-| [`example-plan-then-code/SKILL.md`](example-plan-then-code/SKILL.md) | A **workflow** skill: plan → implement → test → review |
-| [`example-research/SKILL.md`](example-research/SKILL.md) | A **workflow** skill: understand → compare ≥2 approaches → recommend, before building |
+| [`awb-plan-then-code/SKILL.md`](awb-plan-then-code/SKILL.md) | A **workflow** skill: plan → implement → test → review |
+| [`awb-research/SKILL.md`](awb-research/SKILL.md) | A **workflow** skill: understand → compare ≥2 approaches → recommend, before building |
 | [`prompt-refiner/SKILL.md`](prompt-refiner/SKILL.md) | A **workflow** skill: sharpen a vague request before work starts (wired to the prompt hook) |
-| [`example-review/SKILL.md`](example-review/SKILL.md) | A **guard** skill: three-pass review with progressive disclosure |
-| [`example-debug/SKILL.md`](example-debug/SKILL.md) | A **guard** skill: reproduce → find root cause → fix → prove |
-| [`example-stress-test/SKILL.md`](example-stress-test/SKILL.md) | A **workflow** skill: pressure-test a change through fixed lenses before building — design verdict + edge-case list |
-| [`example-output-guard/SKILL.md`](example-output-guard/SKILL.md) | A **guard** skill: keep long/whole-file generation complete — no truncation or placeholders |
-| [`example-using-skills/SKILL.md`](example-using-skills/SKILL.md) | A **meta** skill: the routing protocol — pick the right skill when several match (auto-injected each session by [`skill_routing_inject.py`](../hooks/scripts/skill_routing_inject.py)) |
+| [`awb-review/SKILL.md`](awb-review/SKILL.md) | A **guard** skill: three-pass review with progressive disclosure |
+| [`awb-debug/SKILL.md`](awb-debug/SKILL.md) | A **guard** skill: reproduce → find root cause → fix → prove |
+| [`awb-stress-test/SKILL.md`](awb-stress-test/SKILL.md) | A **workflow** skill: pressure-test a change through fixed lenses before building — design verdict + edge-case list |
+| [`awb-output-guard/SKILL.md`](awb-output-guard/SKILL.md) | A **guard** skill: keep long/whole-file generation complete — no truncation or placeholders |
+| [`awb-using-skills/SKILL.md`](awb-using-skills/SKILL.md) | A **meta** skill: the routing protocol — pick the right skill when several match (auto-injected each session by [`skill_routing_inject.py`](../hooks/scripts/skill_routing_inject.py)) |

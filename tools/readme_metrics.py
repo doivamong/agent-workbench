@@ -46,7 +46,7 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("deps",   re.compile(r"(\| Reusable core dependencies \| \*\*)(\d+)(\*\*)")),
     ("tests",  re.compile(r"(\| Tests \| \*\*)(\d+)(\*\*)")),
     ("demos",  re.compile(r"(\| Runnable demos \| \*\*)(\d+)(\*\*)")),
-    ("skills", re.compile(r"(\| Example skills \| \*\*)(\d+)(\*\*)")),
+    ("skills", re.compile(r"(\| Skills \| \*\*)(\d+)(\*\*)")),
     ("tools",  re.compile(r"(\| Standalone tools \| \*\*)(\d+)(\*\*)")),
     ("tests",  re.compile(r"(python -m pytest -q\s+# )(\d+)( tests)")),
     ("tests",  re.compile(r"(stdlib-only core · )(\d+)( tests · MIT)")),

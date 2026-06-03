@@ -44,7 +44,7 @@ def main() -> int:
         root = Path(tmp)
         skills = root / ".claude" / "skills"
         # Three skills ship; one (deep-research) gets zero telemetry -> shows up as dormant.
-        for name in ("example-debug", "example-review", "deep-research"):
+        for name in ("awb-debug", "awb-review", "deep-research"):
             _make_skill(skills, name)
 
         log = root / ".claude" / ".logs" / "skill_usage.jsonl"
@@ -56,11 +56,11 @@ def main() -> int:
             rows.append({"time": ts, "skill": skill, "signal": signal,
                          "prompt": f"p{len(rows)}", "session": session})
 
-        add("example-debug", "invoke", 1, "s1")    # heavily invoked, recent
-        add("example-debug", "invoke", 2, "s2")
-        add("example-debug", "invoke", 10, "s1")
-        add("example-review", "mention", 3, "s2")  # only ever mentioned (weak signal)
-        add("example-review", "mention", 12, "s3")
+        add("awb-debug", "invoke", 1, "s1")    # heavily invoked, recent
+        add("awb-debug", "invoke", 2, "s2")
+        add("awb-debug", "invoke", 10, "s1")
+        add("awb-review", "mention", 3, "s2")  # only ever mentioned (weak signal)
+        add("awb-review", "mention", 12, "s3")
         add("example-ghost", "mention", 5, "s1")   # logged but not a shipped skill
 
         text = "\n".join(json.dumps(r) for r in rows) + "\n"

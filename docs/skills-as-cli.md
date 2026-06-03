@@ -27,10 +27,10 @@ There are exactly two steps, and the example shows both:
 
 ```bash
 # print one skill's playbook
-python examples/skill_as_cli_demo.py example-review
+python examples/skill_as_cli_demo.py awb-review
 
 # pipe it into another CLI agent as a system prompt (illustrative)
-python examples/skill_as_cli_demo.py example-debug | your-agent --system -
+python examples/skill_as_cli_demo.py awb-debug | your-agent --system -
 ```
 
 ## What you'd add for your stack (left as the exercise)

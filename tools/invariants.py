@@ -82,7 +82,7 @@ def line_regex(invariant_id: str, pattern: str, message: str) -> CheckFn:
 def config_nested_access(parent: str, nested_keys: set[str], accessor: str = "get") -> CheckFn:
     """Flag reading a *nested* config key at the top level — the silent-None trap.
 
-    The deterministic half of the config-access guard (see the example-config-guard skill).
+    The deterministic half of the config-access guard (see the awb-config-guard skill).
     A key that lives under `parent` must be read two levels deep — ``cfg.get(parent, {}).get(key)``.
     Read flat — ``cfg.get(key)`` — it returns ``None`` silently, and the crash surfaces far away
     downstream as an ``AttributeError`` on ``None``. A bypassable skill can *remind* you of this;

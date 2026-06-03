@@ -4,7 +4,7 @@
 A SKILL.md is just frontmatter + a Markdown playbook. Any agent (Cursor, Copilot,
 a plain LLM call) can run the same methodology if you hand it that playbook as
 context. This demo extracts the body of a skill and prints it the way you'd pipe
-it into another tool — e.g. `python examples/skill_as_cli_demo.py example-review`.
+it into another tool — e.g. `python examples/skill_as_cli_demo.py awb-review`.
 
 This is a BLUEPRINT, deliberately ~30 lines: it shows the seam (strip frontmatter,
 emit the playbook), not a full multi-tool runner. See docs/skills-as-cli.md.
@@ -32,7 +32,7 @@ def playbook(skill_md: Path) -> str:
 
 
 def main() -> int:
-    name = sys.argv[1] if len(sys.argv) > 1 else "example-review"
+    name = sys.argv[1] if len(sys.argv) > 1 else "awb-review"
     skill_md = SKILLS / name / "SKILL.md"
     if not skill_md.is_file():
         avail = ", ".join(sorted(p.name for p in SKILLS.glob("*/") if (p / "SKILL.md").exists()))

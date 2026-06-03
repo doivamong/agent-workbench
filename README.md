@@ -79,7 +79,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **sixteen** runnable example skills across all five tiers — nine **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test, tdd, cook, external-ref, lessons-capture), four **guards** (review, debug, output-guard, config-guard), a **meta** router (using-skills), a **feature** (optimize), and an **audit** (dead-code-audit) | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **sixteen** runnable skills across all five tiers — nine **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test, tdd, cook, external-ref, lessons-capture), four **guards** (review, debug, output-guard, config-guard), a **meta** router (using-skills), a **feature** (optimize), and an **audit** (dead-code-audit) | [`.claude/skills/`](.claude/skills/) |
 | **Carry context across sessions** | A file-based, index-gated memory scaffold (example facts to replace). The harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/` — see [memory-governance.md](docs/memory-governance.md) | [`memory/`](memory/) |
 | **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
 | **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
@@ -149,29 +149,30 @@ flowchart TB
 ```
 
 <details>
-<summary><b>Deep-dive: the skill system (tiers, registry & example skills)</b></summary>
+<summary><b>Deep-dive: the skill system (tiers, registry & skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Fifteen runnable example skills ship as
+agent knows which takes precedence when several match. Sixteen runnable skills ship as
 working references:
 
-| Example skill | Tier | Fires when | Role |
+| Skill | Tier | Fires when | Role |
 |---|---|---|---|
-| `example-plan-then-code` | workflow | "implement X", multi-file work needing a plan first | Orchestrates a full plan → implement → review flow |
-| `example-review` | guard | "review my changes", before a non-trivial commit | Gates quality on changed code |
-| `example-debug` | guard | "it's broken / erroring" with an unknown cause | Maps symptom → suspect files before any fix |
-| `example-research` | workflow | "how should we / what's the best way", comparing approaches | Reads the code, compares ≥2 options, recommends before building |
+| `awb-plan-then-code` | workflow | "implement X", multi-file work needing a plan first | Orchestrates a full plan → implement → review flow |
+| `awb-review` | guard | "review my changes", before a non-trivial commit | Gates quality on changed code |
+| `awb-debug` | guard | "it's broken / erroring" with an unknown cause | Maps symptom → suspect files before any fix |
+| `awb-research` | workflow | "how should we / what's the best way", comparing approaches | Reads the code, compares ≥2 options, recommends before building |
 | `prompt-refiner` | workflow | a vague, multi-part request (flagged by the `prompt-refiner-inject.py` hook) | Restates intent into a crisp spec before work starts |
-| `example-handover` | workflow | ending a session, "package this for the next session / write a handover" | Packages settled work into artifacts a cold reader can execute |
-| `example-stress-test` | workflow | "stress test this / what could go wrong / edge cases", before building or testing | Runs a change past fixed lenses for a GO/CAUTION/STOP verdict and an edge-case list |
-| `example-output-guard` | guard | generating a whole file / large refactor | Stops truncation, placeholders, and "for brevity" stubs in long output |
-| `example-using-skills` | meta | auto-injected each session; ≥2 skills could match, or unsure any applies | Routes to the right skill (tier precedence, match the object not the verb) |
-| `example-config-guard` | guard | writing code that reads config (a nested key, or a cross-context read) | Advisory layer over the deterministic `config-flat-access` invariant — catches the silent-None trap |
-| `example-tdd` | workflow | "do this TDD / test-first / red-green-refactor" | One failing test → minimal code → repeat, in vertical slices; guards the silent-skip trap |
-| `example-cook` | workflow | "cook this / full workflow with checkpoints / plan from a few angles" | Graduated oversight + multi-perspective plan, orchestrating the guard skills |
-| `example-external-ref` | workflow | about to copy/adapt outside code ("can we use this / port this") | Classify the licence → port-with-notice or salvage-the-concept; injection + supply-chain checks |
-| `example-optimize` | feature | "it's too slow / optimize / cut latency" with a measurable goal | Baseline → measure → fix the top bottleneck → re-measure → before/after table |
-| `example-dead-code-audit` | audit | "find unused / dead code", a post-refactor prune | Calls a symbol dead only when every independent cross-check is empty; never auto-deletes |
+| `awb-handover` | workflow | ending a session, "package this for the next session / write a handover" | Packages settled work into artifacts a cold reader can execute |
+| `awb-stress-test` | workflow | "stress test this / what could go wrong / edge cases", before building or testing | Runs a change past fixed lenses for a GO/CAUTION/STOP verdict and an edge-case list |
+| `awb-output-guard` | guard | generating a whole file / large refactor | Stops truncation, placeholders, and "for brevity" stubs in long output |
+| `awb-using-skills` | meta | auto-injected each session; ≥2 skills could match, or unsure any applies | Routes to the right skill (tier precedence, match the object not the verb) |
+| `awb-config-guard` | guard | writing code that reads config (a nested key, or a cross-context read) | Advisory layer over the deterministic `config-flat-access` invariant — catches the silent-None trap |
+| `awb-tdd` | workflow | "do this TDD / test-first / red-green-refactor" | One failing test → minimal code → repeat, in vertical slices; guards the silent-skip trap |
+| `awb-cook` | workflow | "cook this / full workflow with checkpoints / plan from a few angles" | Graduated oversight + multi-perspective plan, orchestrating the guard skills |
+| `awb-external-ref` | workflow | about to copy/adapt outside code ("can we use this / port this") | Classify the licence → port-with-notice or salvage-the-concept; injection + supply-chain checks |
+| `awb-optimize` | feature | "it's too slow / optimize / cut latency" with a measurable goal | Baseline → measure → fix the top bottleneck → re-measure → before/after table |
+| `awb-dead-code-audit` | audit | "find unused / dead code", a post-refactor prune | Calls a symbol dead only when every independent cross-check is empty; never auto-deletes |
+| `awb-lessons-capture` | workflow | end of a session, "capture the lessons / memory retro", after a surprising bug or correction | Mines the session for durable lessons, scores each, writes only the approved ones to live memory |
 
 The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
 single grep-able index of trigger / do-not-trigger boundaries; the
@@ -192,7 +193,7 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `post_edit_simplify.py` | `PostToolUse` (Edit/Write) | After a burst of edits, nudges a simplification pass (dead code, unused imports, over-long functions, DRY). Throttled by a cooldown and a session TTL so it nudges occasionally, never spams. Advisory only — never blocks. |
 | `precompact_backup.py` | `PreCompact` | Backs up the transcript and writes a `.last_compact` signal before a compaction, so context is recoverable even if you didn't save. |
 | `compact_restore.py` | `SessionStart` (compact) | After a compaction, re-injects the top of the newest handover so the agent resumes with goal/decisions/next-steps. |
-| `skill_routing_inject.py` | `SessionStart` (all) | Injects a compact, tier-ordered routing map derived from `skill-registry.md`, so the agent starts each session knowing which skill fires when. Output is kept small (it loads every session); pairs with the `example-using-skills` meta-skill. |
+| `skill_routing_inject.py` | `SessionStart` (all) | Injects a compact, tier-ordered routing map derived from `skill-registry.md`, so the agent starts each session knowing which skill fires when. Output is kept small (it loads every session); pairs with the `awb-using-skills` meta-skill. |
 | `sync_guard.py` | `PostToolUse` (Write) | When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
 | `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
@@ -225,7 +226,7 @@ what's transferable and what was intentionally left behind:
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **405**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **17** (`examples/`) |
-| Example skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
+| Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
@@ -283,7 +284,7 @@ gives you, working immediately:
 - **A git pre-commit gate** (`--with-git-hook`) that refuses to commit a leaked secret.
 - **Drop-in skills** under `.claude/skills/` and a **working memory folder** under `memory/`.
 
-Then make it yours: replace the example skills with your own, put your real rules in
+Then make it yours: replace these skills with your own, put your real rules in
 [`tools/invariants.py`](tools/invariants.py), and list your project's identifiers in a private
 deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 

@@ -18,7 +18,7 @@ What it checks (structural, casing/whitespace-stable):
 
 Honest limit (tenet 3, self-applied): this verifies the *structure* of single-sourcing is
 intact. It cannot verify the *spirit* was honored — that a guard wasn't oversold, that
-SHIPS-vs-BLUEPRINT wasn't blurred. That semantic check lives in the example-review skill.
+SHIPS-vs-BLUEPRINT wasn't blurred. That semantic check lives in the awb-review skill.
 """
 import re
 from pathlib import Path

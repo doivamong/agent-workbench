@@ -25,10 +25,10 @@ All hooks are fail-open (a crash logs and exits clean — a guardrail must never
 
 | When the task is… | Run, in order | Notes |
 |---|---|---|
-| **A non-trivial change** (feature, multi-file edit) | (`prompt-refiner` if the ask is vague) → [`example-research`](../.claude/skills/example-research/SKILL.md) *if the approach isn't obvious* → [`example-plan-then-code`](../.claude/skills/example-plan-then-code/SKILL.md) → [`example-review`](../.claude/skills/example-review/SKILL.md) before committing | The plan skill already folds in plan → implement → test → review |
-| **A bug with an unknown cause** | [`example-debug`](../.claude/skills/example-debug/SKILL.md) (reproduce → root cause → fix → prove) | Don't skip to the fix; the gate below is "root cause first" |
-| **Reviewing a change already written** | [`example-review`](../.claude/skills/example-review/SKILL.md) (spec → quality → adversarial) | Use before committing anything non-trivial |
-| **Choosing between approaches** | [`example-research`](../.claude/skills/example-research/SKILL.md) → write the decision + why | Feeds the plan skill if you then build it |
+| **A non-trivial change** (feature, multi-file edit) | (`prompt-refiner` if the ask is vague) → [`awb-research`](../.claude/skills/awb-research/SKILL.md) *if the approach isn't obvious* → [`awb-plan-then-code`](../.claude/skills/awb-plan-then-code/SKILL.md) → [`awb-review`](../.claude/skills/awb-review/SKILL.md) before committing | The plan skill already folds in plan → implement → test → review |
+| **A bug with an unknown cause** | [`awb-debug`](../.claude/skills/awb-debug/SKILL.md) (reproduce → root cause → fix → prove) | Don't skip to the fix; the gate below is "root cause first" |
+| **Reviewing a change already written** | [`awb-review`](../.claude/skills/awb-review/SKILL.md) (spec → quality → adversarial) | Use before committing anything non-trivial |
+| **Choosing between approaches** | [`awb-research`](../.claude/skills/awb-research/SKILL.md) → write the decision + why | Feeds the plan skill if you then build it |
 | **A one-line fix with a known cause** | Just make it | No skill needed — but the gates and the auto-firing guards still apply |
 
 ## Blocking gates (don't skip)

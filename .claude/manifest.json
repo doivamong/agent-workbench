@@ -10,27 +10,27 @@
     ".claude/hooks/lib/handover_utils.py": {
       "category": ".claude/hooks",
       "lines": 42,
-      "bytes": 1491
+      "bytes": 1450
     },
     ".claude/hooks/lib/hook_logger.py": {
       "category": ".claude/hooks",
       "lines": 76,
-      "bytes": 2491
+      "bytes": 2416
     },
     ".claude/hooks/lib/session_breadcrumb.py": {
       "category": ".claude/hooks",
       "lines": 75,
-      "bytes": 3096
+      "bytes": 3022
     },
     ".claude/hooks/lib/stdio_utf8.py": {
       "category": ".claude/hooks",
       "lines": 35,
-      "bytes": 1681
+      "bytes": 1647
     },
     ".claude/hooks/prompt-refiner-inject.py": {
       "category": ".claude/hooks",
       "lines": 222,
-      "bytes": 8979
+      "bytes": 8758
     },
     ".claude/hooks/scripts/block_dangerous.py": {
       "category": ".claude/hooks",
@@ -40,42 +40,42 @@
     ".claude/hooks/scripts/compact_restore.py": {
       "category": ".claude/hooks",
       "lines": 93,
-      "bytes": 3422
+      "bytes": 3330
     },
     ".claude/hooks/scripts/context_tracker.py": {
       "category": ".claude/hooks",
       "lines": 145,
-      "bytes": 5266
+      "bytes": 5122
     },
     ".claude/hooks/scripts/post_edit_simplify.py": {
       "category": ".claude/hooks",
       "lines": 159,
-      "bytes": 5952
+      "bytes": 5794
     },
     ".claude/hooks/scripts/precompact_backup.py": {
       "category": ".claude/hooks",
       "lines": 79,
-      "bytes": 2693
+      "bytes": 2615
     },
     ".claude/hooks/scripts/session_end.py": {
       "category": ".claude/hooks",
       "lines": 68,
-      "bytes": 2591
+      "bytes": 2524
     },
     ".claude/hooks/scripts/session_start.py": {
       "category": ".claude/hooks",
       "lines": 98,
-      "bytes": 4058
+      "bytes": 3961
     },
     ".claude/hooks/scripts/skill_routing_inject.py": {
       "category": ".claude/hooks",
       "lines": 141,
-      "bytes": 5658
+      "bytes": 5650
     },
     ".claude/hooks/scripts/skill_usage_logger.py": {
       "category": ".claude/hooks",
       "lines": 136,
-      "bytes": 5258
+      "bytes": 5254
     },
     ".claude/hooks/scripts/sync_guard.py": {
       "category": ".claude/hooks",
@@ -85,7 +85,7 @@
     ".claude/rules/command-writing-style.md": {
       "category": ".claude/rules",
       "lines": 250,
-      "bytes": 8659
+      "bytes": 8410
     },
     ".claude/rules/defer-discipline.md": {
       "category": ".claude/rules",
@@ -100,87 +100,87 @@
     ".claude/skills/README.md": {
       "category": ".claude/skills",
       "lines": 109,
-      "bytes": 6284
+      "bytes": 6216
     },
     ".claude/skills/SKILL_TEMPLATE.md": {
       "category": ".claude/skills",
       "lines": 58,
-      "bytes": 2204
+      "bytes": 2147
     },
-    ".claude/skills/example-config-guard/SKILL.md": {
+    ".claude/skills/awb-config-guard/SKILL.md": {
       "category": ".claude/skills",
       "lines": 82,
-      "bytes": 4381
+      "bytes": 4373
     },
-    ".claude/skills/example-cook/SKILL.md": {
+    ".claude/skills/awb-cook/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3893
+      "bytes": 3832
     },
-    ".claude/skills/example-dead-code-audit/SKILL.md": {
+    ".claude/skills/awb-dead-code-audit/SKILL.md": {
       "category": ".claude/skills",
       "lines": 64,
-      "bytes": 3631
+      "bytes": 3614
     },
-    ".claude/skills/example-debug/SKILL.md": {
+    ".claude/skills/awb-debug/SKILL.md": {
       "category": ".claude/skills",
       "lines": 64,
-      "bytes": 3652
+      "bytes": 3636
     },
-    ".claude/skills/example-external-ref/SKILL.md": {
+    ".claude/skills/awb-external-ref/SKILL.md": {
       "category": ".claude/skills",
       "lines": 68,
-      "bytes": 4064
+      "bytes": 4047
     },
-    ".claude/skills/example-handover/SKILL.md": {
+    ".claude/skills/awb-handover/SKILL.md": {
       "category": ".claude/skills",
       "lines": 86,
-      "bytes": 5148
+      "bytes": 5140
     },
-    ".claude/skills/example-lessons-capture/SKILL.md": {
+    ".claude/skills/awb-lessons-capture/SKILL.md": {
       "category": ".claude/skills",
       "lines": 203,
-      "bytes": 12158
+      "bytes": 12150
     },
-    ".claude/skills/example-optimize/SKILL.md": {
+    ".claude/skills/awb-optimize/SKILL.md": {
       "category": ".claude/skills",
       "lines": 60,
-      "bytes": 3150
+      "bytes": 3133
     },
-    ".claude/skills/example-output-guard/SKILL.md": {
+    ".claude/skills/awb-output-guard/SKILL.md": {
       "category": ".claude/skills",
       "lines": 60,
-      "bytes": 3058
+      "bytes": 3050
     },
-    ".claude/skills/example-plan-then-code/SKILL.md": {
+    ".claude/skills/awb-plan-then-code/SKILL.md": {
       "category": ".claude/skills",
       "lines": 47,
-      "bytes": 2207
+      "bytes": 2191
     },
-    ".claude/skills/example-research/SKILL.md": {
+    ".claude/skills/awb-research/SKILL.md": {
       "category": ".claude/skills",
       "lines": 57,
-      "bytes": 3206
+      "bytes": 3198
     },
-    ".claude/skills/example-review/SKILL.md": {
+    ".claude/skills/awb-review/SKILL.md": {
       "category": ".claude/skills",
       "lines": 64,
-      "bytes": 2783
+      "bytes": 2775
     },
-    ".claude/skills/example-stress-test/SKILL.md": {
+    ".claude/skills/awb-stress-test/SKILL.md": {
       "category": ".claude/skills",
       "lines": 159,
-      "bytes": 9728
+      "bytes": 9720
     },
-    ".claude/skills/example-tdd/SKILL.md": {
+    ".claude/skills/awb-tdd/SKILL.md": {
       "category": ".claude/skills",
       "lines": 67,
-      "bytes": 3593
+      "bytes": 3576
     },
-    ".claude/skills/example-using-skills/SKILL.md": {
+    ".claude/skills/awb-using-skills/SKILL.md": {
       "category": ".claude/skills",
       "lines": 71,
-      "bytes": 3994
+      "bytes": 3986
     },
     ".claude/skills/prompt-refiner/SKILL.md": {
       "category": ".claude/skills",
@@ -189,8 +189,8 @@
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
-      "lines": 50,
-      "bytes": 5180
+      "lines": 54,
+      "bytes": 5410
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
@@ -200,7 +200,7 @@
     "tools/affected_tests.py": {
       "category": "tools",
       "lines": 373,
-      "bytes": 13508
+      "bytes": 13136
     },
     "tools/check_context_budget.py": {
       "category": "tools",
@@ -210,12 +210,12 @@
     "tools/check_requirements_diff.py": {
       "category": "tools",
       "lines": 98,
-      "bytes": 3964
+      "bytes": 3867
     },
     "tools/invariants.py": {
       "category": "tools",
       "lines": 237,
-      "bytes": 9859
+      "bytes": 9855
     },
     "tools/leak_scan.py": {
       "category": "tools",
@@ -250,12 +250,12 @@
     "tools/memory_sync.py": {
       "category": "tools",
       "lines": 146,
-      "bytes": 7136
+      "bytes": 7281
     },
     "tools/readme_metrics.py": {
       "category": "tools",
       "lines": 136,
-      "bytes": 5971
+      "bytes": 5963
     },
     "tools/skill_lint.py": {
       "category": "tools",
@@ -265,7 +265,7 @@
     "tools/skill_usage_report.py": {
       "category": "tools",
       "lines": 257,
-      "bytes": 10823
+      "bytes": 10567
     },
     "tools/sync_manifest.py": {
       "category": "tools",

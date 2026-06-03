@@ -15,10 +15,10 @@ scratch with no code copied).
 | Project | License | What it influenced (idea / pattern only) |
 |---|---|---|
 | `claudekit` / claudekit-engineer | MIT | Workflow-rule and command-writing structure; the "remind to simplify after a burst of edits" idea behind `post_edit_simplify.py` (independently re-implemented in stdlib Python — no source copied) |
-| `mattpocock/skills` | MIT | The "grill / iterative-refine" prompt pattern; the vertical-slice red-green-refactor framing in `example-tdd`; the "zoom out one layer before diving in" idea in `example-research` |
+| `mattpocock/skills` | MIT | The "grill / iterative-refine" prompt pattern; the vertical-slice red-green-refactor framing in `awb-tdd`; the "zoom out one layer before diving in" idea in `awb-research` |
 | `colbymchenry/codegraph` (© Colby McHenry) | MIT | The "affected tests" selection idea (re-implemented in stdlib `ast`) |
-| `anthropics/claude-plugins-official` | MIT | Command-development guidance; the multi-perspective-planning idea (parallel planners → convergent/divergent/unique merge) in `example-cook` |
-| `github/spec-kit` | MIT | The graduated-oversight / spec-driven build-workflow pattern in `example-cook` (re-authored in stdlib prose; no source copied) |
+| `anthropics/claude-plugins-official` | MIT | Command-development guidance; the multi-perspective-planning idea (parallel planners → convergent/divergent/unique merge) in `awb-cook` |
+| `github/spec-kit` | MIT | The graduated-oversight / spec-driven build-workflow pattern in `awb-cook` (re-authored in stdlib prose; no source copied) |
 | `Lum1104/Understand-Anything` (© Lum1104) | MIT | Disk-intermediate output protocol (concept) |
 | `MiniMax-AI/skills` (© MiniMax) | MIT | SKILL.md frontmatter validation idea — block-scalar parser + USE WHEN / DO NOT TRIGGER presence checks in `tools/skill_lint.py` (re-implemented in stdlib; no source copied) |
 | `affaan-m/ECC` (© Affaan Mustafa) | MIT | Context-budget auditing idea — component scan, always/sometimes/rarely buckets, and session-start-vs-on-demand split in `tools/check_context_budget.py` (re-implemented in stdlib; no source copied) |
@@ -46,7 +46,7 @@ modifications are stated (here and in the file).
 
 | Upstream | License | How it was handled |
 |---|---|---|
-| `academic-research-skills` | **CC BY-NC 4.0** | Its mode-registry / spectrum+oversight / failure-mode-catalog **expression** is a non-commercial work. A downstream "waiver self-acknowledgement" has **no legal effect** — only the original author can waive. This repo therefore **excludes the verbatim catalog** and **re-authored `skill-registry.md` from first principles** (own naming/columns/format; ideas aren't protected, specific expression is). Several private source skills carried this same `spectrum:`/`oversight:` overlay; the example skills derived from them (`example-stress-test`, `example-tdd`, `example-optimize`, `example-dead-code-audit`, `example-cook`, `example-external-ref`) were likewise **re-authored from first principles** with the overlay dropped — concept only, no expression copied. |
+| `academic-research-skills` | **CC BY-NC 4.0** | Its mode-registry / spectrum+oversight / failure-mode-catalog **expression** is a non-commercial work. A downstream "waiver self-acknowledgement" has **no legal effect** — only the original author can waive. This repo therefore **excludes the verbatim catalog** and **re-authored `skill-registry.md` from first principles** (own naming/columns/format; ideas aren't protected, specific expression is). Several private source skills carried this same `spectrum:`/`oversight:` overlay; the skills derived from them (`awb-stress-test`, `awb-tdd`, `awb-optimize`, `awb-dead-code-audit`, `awb-cook`, `awb-external-ref`) were likewise **re-authored from first principles** with the overlay dropped — concept only, no expression copied. |
 
 ## What was intentionally excluded for license / safety reasons
 

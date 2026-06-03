@@ -33,7 +33,7 @@ To gauge coupling, ask: **if I deleted this, what would break, and how hard woul
 out?**
 
 - Nothing breaks → it may be dead (confirm with a real [dead-code
-  audit](../.claude/skills/example-dead-code-audit/SKILL.md), which guards against false positives).
+  audit](../.claude/skills/awb-dead-code-audit/SKILL.md), which guards against false positives).
 - One obvious thing breaks → healthy coupling.
 - You can't tell without running everything → it's too entangled; that opacity *is* the problem.
 
@@ -42,7 +42,7 @@ out?**
 The public interface is also the test surface: tests written against it survive refactors, tests
 written against internals shatter on them. So design the interface to be the thing worth asserting
 on — if it's awkward to test through the front door, that's a design signal, not a testing problem.
-This is the same idea [`example-tdd`](../.claude/skills/example-tdd/SKILL.md) leans on.
+This is the same idea [`awb-tdd`](../.claude/skills/awb-tdd/SKILL.md) leans on.
 
 ## Honest limit
 
