@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Core: stdlib-only](https://img.shields.io/badge/core-stdlib--only-blue.svg)](#at-a-glance)
 
-<kbd>[Why](#why-this-exists)</kbd> · <kbd>[What's inside](#whats-inside)</kbd> · <kbd>[How it fits together](#how-it-fits-together)</kbd> · <kbd>[Quickstart](#quickstart-5-minutes)</kbd> · <kbd>[Install](#install-it-into-your-own-project)</kbd> · <kbd>[Honesty](#status--honesty)</kbd>
+<kbd>[Why](#why-this-exists)</kbd> · <kbd>[What's inside](#whats-inside)</kbd> · <kbd>[How it fits together](#how-it-fits-together)</kbd> · <kbd>[Quickstart](#quickstart-5-minutes)</kbd> · <kbd>[Install](#install-it-into-your-own-project)</kbd> · <kbd>[Honesty](#status--honesty)</kbd> · <kbd>[🇻🇳 Tiếng Việt](docs/README.vi.md)</kbd>
 
 </div>
 
@@ -32,7 +32,7 @@
 <summary><b>New here? Start with the guided tour →</b></summary>
 
 Read [`docs/getting-started.md`](docs/getting-started.md) for a guided walkthrough: clone,
-run the three demos, then point the installer at one of your own projects. The rest of this
+run a few demos, then point the installer at one of your own projects. The rest of this
 README is the reference map — skim the [What's inside](#whats-inside) table, then dive into
 the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you care about.
 
@@ -41,6 +41,8 @@ the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you 
 ---
 
 ## Why this exists
+
+🇻🇳 *Tóm tắt — Lớp phương pháp luận generic rút ra từ một codebase production riêng tư (không bao giờ công khai được): phần giúp chạy một agent AI **đáng tin, an toàn, nhất quán** trên codebase sống lâu dài, đã gỡ sạch mọi dấu vết domain. Công khai để ai cần thì dùng lại và né những sai lầm tránh được — không phải để lấy sao.*
 
 > **Canonical statement:** the four tenets and the "what would betray this" review checklist live
 > in [`PHILOSOPHY.md`](PHILOSOPHY.md) — the source of truth. This section is their narrative form.
@@ -73,6 +75,8 @@ more than raw speed, and want concrete copy-pasteable patterns instead of abstra
 
 ## What's inside
 
+🇻🇳 *Tóm tắt — Bản đồ theo nhu cầu ("khi bạn cần làm X → cái này cho bạn gì"), không phải danh sách endpoint: cấu hình agent (CLAUDE/AGENTS), hệ skills, memory, hooks bắt footgun, và bộ tool stdlib. Chi tiết kỹ thuật nằm ở các đường link.*
+
 A benefit-first map — *what it helps you do*, not an endpoint dump. Technical detail is
 deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 
@@ -91,17 +95,20 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
 | **Publish a public-safe slice of memory** | A leak-gated, **fail-closed** sync — copies only facts marked `visibility: public` (or already published) that pass `leak_scan`, into a public repo's `memory/`; strips per-session frontmatter, leaves the index human-curated, manual-run only | [`tools/memory_sync.py`](tools/memory_sync.py) |
 | **Check memory actually reaches the agent** | A read-only wiring trip-wire — the harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/`, so facts curated in the wrong dir are silently never recalled. Flags that mismatch and an over-budget live index; stat-verifies every path and writes nothing | [`tools/memory_recall_doctor.py`](tools/memory_recall_doctor.py) |
+| **Keep the memory load-budget in one place** | The single source of truth for the `MEMORY.md` load budget (≤ 200 lines / ~25 KB, past which entries silently truncate out of recall) — imported by the memory audit + recall-doctor so the cap can't drift apart (it did once, `24576`→`25600`). A shared constants module, not a runnable CLI | [`tools/memory_budget.py`](tools/memory_budget.py) |
 | **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
 | **Catch file-set drift** | A manifest gate over the source-of-truth dirs (skills, hooks, rules, tools, scripts): adding or removing a file without updating its dependent docs/wiring fails CI. Paired with a `PostToolUse` hook that nudges you the moment a new file lands | [`tools/sync_manifest.py`](tools/sync_manifest.py) |
-| **Keep the README counts honest** | A generator/gate for the "At a glance" numbers (tests/demos/tools/skills): `--check` fails CI when a count is stale, `--write` recomputes them from the tree — so two branches stop conflicting on hand-typed counts. Gates the numbers, not the prose lists | [`tools/readme_metrics.py`](tools/readme_metrics.py) |
+| **Keep the README counts honest** | A generator/gate for the "At a glance" numbers (deps/tests/demos/tools/skills): `--check` fails CI when a count is stale, `--write` recomputes them from the tree — so two branches stop conflicting on hand-typed counts. Gates the numbers, not the prose lists | [`tools/readme_metrics.py`](tools/readme_metrics.py) |
 | **Watch the context budget** | An auditor for everything Claude Code loads each session (skills, agents, rules, the CLAUDE.md chain, MCP servers) — buckets each as always/sometimes/rarely and flags the heavy ones, so "short, high-signal context" gets a number (heuristic, not a real tokenizer) | [`tools/check_context_budget.py`](tools/check_context_budget.py) |
 | **Catch an un-installed dependency** | A pre-commit *seatbelt* that warns (never blocks) when a commit adds a line to `requirements.txt`, so you remember to install it where the code runs before it fails at import | [`tools/check_requirements_diff.py`](tools/check_requirements_diff.py) |
 | **See which skills actually fire** | An opt-in prompt-logger + report that surfaces which skills get used and which are dead weight — to prune them or fix their trigger text. Honest proxy: it counts name *mentions*, not true uses | [`tools/skill_usage_report.py`](tools/skill_usage_report.py) |
 | **Codify recurring traps as rules** | Path-scoped rules that auto-load when you edit a matching file — slash-command style, and measurement honesty (don't trust a green check you didn't verify) | [`.claude/rules/`](.claude/rules/) |
 | **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
-| **Try everything in 30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
+| **Try each demo in ~30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
 
 ## How it fits together
+
+🇻🇳 *Tóm tắt — Lõi tái dùng là vài mảnh nhỏ, độc lập, opt-in mà installer thả vào dự án đích. Không phải framework — mỗi mảnh đứng riêng được.*
 
 The reusable core is a handful of small, independent pieces that the installer drops into a
 target project. Nothing here is a framework — each part stands alone and is opt-in.
@@ -196,6 +203,7 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `skill_routing_inject.py` | `SessionStart` (all) | Injects a compact, tier-ordered routing map derived from `skill-registry.md`, so the agent starts each session knowing which skill fires when. Output is kept small (it loads every session); pairs with the `awb-using-skills` meta-skill. |
 | `sync_guard.py` | `PostToolUse` (Write) | **Maintainer-only — not wired by the installer** (its `tools/sync_manifest.py` gate and `.claude/manifest.json` ship with the kit, not into adopter projects, so wiring it there would only nag). When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
+| `session_start.py` | `SessionStart` (startup\|resume\|clear) | Injects the project primer (`.claude/session-primer.md`) — a short, stable pointer ("you have skills; here's the registry; pick by the trigger markers") — at the top of each session, and surfaces the `session_end.py` breadcrumb as a "Last session: …" line. Does **not** fire on `compact` (that's `compact_restore.py`). Kill-switch `SESSION_PRIMER=0`. |
 | `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
 
@@ -205,6 +213,8 @@ Run [`examples/hook_block_demo.py`](examples/hook_block_demo.py) to see the clas
 </details>
 
 ## Generic vs. domain-specific — read this first
+
+🇻🇳 *Tóm tắt — Bộ kit này là nửa **GENERIC** của một codebase riêng tư lớn hơn. Bảng dưới trung thực về cái gì mang đi được (ở đây) và cái gì cố ý để lại (logic domain riêng tư).*
 
 This kit is the **GENERIC** half of a larger private codebase. The table is honest about
 what's transferable and what was intentionally left behind:
@@ -218,6 +228,8 @@ what's transferable and what was intentionally left behind:
 | Prompt-refiner *mechanism* | The project's domain prompt vocabulary |
 
 ## At a glance
+
+🇻🇳 *Tóm tắt — Các con số ở bảng dưới đều được CI tự kiểm (`readme_metrics`) nên không thể lệch âm thầm: lõi **0 phụ thuộc**, bộ test xanh, đủ demo/skills/tool. Bản tiếng Anh này là nguồn số liệu chuẩn (được gate).*
 
 <!-- BEGIN GENERATED:metrics (hand-maintained; run `python -m pytest --co -q` to recount tests) -->
 
@@ -236,6 +248,8 @@ what's transferable and what was intentionally left behind:
 > advertised number is stale, so the figure can't silently rot when you add tests.
 
 ## Quickstart (5 minutes)
+
+🇻🇳 *Tóm tắt — Clone → cài (lõi không phụ thuộc) → chạy thử từng demo (vài giây mỗi cái) → chạy bộ test để tự chứng minh các tool hoạt động.*
 
 ```bash
 git clone https://github.com/doivamong/agent-workbench
@@ -262,9 +276,12 @@ python -m pytest -q                 # 405 tests
 
 ## Install it into your own project
 
+🇻🇳 *Tóm tắt — Trỏ installer vào dự án bất kỳ: nó chép hooks/skills/rules/tool/`secrets_guard` + scaffold memory rồi tự wire hooks. Mở dự án bằng agent là có ngay: chặn lệnh Bash nguy hiểm, gắn cờ prompt mơ hồ, và (tuỳ chọn) gate commit chống rò rỉ.*
+
 This is the part that makes it real, not just a reference. Point the installer at any project
 and it copies the hooks, skills, rules, the project-facing tools (8 of the 15 in `tools/` — the
-other 7 are repo-maintenance tools that stay in the kit), `secrets_guard`, and the memory scaffold
+other 7 are repo-maintenance tools that stay in the kit), `secrets_guard` (the 16th tool counted in
+"At a glance" — it lives in `scripts/`, not `tools/`), and the memory scaffold
 in, then wires the hooks for you:
 
 ```bash
@@ -292,6 +309,8 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 
 ## Documentation
 
+🇻🇳 *Tóm tắt — Bảng tra cứu: đọc file nào, khi nào. Người đọc tiếng Việt xem bản dịch đầy đủ ở [docs/README.vi.md](docs/README.vi.md).*
+
 | Group | Key file | When to read |
 |---|---|---|
 | **Start here** | [`docs/getting-started.md`](docs/getting-started.md) | First clone — guided walkthrough |
@@ -318,6 +337,8 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 | **Provenance** | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Ports/derivatives and their obligations |
 
 ## Status & honesty
+
+🇻🇳 *Tóm tắt — Đây là "tốt nhất theo hiểu biết hiện tại", không phải chân lý. Hai guard chính (`block_dangerous`, `leak_scan`) là **dây an toàn chống tai nạn, KHÔNG phải ranh giới bảo mật** — đừng coi là tuyến phòng thủ cuối.*
 
 This is **best-fit as currently known, with better approaches left open** — not gospel. It
 comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may differ.

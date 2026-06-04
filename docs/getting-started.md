@@ -1,8 +1,12 @@
 # Getting Started
 
-A 10-minute walkthrough: see the tools work, then wire them into your own project.
+A ~10-minute walkthrough: run the demos (seconds each), then wire the tools into your own project.
+
+🇻🇳 *Hướng dẫn ~10 phút: chạy thử các demo (vài giây mỗi cái), rồi gắn bộ tool vào dự án của bạn. Bản dịch đầy đủ README ở [README.vi.md](README.vi.md).*
 
 ## 0. Prerequisites
+
+🇻🇳 *Yêu cầu — Python 3.10+ (lõi chỉ dùng stdlib; `pytest` chỉ cho bộ test). Git. Tuỳ chọn: Claude Code (hoặc agent khác) để dùng hooks và skills.*
 
 - Python 3.10+ (the reusable core is stdlib-only; `pytest` is only for the test suite).
 - Git. Optional: [Claude Code](https://claude.com/claude-code) (or another agent) to use the
@@ -16,6 +20,8 @@ python -m pip install -r requirements.txt
 
 ## 1. See it work (each runs in seconds)
 
+🇻🇳 *Xem nó chạy — mỗi lệnh dưới chạy trong vài giây; sau đó chạy `pytest` + `leak_scan` để tự chứng minh các tool đáng tin.*
+
 ```bash
 python examples/secrets_demo.py             # encrypt/decrypt round-trip + tamper detection
 python examples/hook_block_demo.py          # classifies safe vs dangerous shell commands
@@ -27,10 +33,12 @@ Then confirm the tools are actually trustworthy:
 
 ```bash
 python -m pytest -q                 # the test suite
-python tools/leak_scan.py . --entropy --fail-on-find   # this repo scans itself: 0 findings
+python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore   # this repo scans itself: 0 findings (same flags as CI)
 ```
 
 ## 2. Install into your project
+
+🇻🇳 *Cài vào dự án — `install.py` chép hooks/skills/rules/tool/`secrets_guard`/scaffold memory, tuỳ chọn cài git pre-commit gate, rồi in đoạn `settings.json` để bạn merge.*
 
 ```bash
 python install.py /path/to/your/project --with-git-hook
@@ -43,6 +51,8 @@ snippet you need. Merge that snippet into `your-project/.claude/settings.json`.
 
 ## 3. What you now have
 
+🇻🇳 *Bạn có ngay — chặn lệnh Bash nguy hiểm, gắn cờ prompt mơ hồ, từ chối commit làm rò rỉ (nếu dùng `--with-git-hook`), cùng skills và scaffold memory.*
+
 Open your project in Claude Code (or your agent). Immediately:
 
 - **Dangerous `Bash` commands are blocked** (force-push, `rm -rf /`, `DROP TABLE`, …) by a
@@ -53,6 +63,8 @@ Open your project in Claude Code (or your agent). Immediately:
   template — your live corpus lives at the per-project path; see "Make it yours" below).
 
 ## 4. Make it yours
+
+🇻🇳 *Biến thành của bạn — thay skills/invariants/deny-list bằng cái thật của dự án; trỏ memory về đúng path per-project rồi chạy `memory_recall_doctor` để kiểm tra wiring.*
 
 - **Skills:** copy `.claude/skills/SKILL_TEMPLATE.md` and write playbooks for your workflow;
   keep `.claude/skills/skill-registry.md` in sync. See
@@ -70,6 +82,8 @@ Open your project in Claude Code (or your agent). Immediately:
   project's golden rules.
 
 ## 5. CI
+
+🇻🇳 *CI — workflow kèm sẵn chạy leak scan + invariants + tests mỗi push/PR; kit tự gate bằng chính tool của nó. Dùng lại mẫu này cho dự án bạn.*
 
 The included [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs the leak scan,
 invariants, and tests on every push/PR — the kit gates itself with its own tools. Reuse the

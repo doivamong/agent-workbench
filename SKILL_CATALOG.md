@@ -10,6 +10,8 @@
 > not gospel."** A capability is listed only with an honest status and, where relevant, the thing
 > it deliberately does *not* do.
 
+🇻🇳 *Tóm tắt — Đây là **bản đồ năng lực** của hệ skills: mỗi dòng là một capability, gắn nhãn trạng thái (LIVE / BLUEPRINT / ADOPTER-FILLS / REJECTED) cho biết nó sống ở đâu hôm nay. Bản đồ không phải bộ đếm — số LIVE chuẩn được gate ở README; nếu trang này và README lệch nhau, **tin README**.*
+
 ## How to read this
 
 Each row is one **capability**, not one file. A capability can land as a runnable skill, a hook, a
