@@ -291,7 +291,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **437**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **455**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **18** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
@@ -326,7 +326,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 437 tests
+python -m pytest -q                 # 455 tests
 ```
 
 ## Install it into your own project
@@ -346,6 +346,22 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 #   to paste yourself instead.
 # --dry-run to preview first; --force to overwrite existing copied files.
 ```
+
+**Install only what you want, and uninstall cleanly.** Groups are `hooks`, `skills`, `rules`,
+`agents`, `tools`, `memory`; dependencies are pulled in automatically (selecting `hooks` adds
+`skills`, so routing has something to route to):
+
+```bash
+python install.py /path/to/your/project --select hooks,skills   # only these groups (+deps)
+python install.py /path/to/your/project --list                  # what's available / installed
+python uninstall.py /path/to/your/project                       # dry run — shows the plan
+python uninstall.py /path/to/your/project --yes                 # reverse the install
+```
+
+The installer records what it copied in a git-ignored `.claude/installer-manifest.json`, so
+`uninstall.py` removes exactly that and **keeps any file you edited** (it never deletes your
+changes, and fails loud rather than guessing if the manifest is missing). On a fresh repo,
+`install` then `uninstall --yes` leaves `git status` clean.
 
 With `--merge-settings` the installer's hooks are active immediately — every hook in the table
 above except the maintainer-only `sync_guard` and the opt-in `skill_usage_logger`; without it you
@@ -425,7 +441,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 437 tests · MIT
+**Agent Workbench** · stdlib-only core · 455 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

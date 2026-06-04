@@ -252,7 +252,7 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **437**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Tests | **455**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
 | Demo chạy được | **18** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **16** (15 trong `tools/` + `secrets_guard` ở `scripts/`) |

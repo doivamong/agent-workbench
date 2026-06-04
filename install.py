@@ -10,11 +10,20 @@ Usage:
     python install.py /path/to/your/project
     python install.py /path/to/your/project --with-git-hook
     python install.py /path/to/your/project --dry-run
-    python install.py /path/to/your/project --force      # overwrite existing files
+    python install.py /path/to/your/project --force            # overwrite existing files
+    python install.py /path/to/your/project --select hooks,skills  # only these groups (+deps)
+    python install.py /path/to/your/project --list             # groups available / installed
+    python install.py /path/to/your/project --coverage         # installed-vs-available counts
+
+It writes an installer-manifest (``.claude/installer-manifest.json``, git-ignored in the
+target) recording what it copied, so ``uninstall.py`` can cleanly reverse the install —
+keeping any file you edited. Run ``python uninstall.py /path/to/your/project`` (dry-run by
+default; ``--yes`` to apply).
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -28,24 +37,44 @@ if hasattr(sys.stdout, "reconfigure"):
 
 KIT = Path(__file__).resolve().parent
 
-# (source relative to kit, destination relative to target project)
+# (source relative to kit, destination relative to target project, GROUP)
+# The group is the unit of `--select`: you install/uninstall by group, not by file.
 COPY_MAP = [
-    (".claude/hooks", ".claude/hooks"),
-    (".claude/skills", ".claude/skills"),
-    (".claude/rules", ".claude/rules"),
-    (".claude/agents", ".claude/agents"),
-    (".claude/session-primer.md", ".claude/session-primer.md"),
-    ("tools/leak_scan.py", "tools/leak_scan.py"),
-    ("tools/license_scan.py", "tools/license_scan.py"),
-    ("tools/invariants.py", "tools/invariants.py"),
-    ("tools/affected_tests.py", "tools/affected_tests.py"),
-    ("tools/memory_audit.py", "tools/memory_audit.py"),
-    ("tools/memory_recall_doctor.py", "tools/memory_recall_doctor.py"),
-    ("tools/skill_lint.py", "tools/skill_lint.py"),
-    ("tools/skill_usage_report.py", "tools/skill_usage_report.py"),
-    ("scripts/secrets_guard.py", "scripts/secrets_guard.py"),
-    ("memory", "memory"),
+    (".claude/hooks", ".claude/hooks", "hooks"),
+    (".claude/session-primer.md", ".claude/session-primer.md", "hooks"),
+    (".claude/skills", ".claude/skills", "skills"),
+    (".claude/rules", ".claude/rules", "rules"),
+    (".claude/agents", ".claude/agents", "agents"),
+    ("tools/leak_scan.py", "tools/leak_scan.py", "tools"),
+    ("tools/license_scan.py", "tools/license_scan.py", "tools"),
+    ("tools/invariants.py", "tools/invariants.py", "tools"),
+    ("tools/affected_tests.py", "tools/affected_tests.py", "tools"),
+    ("tools/memory_audit.py", "tools/memory_audit.py", "tools"),
+    ("tools/memory_recall_doctor.py", "tools/memory_recall_doctor.py", "tools"),
+    ("tools/skill_lint.py", "tools/skill_lint.py", "tools"),
+    ("tools/skill_usage_report.py", "tools/skill_usage_report.py", "tools"),
+    ("scripts/secrets_guard.py", "scripts/secrets_guard.py", "tools"),
+    ("memory", "memory", "memory"),
 ]
+
+# The selectable groups, in install order. Source of truth for --select / --list.
+GROUPS = ["hooks", "skills", "rules", "agents", "tools", "memory"]
+
+# Soft dependencies: selecting a group auto-selects what it needs to be useful.
+# hooks→skills: skill_routing_inject.py fails open without the skills, but its routing
+# map is empty — so installing the hooks without the skills ships a no-op. Pulling skills
+# in keeps a --select install functional (handover C1: "a hook that needs a skill
+# auto-selects it"). Kept minimal and accurate; not every hook needs every group.
+DEPENDENCIES = {"hooks": {"skills"}}
+
+# The installer-manifest records exactly what was installed (path + sha256 + group), so
+# uninstall.py can remove precisely that and KEEP user-modified files. It lives in the
+# TARGET project (not the kit) to avoid a dual-location trap, and is git-ignored there
+# (it is machine-specific bookkeeping, not source).
+MANIFEST_REL = ".claude/installer-manifest.json"
+MANIFEST_SCHEMA = 1
+SETTINGS_REL = ".claude/settings.json"
+SETTINGS_BAK_REL = ".claude/settings.json.bak"
 
 SETTINGS_SNIPPET = {
     "hooks": {
@@ -245,6 +274,162 @@ def _apply_settings_merge(project: Path, dry: bool) -> list[str]:
     return [f"  merged hooks into: {settings}"]
 
 
+# --------------------------------------------------------------------------- #
+# C1 lifecycle: group selection, manifest, gitignore
+# --------------------------------------------------------------------------- #
+def sha256(path: Path) -> str:
+    """Hex sha256 of a file's bytes — the identity uninstall uses to tell an
+    untouched installed file (safe to remove) from a user-modified one (keep)."""
+    h = hashlib.sha256()
+    h.update(path.read_bytes())
+    return h.hexdigest()
+
+
+def settings_commands(snippet: dict = SETTINGS_SNIPPET) -> list[str]:
+    """Every hook ``command`` string the installer would add — the exact set
+    uninstall.py reverts from settings.json (symmetric to ``_merge_settings``)."""
+    return [h.get("command")
+            for groups in snippet.get("hooks", {}).values()
+            for g in groups
+            for h in g.get("hooks", [])
+            if h.get("command")]
+
+
+def resolve_groups(selected: list[str] | None) -> list[str]:
+    """Expand a --select list to include soft dependencies, in GROUPS order.
+
+    None (no --select) means ALL groups — backward-compatible default. An unknown
+    group name raises ValueError so a typo fails loud instead of silently installing
+    nothing.
+    """
+    if selected is None:
+        return list(GROUPS)
+    want = set()
+    for name in selected:
+        name = name.strip()
+        if not name:
+            continue
+        if name not in GROUPS:
+            raise ValueError(f"unknown group {name!r}; choose from: {', '.join(GROUPS)}")
+        want.add(name)
+        want |= DEPENDENCIES.get(name, set())
+    return [g for g in GROUPS if g in want]
+
+
+def copy_entries_for(groups: list[str]) -> list[tuple[str, str, str]]:
+    """COPY_MAP entries whose group is in ``groups``."""
+    chosen = set(groups)
+    return [(s, d, g) for (s, d, g) in COPY_MAP if g in chosen]
+
+
+def installed_files(manifest: dict) -> set[str]:
+    return set(manifest.get("files", {}))
+
+
+def _write_manifest(project: Path, files: dict[str, dict], groups: list[str],
+                    settings_info: dict, gitignore_info: dict, dry: bool) -> list[str]:
+    """Write/merge the installer-manifest into the TARGET project. Unions with any
+    existing manifest so installing groups incrementally accumulates one truthful record."""
+    path = project / MANIFEST_REL
+    existing: dict = {}
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            existing = {}
+    merged_files = {**existing.get("files", {}), **files}
+    merged_groups = sorted(set(existing.get("groups", [])) | set(groups))
+    # settings/gitignore: keep the FIRST recorded create-state (that's the one uninstall
+    # must reverse); union the added command/line lists.
+    prev_settings = existing.get("settings", {})
+    prev_gitignore = existing.get("gitignore", {})
+    manifest = {
+        "schema": MANIFEST_SCHEMA,
+        "kit": "agent-workbench",
+        "groups": merged_groups,
+        "files": dict(sorted(merged_files.items())),
+        "settings": {
+            "created": prev_settings.get("created", settings_info.get("created", False)),
+            "hooks_added": sorted(set(prev_settings.get("hooks_added", []))
+                                  | set(settings_info.get("hooks_added", []))),
+        },
+        "gitignore": {
+            "created": prev_gitignore.get("created", gitignore_info.get("created", False)),
+            "lines_added": sorted(set(prev_gitignore.get("lines_added", []))
+                                  | set(gitignore_info.get("lines_added", []))),
+        },
+    }
+    if dry:
+        return [f"  would write manifest: {path} ({len(merged_files)} file(s))"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return [f"  wrote manifest: {path} ({len(merged_files)} file(s))"]
+
+
+def _ensure_gitignore(project: Path, lines: list[str], dry: bool) -> dict:
+    """Ensure each line is present in the target .gitignore. Returns the info dict
+    {created, lines_added} so the manifest can record exactly what to reverse."""
+    path = project / ".gitignore"
+    created = not path.exists()
+    current = "" if created else path.read_text(encoding="utf-8")
+    have = set(current.splitlines())
+    to_add = [ln for ln in lines if ln not in have]
+    info = {"created": created, "lines_added": to_add}
+    if not to_add or dry:
+        return info
+    block = ""
+    if current and not current.endswith("\n"):
+        block += "\n"
+    if created or not current.strip():
+        block += "# agent-workbench installer bookkeeping (machine-specific)\n"
+    block += "\n".join(to_add) + "\n"
+    path.write_text(current + block, encoding="utf-8")
+    return info
+
+
+def _kit_file_shas(src: Path, dst_rel: str) -> list[tuple[str, str]]:
+    """For a COPY_MAP source, yield (target-relative POSIX path, sha256 of the kit source).
+
+    This is the kit's *canonical* content for each installed file — uninstall compares the
+    live file against it to decide remove (matches) vs keep (user-modified)."""
+    out: list[tuple[str, str]] = []
+    if src.is_dir():
+        for f in sorted(src.rglob("*")):
+            if f.is_dir() or "__pycache__" in f.parts:
+                continue
+            rel = (Path(dst_rel) / f.relative_to(src)).as_posix()
+            out.append((rel, sha256(f)))
+    elif src.is_file():
+        out.append((Path(dst_rel).as_posix(), sha256(src)))
+    return out
+
+
+def _report(project: Path, manifest: dict, *, coverage: bool) -> int:
+    """--list / --coverage: show available groups and what is installed in the target."""
+    installed_groups = set(manifest.get("groups", []))
+    installed = installed_files(manifest)
+    avail_by_group: dict[str, int] = {g: 0 for g in GROUPS}
+    for src_rel, dst_rel, group in COPY_MAP:
+        for _ in _kit_file_shas(KIT / src_rel, dst_rel):
+            avail_by_group[group] += 1
+    if coverage:
+        n_files_installed = len(installed)
+        n_files_avail = sum(avail_by_group.values())
+        print(f"Coverage for {project}:")
+        print(f"  groups: {len(installed_groups & set(GROUPS))}/{len(GROUPS)} installed")
+        print(f"  files:  {n_files_installed}/{n_files_avail} tracked in the installer-manifest")
+        if not manifest:
+            print("  (no installer-manifest found — nothing installed by this kit, or installed "
+                  "before manifests existed)")
+        return 0
+    print(f"Available groups (installed into {project} marked ✓):")
+    for g in GROUPS:
+        mark = "✓" if g in installed_groups else " "
+        dep = f"  (pulls in: {', '.join(sorted(DEPENDENCIES[g]))})" if g in DEPENDENCIES else ""
+        print(f"  [{mark}] {g:<8} {avail_by_group[g]:>2} file(s){dep}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Install the kit into a project.")
     ap.add_argument("target", type=Path, help="Path to your project root")
@@ -257,6 +442,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Merge the hooks block into .claude/settings.json automatically (idempotent), "
              "instead of just printing the snippet for you to paste.",
     )
+    ap.add_argument(
+        "--select", metavar="GROUPS",
+        help=f"Comma-separated groups to install (default: all). Groups: {', '.join(GROUPS)}. "
+             "Dependencies are pulled in automatically (e.g. hooks → skills).",
+    )
+    ap.add_argument("--list", action="store_true",
+                    help="List the available groups and what is already installed in the target, then exit.")
+    ap.add_argument("--coverage", action="store_true",
+                    help="Report installed-vs-available groups/files for the target, then exit.")
     args = ap.parse_args(argv)
 
     project = args.target.resolve()
@@ -267,15 +461,41 @@ def main(argv: list[str] | None = None) -> int:
         print("Refusing to install the kit into itself.", file=sys.stderr)
         return 1
 
+    # Read any existing manifest once — both --list/--coverage and the install path use it.
+    manifest_path = project / MANIFEST_REL
+    existing_manifest: dict = {}
+    if manifest_path.is_file():
+        try:
+            existing_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            existing_manifest = {}
+
+    if args.list or args.coverage:
+        return _report(project, existing_manifest, coverage=args.coverage)
+
+    # Resolve which groups to install (None → all; deps auto-added). Fail loud on a typo.
+    try:
+        groups = resolve_groups(args.select.split(",") if args.select else None)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.select:
+        print(f"Selected groups (with dependencies): {', '.join(groups)}\n")
+
     print(f"Installing kit into: {project}{'  (dry run)' if args.dry_run else ''}\n")
-    for src_rel, dst_rel in COPY_MAP:
+    manifest_files: dict[str, dict] = {}
+    for src_rel, dst_rel, group in copy_entries_for(groups):
         src = KIT / src_rel
         if not src.exists():
             print(f"  WARN missing in kit: {src_rel}")
             continue
-        print(f"{src_rel} -> {dst_rel}")
+        print(f"{src_rel} -> {dst_rel}  [{group}]")
         for line in _copy(src, project / dst_rel, args.force, args.dry_run):
             print(line)
+        # Record the kit's canonical content (source sha) so uninstall can tell an
+        # untouched installed file from a user-modified one, regardless of copy/skip.
+        for rel, digest in _kit_file_shas(src, dst_rel):
+            manifest_files[rel] = {"sha256": digest, "group": group}
 
     if args.with_git_hook:
         print("\ngit pre-commit hook:")
@@ -285,15 +505,31 @@ def main(argv: list[str] | None = None) -> int:
                   "'pre-commit install' will overwrite this raw hook; wire the leak "
                   "scan into .pre-commit-config.yaml instead (see this kit's).")
 
-    if args.merge_settings:
-        print("\nActivating hooks (--merge-settings):")
-        for line in _apply_settings_merge(project, args.dry_run):
+    # Settings only make sense when the hooks they point at are installed.
+    settings_info = {"created": False, "hooks_added": []}
+    if "hooks" in groups:
+        if args.merge_settings:
+            settings_created = not (project / SETTINGS_REL).exists()
+            print("\nActivating hooks (--merge-settings):")
+            for line in _apply_settings_merge(project, args.dry_run):
+                print(line)
+            settings_info = {"created": settings_created, "hooks_added": settings_commands()}
+        else:
+            print("\nNext step - activate the hooks. Merge this into your")
+            print(f"  {project / '.claude' / 'settings.json'}")
+            print("  (or re-run with --merge-settings to do this automatically)\n")
+            print(json.dumps(SETTINGS_SNIPPET, indent=2))
+    elif args.merge_settings:
+        print("\n  (skipped --merge-settings: the 'hooks' group was not selected)")
+
+    # Record what was installed so uninstall.py can reverse exactly this — and git-ignore
+    # the machine-specific manifest in the target.
+    if manifest_files:
+        gitignore_info = _ensure_gitignore(project, [MANIFEST_REL], args.dry_run)
+        print("\nInstaller bookkeeping:")
+        for line in _write_manifest(project, manifest_files, groups,
+                                    settings_info, gitignore_info, args.dry_run):
             print(line)
-    else:
-        print("\nNext step - activate the hooks. Merge this into your")
-        print(f"  {project / '.claude' / 'settings.json'}")
-        print("  (or re-run with --merge-settings to do this automatically)\n")
-        print(json.dumps(SETTINGS_SNIPPET, indent=2))
 
     print("\nThen open the project in Claude Code. Dangerous Bash commands will be")
     print("blocked and vague prompts will be flagged. See .claude/skills/README.md to")

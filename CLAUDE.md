@@ -18,7 +18,10 @@ See [README](README.md).
 ## Golden rules (the few that must never break)
 
 1. **No secrets, identifiers, or absolute machine paths** in committed files. The leak scanner
-   gates this (`python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore`).
+   gates this (`python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore`) — but a
+   green scan is **not proof**. It misses a brand identifier used as a code namespace (a CSS class
+   prefix like `acme-`, a `--brand-*` token), paid-product references, and example paths. When
+   committing ported or branded content, grep the source's own namespace yourself first.
 2. **The reusable core stays stdlib-only** (`scripts/`, `tools/`, `.claude/hooks/`). Dependencies
    live in `examples/` and tests.
 3. **Every tool ships a runnable `examples/` entry** and has tests.
