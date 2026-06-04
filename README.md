@@ -115,44 +115,48 @@ target project. Nothing here is a framework — each part stands alone and is op
 
 ```mermaid
 flowchart TB
-    subgraph agent["Agent configuration (loaded every session)"]
-        cfg["CLAUDE.md / AGENTS.md<br/>project instructions"]
-        skills["Skills<br/>intent-triggered playbooks"]
-        rules["Rules<br/>path-scoped style"]
-        mem["Memory<br/>index-gated; live store is per-project, not the repo copy"]
+    install(["🚀 install.py"]):::entry
+
+    install ==>|copies in| AG
+    install ==>|wires| HK
+    install ==>|"--with-git-hook"| GH(["🔒 git pre-commit<br/>leak_scan only"]):::entry
+
+    subgraph AG["📋 Agent config · loaded every session"]
+        direction TB
+        cfg["CLAUDE.md / AGENTS.md<br/>adapt your own — not copied"]:::cfg
+        skills["Skills · intent-triggered playbooks"]:::cfg
+        rules["Rules · path-scoped style"]:::cfg
+        mem["Memory · index-gated<br/>live store is per-project, not the repo copy"]:::cfg
     end
 
-    subgraph guards["Runtime guardrails (hooks)"]
-        block["block_dangerous.py<br/>PreToolUse"]
-        refine["prompt-refiner-inject.py<br/>UserPromptSubmit"]
-        simplify["post_edit_simplify.py<br/>PostToolUse"]
-        wrap["hook_logger<br/>fail-open + crash log"]
+    subgraph HK["🪝 Runtime hooks · wired into settings.json"]
+        direction TB
+        block["block_dangerous · PreToolUse"]:::hook
+        refine["prompt-refiner-inject · UserPromptSubmit"]:::hook
+        edits["post_edit_simplify + context_tracker · PostToolUse"]:::hook
+        life["session_start / session_end · precompact_backup<br/>compact_restore · skill_routing_inject"]:::hook
+        wrap(["hook_logger · fail-open + crash log"]):::wrapn
+        block & refine & edits & life -.->|wrapped by| wrap
     end
 
-    subgraph gate["Commit / CI gate"]
-        inv["invariants.py"]
-        leak["leak_scan.py"]
-        aff["affected_tests.py"]
-        sec["secrets_guard.py"]
+    subgraph GT["✅ Commit / CI gate · dogfooded, shipped as a template"]
+        direction LR
+        leak["leak_scan"]:::chk
+        inv["invariants"]:::chk
+        slint["skill_lint"]:::chk
+        ctxb["check_context_budget"]:::chk
+        man["sync_manifest"]:::chk
+        metr["readme_metrics"]:::chk
+        tests["pytest"]:::chk
     end
 
-    install["install.py"] -->|copies into| agent
-    install -->|wires| guards
-    install -->|"--with-git-hook"| gate
+    GH -.->|"its leak_scan = one gate check"| leak
 
-    block -.->|wrapped by| wrap
-    refine -.->|wrapped by| wrap
-    simplify -.->|wrapped by| wrap
-
-    classDef config fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    classDef entry fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef cfg fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
     classDef hook fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef check fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef entry fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-
-    class cfg,skills,rules,mem config
-    class block,refine,simplify,wrap hook
-    class inv,leak,aff,sec check
-    class install entry
+    classDef wrapn fill:#fcd34d,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef chk fill:#dcfce7,stroke:#16a34a,color:#14532d
 ```
 
 <details>
@@ -338,7 +342,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 
 ## Status & honesty
 
-🇻🇳 *Tóm tắt — Đây là "tốt nhất theo hiểu biết hiện tại", không phải chân lý. Hai guard chính (`block_dangerous`, `leak_scan`) là **dây an toàn chống tai nạn, KHÔNG phải ranh giới bảo mật** — đừng coi là tuyến phòng thủ cuối.*
+🇻🇳 *Tóm tắt — Đây là "tốt nhất theo hiểu biết hiện tại", không phải chân lý. Hai guard chính (`block_dangerous`, `leak_scan`) là **lưới an toàn chống tai nạn, KHÔNG phải ranh giới bảo mật** — đừng coi là tuyến phòng thủ cuối.*
 
 This is **best-fit as currently known, with better approaches left open** — not gospel. It
 comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may differ.
