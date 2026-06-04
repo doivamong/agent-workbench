@@ -155,3 +155,20 @@ def test_non_numeric_kpi_is_muted_not_a_giant_number(tmp_path):
 @pytest.mark.parametrize("val,expected", [(5, "5"), (5.9, "5,9"), (10.0, "10"), (0.0, "0")])
 def test_vn_num(val, expected):
     assert ksr._vn_num(val) == expected
+
+
+def test_json_flag_emits_gather_data(tmp_path, capsys):
+    # The --json seam ui/web/ consumes: valid JSON of gather()'s dict, no HTML written.
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    out_html = tmp_path / "should-not-exist.html"
+    rc = ksr.main(["--project", str(proj), "--output", str(out_html), "--json"])
+    assert rc == 0
+    assert not out_html.exists()                       # --json skips HTML
+    data = json.loads(capsys.readouterr().out)         # must be valid JSON
+    # stable top-level keys ui/web/ relies on
+    for key in ("skills", "wired", "daily", "labels", "total", "dead_candidates",
+                "tools_present", "tools_missing", "events", "n_hooks", "mem",
+                "gates", "branch", "commit", "today", "days"):
+        assert key in data, f"missing key: {key}"
+    assert {s["name"] for s in data["skills"]} == {"awb-review", "awb-tdd"}
+    assert data["wired"] is False                       # telemetry not wired in fixture

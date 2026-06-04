@@ -1,0 +1,7 @@
+# ui/web/ — the kit's ONLY runtime dependency, isolated here on purpose.
+# The core (tools/, scripts/, .claude/hooks/, ui/kit_status/) stays stdlib-only;
+# nothing here is installed unless you opt into the web dashboard.
+# Chart.js is NOT a pip dependency — it is vendored under ui/web/static/chart.min.js
+# (v4.4.1) so the dashboard runs fully offline.
+flask>=3.0,<4
+jinja2>=3.1,<4

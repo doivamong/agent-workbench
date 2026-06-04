@@ -1,0 +1,276 @@
+{#- Agent Workbench — web dashboard. All UI text is Vietnamese with diacritics.
+    Data comes from ui/kit_status/generator.gather() via app.build_view(); charts are
+    fed the embedded JSON in #chart-data (no fetch → offline). Honesty: a skill is
+    "chưa đo" (not measured), never "chết"/dead, unless telemetry is wired AND has data. -#}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Workbench — Bảng điều khiển trạng thái kit</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body>
+<a class="skip" href="#noi-dung">Bỏ qua tới nội dung chính</a>
+
+<div class="shell">
+
+  {#- ===== Identity bar (data-first, not a centered hero) ===== -#}
+  <header class="topbar">
+    <div class="topbar__row">
+      <div class="topbar__mark">
+        <svg class="topbar__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M8 11.5l2.6 2.6L16 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <div class="panel__eyebrow">Agent Workbench · trạng thái kit</div>
+          <h1>Bảng điều khiển kit · {{ ctx.today }}</h1>
+        </div>
+      </div>
+      <div class="topbar__meta">
+        <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
+        <span class="env-pill">Nhánh <span class="kit-num">{{ ctx.branch }}</span></span>
+        <span class="env-pill">Commit <span class="kit-num">{{ ctx.commit }}</span></span>
+      </div>
+    </div>
+    <p class="topbar__sub">
+      Ảnh chụp cục bộ, đọc trực tiếp từ <span class="mono">generator.gather()</span> —
+      {{ n_skills }} skill, {{ ctx.n_hooks }} hook đã nối,
+      {% if measured %}{{ ctx.total }} lần kích hoạt trong {{ days }} ngày{% elif ctx.wired %}telemetry chưa có dữ liệu{% else %}telemetry chưa bật{% endif %}.
+    </p>
+  </header>
+
+  {#- ===== Honesty banner: 3 states (not-wired / wired-but-empty / measured) ===== -#}
+  {% if not ctx.wired %}
+  <div class="banner" role="status">
+    <span class="banner__dot" aria-hidden="true"></span>
+    <span class="banner__txt"><strong>Telemetry chưa bật.</strong>
+      Số lần kích hoạt skill là <strong>chưa đo</strong>, không phải “chết”.
+      Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào
+      <span class="mono">.claude/settings.json</span>.</span>
+  </div>
+  {% elif not measured %}
+  <div class="banner" role="status">
+    <span class="banner__dot" aria-hidden="true"></span>
+    <span class="banner__txt"><strong>Telemetry vừa bật — chưa có dữ liệu.</strong>
+      Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>,
+      không phải “chết”. Dữ liệu tích lũy từ các phiên sau.</span>
+  </div>
+  {% endif %}
+
+  {#- ===== KPI strip ===== -#}
+  <section class="kpibar" aria-label="Chỉ số tóm tắt">
+    <div class="kpi">
+      <span class="kpi__label">Skill</span>
+      <span class="kpi__value"><span class="kit-num kit-num--xl">{{ n_skills }}</span></span>
+      <span class="kpi__sub">
+        {%- if measured %}{{ dead }} ứng viên chết{% else %}chưa đo lần kích hoạt{% endif -%}
+      </span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Lần kích hoạt · {{ days }} ngày</span>
+      <span class="kpi__value">
+        {%- if measured %}<span class="kit-num kit-num--xl kit-num--accent">{{ ctx.total }}</span><span class="kit-num__unit">lần</span>
+        {%- else %}<span class="kit-num kit-num--lg muted">chưa đo</span>{% endif -%}
+      </span>
+      <span class="kpi__sub">{% if measured %}trung bình {{ (ctx.total / days)|round(1) }}/ngày{% else %}bật telemetry để đo{% endif %}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Công cụ</span>
+      <span class="kpi__value"><span class="kit-num kit-num--xl {{ 'kit-num--warn' if ctx.tools_missing else 'kit-num--ok' }}">{{ ctx.tools_present|length }}</span><span class="kit-num__unit">/ {{ n_tools_full }}</span></span>
+      <span class="kpi__sub">{% if ctx.tools_missing %}thiếu {{ ctx.tools_missing|length }}{% else %}đủ bộ{% endif %}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Hook đã nối</span>
+      <span class="kpi__value"><span class="kit-num kit-num--xl kit-num--ok">{{ ctx.n_hooks }}</span></span>
+      <span class="kpi__sub">{{ ctx.events|length }} loại sự kiện</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi__label">Bộ nhớ đã dùng</span>
+      <span class="kpi__value">
+        {%- if mem_pct is not none %}<span class="kit-num kit-num--xl {{ 'kit-num--warn' if mem_pct >= 75 else '' }}">{{ mem_pct }}</span><span class="kit-num__unit">%</span>
+        {%- else %}<span class="kit-num kit-num--lg muted">—</span>{% endif -%}
+      </span>
+      <span class="kpi__sub">{% if ctx.mem.present %}{{ ctx.mem.facts }} fact{% else %}không có MEMORY.md{% endif %}</span>
+    </div>
+  </section>
+
+  <main id="noi-dung" class="grid">
+
+    {#- ===== Telemetry timeseries (chart or honest empty) ===== -#}
+    <section class="panel span-4" aria-labelledby="h-tele">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Telemetry</div>
+          <h2 id="h-tele">Chuỗi kích hoạt skill</h2>
+        </div>
+        {% if measured %}<span class="badge"><span class="kit-num">{{ ctx.total }}</span>&nbsp;tổng</span>
+        {% else %}<span class="badge badge--warn">chưa đo</span>{% endif %}
+      </div>
+      {% if measured %}
+      <div class="chart-box">
+        <canvas id="chart-timeseries" role="img"
+          aria-label="Biểu đồ đường: số lần kích hoạt skill mỗi ngày trong {{ days }} ngày"></canvas>
+      </div>
+      <p class="section-foot">Dữ liệu thật từ <span class="mono">.claude/.logs/skill_usage.jsonl</span>, không nội suy.</p>
+      {% else %}
+      <div class="empty">
+        <span class="empty__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="empty__title">Chưa có dữ liệu telemetry</span>
+        <span class="empty__msg">
+          {% if ctx.wired %}Logger đã nối nhưng log còn trống — biểu đồ sẽ hiện khi có dữ liệu từ các phiên sau.
+          {% else %}Nối <span class="mono">skill_usage_logger</span> vào <span class="mono">UserPromptSubmit</span> trong settings.json để bắt đầu đo.{% endif %}
+        </span>
+      </div>
+      {% endif %}
+    </section>
+
+    {#- ===== Tier distribution (static property → always honest) ===== -#}
+    <section class="panel span-2" aria-labelledby="h-tiers">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Hệ skill</div>
+          <h2 id="h-tiers">Phân bố loại</h2>
+        </div>
+      </div>
+      <div class="chart-box" style="height:200px">
+        <canvas id="chart-tiers" role="img"
+          aria-label="Biểu đồ tròn phân bố skill theo loại"></canvas>
+      </div>
+      <div class="chips" style="margin-top:var(--sp-4)">
+        {% for t in tier_dist %}
+        <span class="chip"><span class="dot dot--{{ t.tier }}"></span>{{ t.label }} <span class="kit-num">{{ t.count }}</span></span>
+        {% endfor %}
+      </div>
+    </section>
+
+    {#- ===== Skills table ===== -#}
+    <section class="panel span-6" aria-labelledby="h-skills">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Hệ skill</div>
+          <h2 id="h-skills">Skill &amp; trạng thái</h2>
+        </div>
+        <div class="row wrap" style="gap:var(--sp-2)">
+          <span class="badge"><span class="kit-num">{{ n_skills }}</span>&nbsp;skill</span>
+          {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;ứng viên chết</span>{% endif %}
+        </div>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th scope="col">Skill</th>
+            <th scope="col">Loại</th>
+            <th scope="col" class="num">Kích hoạt</th>
+            <th scope="col">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in ctx.skills %}
+          <tr>
+            <td><span class="cell-skill"><span class="dot dot--{{ s.tier }}"></span>{{ s.name }}</span></td>
+            <td class="muted">{{ s.tier }}</td>
+            {% if not measured %}
+            <td class="num num--zero">—</td>
+            <td><span class="badge">chưa đo</span></td>
+            {% elif s.fired == 0 %}
+            <td class="num num--zero">0</td>
+            <td><span class="badge badge--dead">ứng viên chết</span></td>
+            {% else %}
+            <td class="num">{{ s.fired }}</td>
+            <td><span class="badge badge--ok">sống</span></td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    {#- ===== Tools ===== -#}
+    <section class="panel span-3" aria-labelledby="h-tools">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Cài đặt công cụ</div>
+          <h2 id="h-tools">Công cụ đã cài</h2>
+        </div>
+        <span class="badge {{ 'badge--warn' if ctx.tools_missing else 'badge--ok' }}">
+          <span class="kit-num">{{ ctx.tools_present|length }}/{{ n_tools_full }}</span></span>
+      </div>
+      <div class="row row--baseline" style="margin-bottom:var(--sp-3)">
+        <span class="kit-num kit-num--xl {{ 'kit-num--warn' if ctx.tools_missing else 'kit-num--ok' }}">{{ ctx.tools_present|length }}</span>
+        <span class="kit-num__unit">/ {{ n_tools_full }} có mặt</span>
+      </div>
+      <div class="meter {{ 'meter--warn' if ctx.tools_missing else 'meter--ok' }}" aria-hidden="true">
+        <span class="meter__fill" style="width:{{ (100 * ctx.tools_present|length / n_tools_full)|round|int if n_tools_full else 100 }}%"></span>
+      </div>
+      {% if ctx.tools_missing %}
+      <p class="section-foot">Còn thiếu {{ ctx.tools_missing|length }} công cụ:</p>
+      <div class="chips">
+        {% for m in ctx.tools_missing %}<span class="chip chip--miss">{{ m }}</span>{% endfor %}
+      </div>
+      {% else %}
+      <p class="section-foot">Tất cả công cụ kit có mặt trong <span class="mono">tools/</span>.</p>
+      {% endif %}
+    </section>
+
+    {#- ===== Memory ===== -#}
+    <section class="panel span-3" aria-labelledby="h-mem">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Hệ bộ nhớ</div>
+          <h2 id="h-mem">Ngân sách bộ nhớ</h2>
+        </div>
+        {% if mem_pct is not none %}
+        <span class="badge {{ 'badge--warn' if mem_pct >= 75 else 'badge--ok' }}"><span class="kit-num">{{ mem_pct }}%</span>&nbsp;đã dùng</span>
+        {% else %}<span class="badge badge--warn">—</span>{% endif %}
+      </div>
+      {% if ctx.mem.present %}
+      <div class="row row--between row--baseline" style="margin-bottom:var(--sp-2)">
+        <span><span class="kit-num kit-num--xl {{ 'kit-num--warn' if mem_pct >= 75 else '' }}">{{ (ctx.mem.used / 1024)|round(1) }}</span><span class="kit-num__unit">/ {{ (ctx.mem.budget / 1024)|round|int }} KB</span></span>
+        <span class="kit-num kit-num--lg">{{ mem_pct }}<span class="kit-num__unit">%</span></span>
+      </div>
+      <div class="meter {{ 'meter--warn' if mem_pct >= 75 else 'meter--ok' }}" aria-label="Đã dùng {{ mem_pct }}% ngân sách bộ nhớ">
+        <span class="meter__fill" style="width:{{ mem_pct }}%"></span>
+      </div>
+      <p class="section-foot">{{ ctx.mem.facts }} fact · {{ ctx.mem.dangling }} liên kết hỏng
+        {%- if mem_pct >= 75 %} · trên ngưỡng 75%, gom/cắt fact trước khi thêm{% endif %}.</p>
+      {% else %}
+      <div class="empty" style="padding:var(--sp-5)">
+        <span class="empty__title">Không tìm thấy MEMORY.md</span>
+        <span class="empty__msg">Hệ bộ nhớ chưa được khởi tạo trong dự án này.</span>
+      </div>
+      {% endif %}
+    </section>
+
+    {#- ===== Hooks ===== -#}
+    <section class="panel span-6" aria-labelledby="h-hooks">
+      <div class="panel__head">
+        <div>
+          <div class="panel__eyebrow">Móc an toàn</div>
+          <h2 id="h-hooks">Hook đã nối</h2>
+        </div>
+        <span class="badge badge--ok"><span class="kit-num">{{ ctx.n_hooks }}</span>&nbsp;móc</span>
+      </div>
+      <div class="chips">
+        {% for e in ctx.events %}<span class="chip"><span class="chip__dot"></span>{{ e }}</span>
+        {% else %}<span class="muted">chưa nối hook nào</span>{% endfor %}
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    Agent Workbench · bảng điều khiển trạng thái kit · ảnh chụp cục bộ
+    <span class="mono">{{ ctx.commit }}</span> · {{ ctx.today }}
+  </footer>
+</div>
+
+{#- Chart data embedded (NOT fetched) so the page is fully offline. -#}
+<script id="chart-data" type="application/json">{{ chart_json|safe }}</script>
+<script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
