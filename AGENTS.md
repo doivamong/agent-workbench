@@ -18,7 +18,7 @@ safely on a long-lived codebase. Before you change anything:
 
 ```bash
 python -m pytest -q                          # tests must pass
-python tools/leak_scan.py . --entropy --fail-on-find   # zero leaks (+ high-entropy sweep)
+python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore   # zero leaks (+ high-entropy sweep; skips git-ignored files, as CI does)
 python tools/invariants.py .                 # zero new errors
 ```
 

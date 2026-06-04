@@ -7,6 +7,12 @@
 > [`PHILOSOPHY.md`](../PHILOSOPHY.md), the standard is **"best-fit, honest about limits, not
 > gospel"** — challenge any verdict here.
 
+> **Realized state (update):** the kit grew *past* this proposal — it now ships the full
+> five-tier skill set. The authoritative LIVE count is gated in the README ("At a glance"); the
+> standing capability map is [`SKILL_CATALOG.md`](../SKILL_CATALOG.md). The wave structure and the
+> "5 skills today → grow to 13" targets below are preserved as the **original proposal** (a design
+> record of the reasoning), not a description of the current count.
+
 ## Why this exists
 
 The reusable kit ships a deliberately minimal skill set (3 workflow + 2 guard exemplars) whose
@@ -52,7 +58,7 @@ doc) · **REJECT** (domain-locked, redundant, or no original method).
 |---|---|---|---|
 | `awb-cook` | workflow (advanced) | Graduated oversight modes (interactive/fast/auto) + a workflow that *orchestrates* guard skills + multi-perspective planning (3 parallel planner sub-agents, then merge convergent/divergent/unique) | Does not enforce anything; it is a bypassable exemplar, not a gate |
 | `awb-external-ref` | workflow | Responsible external-code reuse: a 2-axis license decision matrix (port-code vs salvage-concept), the idea/expression boundary, an injection guard for fetched content, and supply-chain red-flag signals | A license-classification seatbelt, **not legal advice**; avoiding copyright ≠ avoiding patents |
-| `example-premortem` | feature/analysis | Multi-persona pre-mortem (independent analysis → debate → GO/CAUTION/STOP) **plus** a 12-dimension edge-case checklist (as a `references/` file) | Reasons about a *proposal* from descriptions; does not validate code; verdicts are opinion, not proof |
+| `example-premortem` → **REJECTED** (harvested into [`awb-stress-test`](../.claude/skills/awb-stress-test/)) | feature/analysis | Multi-persona pre-mortem (independent analysis → debate → GO/CAUTION/STOP) **plus** a 12-dimension edge-case checklist (as a `references/` file) | Reasons about a *proposal* from descriptions; does not validate code; verdicts are opinion, not proof |
 | `awb-tdd` | workflow | Red-green-refactor as **vertical slices** (one failing test → minimal impl → repeat), with the silent-skip trap (a mis-named test file collects 0 tests yet exits green) | Passing tests prove only what they assert; adapted from upstream MIT work |
 | `awb-optimize` | feature | Measure → top-3 bottlenecks → fix → verify, with a **mandatory before/after table** and a banned-behaviors list (no fix without a baseline) | Ships no profiler engine; thresholds are heuristics to calibrate per app |
 | `awb-output-guard` | guard | Semantic-completeness discipline for long generation: no truncation, placeholders, `...`, or "for brevity"; a clean-breakpoint continuation protocol | Guarantees completeness, not correctness/compilation; literal-token greps miss semantically incomplete code |

@@ -19,13 +19,17 @@ since you copied — not a published package.
   this" review checklist, single-sourced. README/CLAUDE/AGENTS/CONTRIBUTING/SECURITY now quote
   one line and link to it instead of restating. Guarded by `tests/test_philosophy_anchor.py`
   (a de-duplication drift-guard — distinctive tenet sentences must live only in the canon) and
-  by a philosophy check folded into the `example-review` skill's Stage 1.
+  by a philosophy check folded into the `awb-review` skill's Stage 1.
 
 ### Changed
 - **Docs overhaul.** Corrected stale counts (demos, tools, skill tiers, hook list). Added a
   "why it's public" manifesto to the README. Reframed `docs/memory-governance.md` and
   `docs/session-preservation.md` as reference **blueprints** — the governance tooling and the
   session commands they describe are designs you implement, not features shipped in this repo.
+- **Skill system expanded and renamed.** The example skill set grew to cover all five tiers
+  (workflow / guard / feature / audit / meta), and the `example-*` skills were renamed to the
+  `awb-*` prefix (`prompt-refiner` keeps its bare name — a paired `SessionStart` hook references
+  it). The README "At a glance" row is the gated source of truth for the live skill count.
 
 ## [0.1.0] — 2026-06-02
 
