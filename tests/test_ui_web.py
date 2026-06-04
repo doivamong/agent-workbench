@@ -18,12 +18,27 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("flask", reason="ui/web/ is opt-in; install ui/web/requirements.txt")
-
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "ui" / "web"))
 
-import app as webapp  # noqa: E402
+# ui/web/ is OPT-IN: its only dependency is Flask. We deliberately do NOT use
+# `pytest.importorskip` at module level, because that drops these tests from
+# `pytest --co` entirely when Flask is absent — and tools/readme_metrics.py counts
+# COLLECTED tests, so the advertised README count would differ between a dev machine
+# (Flask present → 9 collected) and CI (Flask absent → 0 collected), failing the gate.
+# Instead: import Flask guardedly so the module ALWAYS imports cleanly, then mark every
+# test skipif-no-Flask. The items stay COLLECTED (stable count) but are skipped at run
+# time, so the core suite still passes with zero third-party deps installed.
+try:
+    import flask  # noqa: F401
+    sys.path.insert(0, str(ROOT / "ui" / "web"))
+    import app as webapp
+    _HAS_FLASK = True
+except ImportError:
+    webapp = None
+    _HAS_FLASK = False
+
+pytestmark = pytest.mark.skipif(
+    not _HAS_FLASK, reason="ui/web/ is opt-in; install ui/web/requirements.txt (Flask) to run")
 
 
 def _make_project(tmp: Path, skills: dict[str, str], *, wired: bool = False,
