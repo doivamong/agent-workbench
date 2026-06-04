@@ -7,8 +7,10 @@ outside the test sandbox.
 """
 import json
 
+import pytest
+
 import install
-from install import COPY_MAP, SETTINGS_SNIPPET, _merge_settings, main
+from install import COPY_MAP, SETTINGS_SNIPPET, _merge_settings, main, resolve_groups
 
 
 def test_dry_run_copies_nothing(tmp_path, capsys):
@@ -112,3 +114,78 @@ def test_merge_settings_flag_is_idempotent_on_disk(tmp_path):
     first = settings.read_text(encoding="utf-8")
     main([str(tmp_path), "--merge-settings"])
     assert settings.read_text(encoding="utf-8") == first
+
+
+# --- C1: group selection (--select), dependencies, manifest, --list/--coverage ---
+
+def test_resolve_groups_pulls_dependencies():
+    # hooks needs skills to be functional → selecting hooks auto-adds skills.
+    assert resolve_groups(["hooks"]) == ["hooks", "skills"]
+    assert resolve_groups(["tools"]) == ["tools"]
+    assert resolve_groups(None) == install.GROUPS          # default = everything
+
+
+def test_resolve_groups_unknown_raises():
+    with pytest.raises(ValueError):
+        resolve_groups(["nope"])
+
+
+def test_select_installs_only_chosen_group(tmp_path):
+    main([str(tmp_path), "--select", "tools"])
+    assert (tmp_path / "tools" / "leak_scan.py").is_file()   # selected
+    assert not (tmp_path / ".claude" / "skills").exists()    # not selected
+    assert not (tmp_path / "memory").exists()
+
+
+def test_select_hooks_pulls_in_skills(tmp_path):
+    main([str(tmp_path), "--select", "hooks"])
+    assert (tmp_path / ".claude" / "hooks").is_dir()
+    assert (tmp_path / ".claude" / "skills").is_dir()        # dependency auto-installed
+
+
+def test_unknown_group_exits_nonzero(tmp_path, capsys):
+    rc = main([str(tmp_path), "--select", "bogus"])
+    assert rc == 2
+    assert "unknown group" in capsys.readouterr().err
+
+
+def test_install_writes_manifest_with_sha_and_groups(tmp_path):
+    main([str(tmp_path), "--select", "tools"])
+    manifest = tmp_path / ".claude" / "installer-manifest.json"
+    assert manifest.is_file()
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    assert data["schema"] == install.MANIFEST_SCHEMA
+    assert "tools" in data["groups"]
+    entry = data["files"]["tools/leak_scan.py"]
+    assert entry["group"] == "tools"
+    assert len(entry["sha256"]) == 64                        # a real sha256 hex digest
+
+
+def test_install_gitignores_the_manifest(tmp_path):
+    main([str(tmp_path), "--select", "tools"])
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert install.MANIFEST_REL in gitignore
+
+
+def test_dry_run_writes_no_manifest(tmp_path):
+    main([str(tmp_path), "--select", "tools", "--dry-run"])
+    assert not (tmp_path / ".claude" / "installer-manifest.json").exists()
+
+
+def test_list_reports_available_and_installed(tmp_path, capsys):
+    main([str(tmp_path), "--select", "tools"])
+    capsys.readouterr()
+    rc = main([str(tmp_path), "--list"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Available groups" in out
+    assert "tools" in out and "skills" in out
+
+
+def test_coverage_reports_counts(tmp_path, capsys):
+    main([str(tmp_path), "--select", "tools"])
+    capsys.readouterr()
+    rc = main([str(tmp_path), "--coverage"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "groups:" in out and "files:" in out
