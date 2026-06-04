@@ -9,7 +9,7 @@ so there is exactly one place that collects kit state.
 
 Run it (after ``pip install -r ui/web/requirements.txt``):
 
-    python ui/web/app.py                 # serves http://127.0.0.1:5000
+    python ui/web/app.py                 # serves http://127.0.0.1:5151
     python -m ui.web.app                 # same, as a module (from the repo root)
     python ui/web/app.py --project /path/to/another/awb/project
 
@@ -187,7 +187,8 @@ def fragment_skills():
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Opt-in web dashboard for the kit's own state.")
     ap.add_argument("--host", default="127.0.0.1", help="bind host (default: 127.0.0.1, localhost-only)")
-    ap.add_argument("--port", type=int, default=5000, help="bind port (default: 5000)")
+    ap.add_argument("--port", type=int, default=5151,
+                    help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
     ap.add_argument("--project", help="project root to inspect (default: $CLAUDE_PROJECT_DIR or the kit repo)")
     ap.add_argument("--debug", action="store_true", help="Flask debug mode (dev only)")

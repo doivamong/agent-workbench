@@ -25,14 +25,15 @@ both are honest about the same three telemetry states.
 
 ```sh
 pip install -r ui/web/requirements.txt     # Flask + Jinja2 — the kit's only runtime deps
-python ui/web/app.py                        # → http://127.0.0.1:5000
+python ui/web/app.py                        # → http://127.0.0.1:5151
 # or, as a module from the repo root:
 python -m ui.web.app
 # inspect a different AWB project:
 python ui/web/app.py --project /path/to/another/project
 ```
 
-Flags: `--host`, `--port`, `--days` (telemetry window, default 14), `--project`, `--debug`.
+Flags: `--host`, `--port` (default **5151**; 5000 collides with common dev servers / macOS
+AirPlay), `--days` (telemetry window, default 14), `--project`, `--debug`.
 
 ## Offline by design
 
