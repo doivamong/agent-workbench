@@ -279,7 +279,7 @@ python examples/affected_tests_demo.py   # chỉ chọn test mà thay đổi ả
 python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt file)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 419 tests
+python -m pytest -q                 # 455 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -296,6 +296,22 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 #   cho bạn tự dán.
 # --dry-run để xem trước; --force để ghi đè file đã chép.
 ```
+
+**Chỉ cài đúng cái bạn muốn, và gỡ sạch.** Các nhóm là `hooks`, `skills`, `rules`, `agents`,
+`tools`, `memory`; phụ thuộc được kéo theo tự động (chọn `hooks` sẽ thêm `skills` để routing có cái
+mà trỏ tới):
+
+```bash
+python install.py /path/to/your/project --select hooks,skills   # chỉ các nhóm này (+deps)
+python install.py /path/to/your/project --list                  # xem có gì / đã cài gì
+python uninstall.py /path/to/your/project                       # chạy thử — in ra kế hoạch
+python uninstall.py /path/to/your/project --yes                 # đảo ngược lần cài
+```
+
+Installer ghi lại đúng những gì nó đã chép vào một `.claude/installer-manifest.json` (gitignored),
+nên `uninstall.py` gỡ chính xác từng cái đó và **giữ lại mọi file bạn đã sửa** (nó không bao giờ xoá
+thay đổi của bạn, và fail-loud — báo lỗi to thay vì đoán mò — nếu manifest thiếu). Trên một repo
+sạch, `install` rồi `uninstall --yes` để lại `git status` sạch.
 
 Với `--merge-settings`, các hook của installer hoạt động ngay — mọi hook trong bảng trên trừ
 `sync_guard` chỉ dành cho maintainer và `skill_usage_logger` opt-in; không có nó thì bạn tự dán đoạn snippet
@@ -365,7 +381,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 419 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 455 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 
