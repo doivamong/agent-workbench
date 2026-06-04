@@ -16,8 +16,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
-import kit_status_report as ksr  # noqa: E402
+sys.path.insert(0, str(ROOT / "ui" / "kit_status"))
+import generator as ksr  # noqa: E402
 
 
 def build_demo_project(root: Path) -> Path:

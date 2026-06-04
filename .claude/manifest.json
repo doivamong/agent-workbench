@@ -5,7 +5,8 @@
     ".claude/rules",
     ".claude/agents",
     "tools",
-    "scripts"
+    "scripts",
+    "ui"
   ],
   "files": {
     ".claude/agents/silent-failure-hunter.md": {
@@ -223,11 +224,6 @@
       "lines": 237,
       "bytes": 9855
     },
-    "tools/kit_status_report.py": {
-      "category": "tools",
-      "lines": 633,
-      "bytes": 37042
-    },
     "tools/leak_scan.py": {
       "category": "tools",
       "lines": 321,
@@ -281,7 +277,17 @@
     "tools/sync_manifest.py": {
       "category": "tools",
       "lines": 149,
-      "bytes": 7229
+      "bytes": 7235
+    },
+    "ui/README.md": {
+      "category": "ui",
+      "lines": 53,
+      "bytes": 2777
+    },
+    "ui/kit_status/generator.py": {
+      "category": "ui",
+      "lines": 638,
+      "bytes": 37407
     }
   }
 }

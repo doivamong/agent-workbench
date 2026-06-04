@@ -42,7 +42,7 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
 
 # Roots whose file SET, when it changes, usually means a dependent doc/registry/wiring must change
 # too. Relative to --root. Tune for your project.
-DEFAULT_ROOTS = (".claude/skills", ".claude/hooks", ".claude/rules", ".claude/agents", "tools", "scripts")
+DEFAULT_ROOTS = (".claude/skills", ".claude/hooks", ".claude/rules", ".claude/agents", "tools", "scripts", "ui")
 DEFAULT_MANIFEST = ".claude/manifest.json"
 SCAN_SUFFIXES = {".py", ".md"}
 SKIP_PARTS = {"__pycache__", ".pytest_cache", "references"}
