@@ -338,7 +338,7 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 
 ## Status & honesty
 
-🇻🇳 *Tóm tắt — Đây là "tốt nhất theo hiểu biết hiện tại", không phải chân lý. Hai guard chính (`block_dangerous`, `leak_scan`) là **dây an toàn chống tai nạn, KHÔNG phải ranh giới bảo mật** — đừng coi là tuyến phòng thủ cuối.*
+🇻🇳 *Tóm tắt — Đây là "tốt nhất theo hiểu biết hiện tại", không phải chân lý. Hai guard chính (`block_dangerous`, `leak_scan`) là **lưới an toàn chống tai nạn, KHÔNG phải ranh giới bảo mật** — đừng coi là tuyến phòng thủ cuối.*
 
 This is **best-fit as currently known, with better approaches left open** — not gospel. It
 comes from *one* developer's context (solo, long-lived, AI-first). Your trade-offs may differ.
