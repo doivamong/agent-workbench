@@ -29,6 +29,11 @@ python examples/post_edit_simplify_demo.py  # the post-edit simplify-nudge class
 python examples/invariant_demo.py           # the invariant gate catching rule violations
 ```
 
+> **You should see:** `secrets_demo` prints `<- round-trip OK`, then *rejects* a tampered file;
+> `hook_block_demo` ends with `All classifications correct.`; `invariant_demo` reports `found 3
+> violation(s)` for the built-in rules and `found 1 violation(s)` for your one custom rule. None
+> of these need `pip` — that's the point: the core is stdlib-only.
+
 Then confirm the tools are actually trustworthy:
 
 ```bash
@@ -73,11 +78,16 @@ Open your project in Claude Code (or your agent). Immediately:
   "must never break" rules. Enable the invariants hook in `.pre-commit-config.yaml`.
 - **Leak scanner:** keep a private deny-list (gitignored) of your project's identifiers and run
   `python tools/leak_scan.py . --denylist your-denylist.txt` to verify exports.
-- **Memory:** the copied `memory/` holds **example facts to replace**. Claude Code (v2.1.59+)
-  auto-loads `MEMORY.md` from the per-project path (`~/.claude/projects/<id>/memory/`), *not* this
-  repo's `memory/` — so curate your real facts there (or set `autoMemoryDirectory`), then run
-  `python tools/memory_recall_doctor.py` to verify the wiring. See
-  [`memory/README.md`](../memory/README.md) and [`memory-governance.md`](memory-governance.md).
+- **Memory — in 6 steps** (the copied `memory/` is a template; *live recall reads a different
+  directory*, which is the part that trips people up):
+  1. **Don't** edit this repo's `memory/` for live recall — it holds **example facts to replace**.
+  2. Find your live dir: Claude Code (v2.1.59+) auto-loads `MEMORY.md` from the per-project path
+     `~/.claude/projects/<id>/memory/` (or wherever `autoMemoryDirectory` points).
+  3. Add one real fact there as a `kebab-name.md` file.
+  4. Add one line linking it from that directory's `MEMORY.md` index.
+  5. Run `python tools/memory_recall_doctor.py` to verify the wiring.
+  6. Confirm the agent recalls it next session. Full design + the why:
+     [`memory/README.md`](../memory/README.md) · [`memory-governance.md`](memory-governance.md).
 - **Project rules:** adapt [`../CLAUDE.md`](../CLAUDE.md) / [`../AGENTS.md`](../AGENTS.md) to your
   project's golden rules.
 

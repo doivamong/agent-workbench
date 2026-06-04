@@ -5,6 +5,17 @@ This page is the other half: given a **kind of task**, what to run and in what o
 hooks fire on their own without you asking. It's a routing map, not a rulebook; the tier and
 precedence rules are defined once in that README and are linked, not repeated, below.
 
+## skill vs hook vs tool vs doc — what kind of thing is each?
+
+Four mechanisms, four different ways they run. Know which you're reaching for:
+
+| Mechanism | How it runs | What you get |
+|---|---|---|
+| **skill** | intent-triggered *nudge* — you or the agent invoke it when the request matches | a reusable playbook the agent follows ([`.claude/skills/`](../.claude/skills/)) |
+| **hook** | automatic + fail-open — fires on an event, no prompting | a guardrail at the seam ([`.claude/hooks/`](../.claude/hooks/)) |
+| **tool** | manual CLI — you run it (or CI does) | a check or answer on demand ([`tools/`](../tools/)) |
+| **doc / blueprint** | nothing runs — you read it and implement | a method or reference ([`docs/`](../docs/)) |
+
 ## What fires on its own
 
 These run automatically — you don't invoke them. They're the ambient layer the chains assume:
