@@ -109,33 +109,41 @@ framework — mỗi phần đứng riêng được và là opt-in.
 ```mermaid
 flowchart TB
     subgraph agent["Cấu hình agent (nạp mỗi phiên)"]
-        cfg["CLAUDE.md / AGENTS.md<br/>chỉ dẫn dự án"]
+        cfg["CLAUDE.md / AGENTS.md<br/>chỉ dẫn dự án — bạn tự chỉnh (installer không copy)"]
         skills["Skills<br/>playbook kích hoạt theo ý định"]
         rules["Rules<br/>style theo đường dẫn"]
-        mem["Memory<br/>gated-bằng-index; kho live là per-project, không phải bản trong repo"]
+        mem["Memory<br/>được index canh; kho live là per-project, không phải bản trong repo"]
     end
 
-    subgraph guards["Guardrail lúc chạy (hooks)"]
+    subgraph guards["Hook lúc chạy (wire vào settings.json)"]
         block["block_dangerous.py<br/>PreToolUse"]
         refine["prompt-refiner-inject.py<br/>UserPromptSubmit"]
         simplify["post_edit_simplify.py<br/>PostToolUse"]
+        ctx["context_tracker.py<br/>PostToolUse"]
+        life["session_start / session_end /<br/>precompact_backup / compact_restore /<br/>skill_routing_inject"]
         wrap["hook_logger<br/>fail-open + log crash"]
     end
 
-    subgraph gate["Gate commit / CI"]
-        inv["invariants.py"]
+    subgraph gate["Gate commit / CI — tự dogfood, ship dạng template<br/>(.pre-commit-config.yaml + .github/workflows/ci.yml)"]
         leak["leak_scan.py"]
-        aff["affected_tests.py"]
-        sec["secrets_guard.py"]
+        inv["invariants.py"]
+        slint["skill_lint.py"]
+        ctxb["check_context_budget.py"]
+        man["sync_manifest.py"]
+        metr["readme_metrics.py"]
+        tests["pytest"]
     end
 
-    install["install.py"] -->|chép vào| agent
+    install["install.py"] -->|"chép vào (+ tool, agents, secrets_guard)"| agent
     install -->|wire| guards
-    install -->|"--with-git-hook"| gate
+    install -->|"--with-git-hook"| githook["git pre-commit<br/>chỉ chạy leak_scan"]
+    githook -.->|"cùng leak_scan, một trong các bước của gate"| leak
 
     block -.->|bọc bởi| wrap
     refine -.->|bọc bởi| wrap
     simplify -.->|bọc bởi| wrap
+    ctx -.->|bọc bởi| wrap
+    life -.->|bọc bởi| wrap
 
     classDef config fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
     classDef hook fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -143,9 +151,9 @@ flowchart TB
     classDef entry fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
 
     class cfg,skills,rules,mem config
-    class block,refine,simplify,wrap hook
-    class inv,leak,aff,sec check
-    class install entry
+    class block,refine,simplify,ctx,life,wrap hook
+    class leak,inv,slint,ctxb,man,metr,tests check
+    class install,githook entry
 ```
 
 <details>
