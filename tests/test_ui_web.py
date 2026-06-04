@@ -6,7 +6,8 @@ suite still passes with zero third-party deps. The load-bearing properties under
   - the dashboard renders (200) from generator.gather() data,
   - it is OFFLINE — the served HTML has no external network refs (Chart.js vendored), and
   - it preserves the kit's HONESTY model: telemetry not-wired / wired-but-empty shows
-    "chưa đo", never "ứng viên chết" (dead); a fired skill shows "sống".
+    "chưa đo", never "ứng viên chết" (dead); a wired 0-fire skill shows "chưa ai gọi
+    tên" (un-named, not dead) — or "tự gọi" for a guard; a fired skill shows "sống".
 """
 from __future__ import annotations
 
@@ -134,13 +135,19 @@ def test_wired_but_empty_log_is_not_dead(tmp_path):
     assert "chưa có dữ liệu" in html          # the wired-but-empty banner
 
 
-def test_measured_shows_chart_and_dead_candidate(tmp_path):
-    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"},
-                         wired=True, fired={"awb-review": 3})
+def test_measured_shows_chart_and_named_signal(tmp_path):
+    # awb-review (guard) fired; awb-output-guard (guard) and awb-tdd (workflow) did not.
+    proj = _make_project(
+        tmp_path,
+        {"awb-review": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"},
+        wired=True, fired={"awb-review": 3})
     html = _render(proj)
     assert "Telemetry chưa bật" not in html
     assert 'id="chart-timeseries"' in html    # measured → real chart canvas
-    assert "ứng viên chết" in html            # awb-tdd: wired + 0 fires
+    assert "ứng viên chết" not in html        # the old death verdict is gone kit-wide
+    assert "chưa ai gọi tên" in html          # awb-tdd: non-guard, 0 fires
+    assert "tự gọi" in html                   # awb-output-guard: guard 0-fire, neutral badge
+    assert "Đang đo theo tên trong prompt" in html   # measured-state caveat present
     assert "sống" in html                      # awb-review fired
     # the embedded payload says measured + carries the timeseries
     payload = json.loads(re.search(

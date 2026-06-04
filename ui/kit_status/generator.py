@@ -284,7 +284,7 @@ def build(ctx: dict) -> dict[str, str]:
     gates = ctx["gates"]
     branch, commit, today = ctx["branch"], ctx["commit"], ctx["today"]
 
-    skills_lbl = "chưa đo" if not wired else f"{dead} ứng viên chết"
+    skills_lbl = "chưa đo" if not wired else f"{dead} chưa ai gọi tên"
     tools_lbl = f"{len(tools_present)}/{n_tools_full}"
     mem_pct = round(mem["used"] / mem["budget"] * 100) if mem.get("present") else 0
     mem_pct_lbl = f"{mem_pct}%" if mem.get("present") else "—"
@@ -307,7 +307,21 @@ def build(ctx: dict) -> dict[str, str]:
             'Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>, '
             'không phải “chết”. Dữ liệu tích lũy từ các phiên sau.')
     else:
-        f["honesty_banner"] = ""
+        # MEASURED state. The two banners above only fire when NOT measured, so this is the
+        # one state that prints the 0-fire labels — and it must carry the caveat that the
+        # metric only counts skills NAMED in a prompt (model-auto-fired skills, esp. guards,
+        # are invisible here). Neutral surface, NOT the amber warn banner: an un-named skill
+        # is information, not an error. See .claude/rules/measurement-honesty.md (trap #2).
+        f["honesty_banner"] = ("" if not dead else
+            '<div role="status" style="margin:0 0 var(--sp-5);padding:var(--sp-3) var(--sp-4);'
+            'border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);'
+            'color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5">'
+            '<strong style="color:var(--text)">Đang đo theo tên trong prompt.</strong> '
+            'Chỉ số đếm lượt người dùng <strong style="color:var(--text)">gõ tên</strong> skill '
+            '(<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là guard '
+            '(output-guard, config-guard) — không tính ở đây; 0 nghĩa là chưa ai gõ tên trong '
+            'cửa sổ này, <strong style="color:var(--text)">không phải skill hỏng hay vô dụng'
+            '</strong>.</div>')
 
     # --- rail -------------------------------------------------------------- #
     ok = "kit-num--ok"
@@ -325,7 +339,7 @@ def build(ctx: dict) -> dict[str, str]:
                 f'<span class="rail-kpi__sub">{escape(sub)}</span></span>'
                 f'<span class="rail-kpi__val"><span class="kit-num kit-num--lg {cls}">{val}</span></span></div>')
     f["rail_kpis"] = ('<div class="rail-kpis" aria-label="Chỉ số tóm tắt">'
-        + rk("Skill", skills_lbl, n_skills, warn if (wired and dead) else ok)
+        + rk("Skill", skills_lbl, n_skills, ok)  # un-named ≠ error: never amber (fix B)
         + rk("Cổng kiểm tra", "leak · inv · lint · pytest", gates_lbl, ok if gates and all(gates.values()) else warn)
         + rk("Công cụ", f"thiếu {len(tools_missing)}", tools_lbl, ok if not tools_missing else warn)
         + rk("Hook nối", "sự kiện đã nối", n_hooks, ok)
@@ -417,9 +431,16 @@ def build(ctx: dict) -> dict[str, str]:
             status = '<span class="badge">chưa đo</span>'
             numcell = '<td class="num num--zero">—</td>'
         elif s["fired"] == 0:
-            spark = '<span class="muted" style="font-size:var(--fs-xs)">chưa nổ</span>'
-            status = '<span class="badge badge--dead">ứng viên chết</span>'
             numcell = '<td class="num num--zero">0</td>'
+            if s["tier"] == "guard":  # auto-fired by design → a prompt-name 0 is expected, not dead
+                spark = '<span class="muted" style="font-size:var(--fs-xs)">tự gọi</span>'
+                status = ('<span class="badge badge--dead" title="Skill này do model tự gọi, '
+                          'không gõ tên — 0 ở đây là bình thường.">tự gọi · không đo qua prompt</span>')
+            else:
+                spark = '<span class="muted" style="font-size:var(--fs-xs)">chưa có lượt gọi</span>'
+                status = ('<span class="badge badge--dead" title="Không có prompt nào gọi tên '
+                          'skill này trong cửa sổ đo. Tín hiệu để xem lại (đặt tên khó tìm? '
+                          'trùng? thừa?), chưa phải kết luận chết.">chưa ai gọi tên</span>')
         else:
             h = max(2, round(s["fired"] / maxv * 18))
             spark = f'<span class="sparkbar" aria-hidden="true"><i class="hi" style="height:{h}px"></i></span>'
@@ -429,7 +450,7 @@ def build(ctx: dict) -> dict[str, str]:
                  f'<td class="muted">{escape(s["tier"])}</td>{numcell}'
                  f'<td><div class="cell-spark">{spark}</div></td><td>{status}</td></tr>')
     head_badges = (f'<span class="badge"><span class="kit-num">{n_skills}</span>&nbsp;skill</span>'
-        + ('' if not wired else f'<span class="badge badge--dead"><span class="kit-num">{dead}</span>&nbsp;ứng viên chết</span>'))
+        + ('' if not wired else f'<span class="badge badge--dead"><span class="kit-num">{dead}</span>&nbsp;chưa ai gọi tên</span>'))
     f["skills"] = ('<section class="sec" id="skills" aria-labelledby="h-skills"><div class="sec__head"><div>'
         '<div class="sec__eyebrow">Hệ skill</div><h2 id="h-skills">Skill &amp; phân bố loại</h2></div>'
         f'<div class="row" style="gap:var(--sp-2)">{head_badges}</div></div>'
@@ -580,7 +601,10 @@ def gather(proj: Path, days: int, gates_json: str | None, run_gates: bool = Fals
     skills = [{"name": n, "tier": tiers.get(n, "workflow"), "fired": per.get(n, 0)} for n in names]
     skills.sort(key=lambda s: (-s["fired"], s["name"]))
     measured = wired and total > 0  # configured AND has data; an empty log != dead skills
-    dead = sum(1 for s in skills if measured and s["fired"] == 0)
+    # Exclude guard-tier skills: they are DESIGNED to be model-auto-fired, not typed by name,
+    # so a prompt-name count of 0 is structural, not a sign of disuse. Counting them would
+    # cry-wolf and train the owner to ignore the signal. They still render (own neutral badge).
+    dead = sum(1 for s in skills if measured and s["fired"] == 0 and s["tier"] != "guard")
     tools_present, tools_missing = installed_tools(proj)
     events, n_hooks = wired_hooks(proj)
     gates: dict[str, bool] = run_readonly_gates(proj) if run_gates else {}

@@ -19,6 +19,19 @@
     Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>,
     không phải “chết”. Dữ liệu tích lũy từ các phiên sau.</span>
 </div>
+{%- elif measured and dead %}
+{#- MEASURED state: the only state that prints the 0-fire labels, so it must carry the
+    caveat that the metric only counts skills NAMED in a prompt. Neutral surface (override
+    the amber .banner), NOT a warning — an un-named skill is information, not an error. -#}
+<div class="banner" role="status"
+     style="background:var(--surface-2);border-color:var(--border)">
+  <span class="banner__dot" aria-hidden="true" style="background:var(--text-dim)"></span>
+  <span class="banner__txt"><strong style="color:var(--text-strong)">Đang đo theo tên trong prompt.</strong>
+    Chỉ số đếm lượt người dùng <strong style="color:var(--text-strong)">gõ tên</strong> skill
+    (<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là guard
+    (output-guard, config-guard) — <strong style="color:var(--text-strong)">không tính</strong>
+    ở đây; 0 nghĩa là chưa ai gõ tên trong cửa sổ này, không phải skill hỏng hay vô dụng.</span>
+</div>
 {% endif %}
 
 {#- ===== KPI strip ===== -#}
@@ -27,7 +40,7 @@
     <span class="kpi__label">Skill</span>
     <span class="kpi__value"><span class="kit-num kit-num--xl">{{ n_skills }}</span></span>
     <span class="kpi__sub">
-      {%- if measured %}{{ dead }} ứng viên chết{% else %}chưa đo lần kích hoạt{% endif -%}
+      {%- if measured %}{{ dead }} chưa ai gọi tên{% else %}chưa đo lần kích hoạt{% endif -%}
     </span>
   </div>
   <div class="kpi">
@@ -127,7 +140,7 @@
           </select>
         </label>
         <span class="badge"><span class="kit-num">{{ n_skills }}</span>&nbsp;skill</span>
-        {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;ứng viên chết</span>{% endif %}
+        {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;chưa ai gọi tên</span>{% endif %}
       </div>
     </div>
     <div id="skills-region">{% include "_skills.html.jinja" %}</div>

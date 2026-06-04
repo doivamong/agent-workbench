@@ -20,7 +20,11 @@
       <td><span class="badge">chưa đo</span></td>
       {% elif s.fired == 0 %}
       <td class="num num--zero">0</td>
-      <td><span class="badge badge--dead">ứng viên chết</span></td>
+      {% if s.tier == 'guard' %}
+      <td><span class="badge badge--dead" title="Skill này do model tự gọi, không gõ tên — 0 ở đây là bình thường.">tự gọi · không đo qua prompt</span></td>
+      {% else %}
+      <td><span class="badge badge--dead" title="Không có prompt nào gọi tên skill này trong cửa sổ đo. Tín hiệu để xem lại (đặt tên khó tìm? trùng? thừa?), chưa phải kết luận chết.">chưa ai gọi tên</span></td>
+      {% endif %}
       {% else %}
       <td class="num">{{ s.fired }}</td>
       <td><span class="badge badge--ok">sống</span></td>

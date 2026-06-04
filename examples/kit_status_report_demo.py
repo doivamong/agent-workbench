@@ -21,8 +21,11 @@ import generator as ksr  # noqa: E402
 
 
 def build_demo_project(root: Path) -> Path:
+    # awb-tdd (non-guard, 0 fires) -> "chưa ai gọi tên" (un-named, counted).
+    # awb-output-guard (guard, 0 fires) -> "tự gọi · không đo qua prompt" (auto-fired by
+    # design, NOT counted) — demonstrates the tier-aware split.
     skills = {"awb-review": "guard", "awb-plan-then-code": "workflow",
-              "awb-debug": "guard", "awb-tdd": "workflow"}  # awb-tdd will be a dead candidate
+              "awb-debug": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"}
     sk = root / ".claude" / "skills"
     sk.mkdir(parents=True)
     rows = ["| name | tier | fires when | does NOT |", "|---|---|---|---|"]
@@ -65,7 +68,8 @@ def main() -> int:
     print(f"Demo project: {proj}")
     print(f"Report:       {out}  ({len(html):,} bytes)")
     print("Open it in a browser — it is self-contained and works offline.")
-    print("Note: awb-tdd has 0 fires + telemetry wired -> shown as 'ứng viên chết'.")
+    print("Note: awb-tdd has 0 fires + telemetry wired -> shown as 'chưa ai gọi tên' "
+          "(no one typed its name), NOT 'dead'; guard-tier 0-fires show 'tự gọi'.")
     return 0
 
 
