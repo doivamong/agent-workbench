@@ -10,6 +10,7 @@
 | Path | What | Stack |
 |------|------|-------|
 | [`kit_status/`](kit_status/) | The kit-status report: `generator.py` renders `template.html` into a self-contained, offline HTML snapshot of the kit's state | **stdlib only** (`string.Template`, inline CSS/SVG, no CDN) |
+| [`web/`](web/) | Opt-in web dashboard: a Flask app that visualizes the same state with interactive (vendored, offline) Chart.js — reusing `generator.gather()` as its only data source | **opt-in deps** (`flask`, `jinja2`; Chart.js vendored) |
 
 Run it (script-style, like every other kit tool):
 
@@ -25,11 +26,12 @@ results. See [`kit_status/generator.py`](kit_status/generator.py) for flags.
 ## The stdlib boundary
 
 Everything under `ui/kit_status/` is **0-dependency** (stdlib Python + inline HTML/CSS/SVG).
-This is the kit's identity — droppable, runs offline. A future **web** dashboard
-(Flask/Jinja/Chart.js) is a different stack and would live in its own opt-in home
-(`ui/web/`, not shipped by default, not a manifest root) and reuse `generator.gather()`'s
-data — so the stdlib core never grows a dependency. That home does **not** exist yet (YAGNI);
-this README marks where it goes.
+This is the kit's identity — droppable, runs offline. The **web** dashboard
+(Flask/Jinja/Chart.js) is a different stack, so it lives in its own opt-in home
+([`ui/web/`](web/), not shipped by default, not a manifest root) and reuses
+`generator.gather()`'s data — so the stdlib **core never grows a dependency**. The line is
+drawn at `ui/web/`: the core (`tools/`, `scripts/`, `.claude/hooks/`, `ui/kit_status/`)
+imports zero third-party packages; Flask/Jinja live under `ui/web/` only.
 
 ## How this relates to the rest
 

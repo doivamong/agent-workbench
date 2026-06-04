@@ -46,6 +46,10 @@ DEFAULT_ROOTS = (".claude/skills", ".claude/hooks", ".claude/rules", ".claude/ag
 DEFAULT_MANIFEST = ".claude/manifest.json"
 SCAN_SUFFIXES = {".py", ".md"}
 SKIP_PARTS = {"__pycache__", ".pytest_cache", "references"}
+# Subtrees (POSIX-relative to --root) deliberately NOT tracked for drift even though they
+# fall under a tracked root. ui/web/ is the opt-in web dashboard — the kit's first runtime
+# dependency, not force-shipped and not a manifest root by default (see ui/web/README.md).
+SKIP_SUBTREES = ("ui/web",)
 
 
 def _category(rel_path: str) -> str:
@@ -74,6 +78,8 @@ def build_manifest(root: Path, roots: tuple[str, ...] = DEFAULT_ROOTS,
             if p.suffix not in suffixes:
                 continue
             rel = p.relative_to(root).as_posix()
+            if any(rel == s or rel.startswith(s + "/") for s in SKIP_SUBTREES):
+                continue
             try:
                 data = p.read_bytes()
             except OSError:
