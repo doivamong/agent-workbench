@@ -610,15 +610,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--gates-json", help='JSON map {"leak_scan": true, ...}; absent -> "chưa chạy"')
     ap.add_argument("--run-gates", action="store_true",
                     help="run the read-only gates (leak_scan, invariants, skill_lint) and show real PASS/FAIL")
+    ap.add_argument("--json", action="store_true",
+                    help="print gather()'s data as JSON to stdout (the data contract ui/web/ consumes); skips HTML")
     ap.add_argument("--project", help="project root (default: $CLAUDE_PROJECT_DIR or cwd)")
     ap.add_argument("--open", action="store_true", help="open the report in the default browser")
     args = ap.parse_args(argv)
 
     proj = Path(args.project).resolve() if args.project else _project_dir()
+    ctx = gather(proj, args.days, args.gates_json, args.run_gates)
+    if args.json:
+        # The stable data seam: gather() is plain JSON-serializable data. ui/web/ (and any
+        # external tool) can consume this instead of re-deriving collection. No HTML written.
+        print(json.dumps(ctx, ensure_ascii=False, indent=2))
+        return 0
     if not TEMPLATE.is_file():
         print(f"error: template missing: {TEMPLATE}", file=sys.stderr)
         return 1
-    ctx = gather(proj, args.days, args.gates_json, args.run_gates)
     out = Path(args.output)
     out.write_text(render(ctx), encoding="utf-8")
     print(f"wrote -> {out.resolve()}", file=sys.stderr)

@@ -9,6 +9,10 @@ omit =
     examples/*
     */__pycache__/*
     conftest.py
+    # ui/web/ is the opt-in web dashboard — the kit's only runtime dependency (Flask),
+    # NOT installed in CI (root requirements.txt is stdlib-test-only), so its tests skip
+    # there. Counting it would gate coverage on code CI deliberately never runs.
+    ui/web/*
 
 [report]
 exclude_lines =

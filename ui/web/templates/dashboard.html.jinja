@@ -1,0 +1,79 @@
+{#- Agent Workbench — web dashboard (shell). The static frame (head, topbar, day controls,
+    scripts); the data-driven region lives in _body.html.jinja, wrapped in #dyn so HTMX can
+    swap it on a day change / refresh without a full reload. All UI text is Vietnamese with
+    diacritics. Charts read the embedded JSON in #chart-data (no fetch → offline). -#}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Workbench — Bảng điều khiển trạng thái kit</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
+</head>
+<body>
+<a class="skip" href="#noi-dung">Bỏ qua tới nội dung chính</a>
+
+<div class="shell">
+
+  {#- ===== Identity bar (static) ===== -#}
+  <header class="topbar">
+    <div class="topbar__row">
+      <div class="topbar__mark">
+        <svg class="topbar__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M8 11.5l2.6 2.6L16 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <div class="panel__eyebrow">Agent Workbench · trạng thái kit</div>
+          <h1>Bảng điều khiển kit · {{ ctx.today }}</h1>
+        </div>
+      </div>
+      <div class="topbar__meta">
+        <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
+        <span class="env-pill">Nhánh <span class="kit-num">{{ ctx.branch }}</span></span>
+        <span class="env-pill">Commit <span class="kit-num">{{ ctx.commit }}</span></span>
+      </div>
+    </div>
+    <p class="topbar__sub">
+      Ảnh chụp cục bộ, đọc trực tiếp từ <span class="mono">generator.gather()</span> —
+      {{ n_skills }} skill, {{ ctx.n_hooks }} hook đã nối.
+    </p>
+
+    {#- ===== Controls: day window + refresh (HTMX-swap #dyn) ===== -#}
+    <div class="controls" role="group" aria-label="Tuỳ chọn cửa sổ thời gian">
+      <label class="control">
+        <span class="control__label">Cửa sổ</span>
+        <select name="days" class="control__input"
+                hx-get="/fragment" hx-target="#dyn" hx-swap="innerHTML"
+                hx-include="[name='tier']" hx-trigger="change">
+          {% for d in day_options %}
+          <option value="{{ d }}" {{ 'selected' if d == days else '' }}>{{ d }} ngày</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="button" class="btn"
+              hx-get="/fragment" hx-target="#dyn" hx-swap="innerHTML"
+              hx-include="[name='days'],[name='tier']">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M20 11A8 8 0 1 0 18 16M20 5v6h-6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Làm mới
+      </button>
+      <span class="controls__hint muted" aria-live="polite">Ảnh chụp tại chỗ — bấm để đọc lại đĩa</span>
+    </div>
+  </header>
+
+  {#- ===== Dynamic region (HTMX-swapped) ===== -#}
+  <main id="noi-dung"><div id="dyn">{% include "_body.html.jinja" %}</div></main>
+
+  <footer class="foot">
+    Agent Workbench · bảng điều khiển trạng thái kit · ảnh chụp cục bộ
+    <span class="mono">{{ ctx.commit }}</span> · {{ ctx.today }}
+  </footer>
+</div>
+
+<script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
