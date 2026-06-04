@@ -252,8 +252,8 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **405**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **17** (`examples/`) |
+| Tests | **419**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **18** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **16** (15 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
@@ -279,7 +279,7 @@ python examples/affected_tests_demo.py   # chỉ chọn test mà thay đổi ả
 python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt file)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 405 tests
+python -m pytest -q                 # 419 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -365,7 +365,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 405 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 419 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 
