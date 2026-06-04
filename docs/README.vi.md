@@ -108,52 +108,48 @@ framework — mỗi phần đứng riêng được và là opt-in.
 
 ```mermaid
 flowchart TB
-    subgraph agent["Cấu hình agent (nạp mỗi phiên)"]
-        cfg["CLAUDE.md / AGENTS.md<br/>chỉ dẫn dự án — bạn tự chỉnh (installer không copy)"]
-        skills["Skills<br/>playbook kích hoạt theo ý định"]
-        rules["Rules<br/>style theo đường dẫn"]
-        mem["Memory<br/>được index canh; kho live là per-project, không phải bản trong repo"]
+    install(["🚀 install.py"]):::entry
+
+    install ==>|chép vào| AG
+    install ==>|wire| HK
+    install ==>|"--with-git-hook"| GH(["🔒 git pre-commit<br/>chỉ chạy leak_scan"]):::entry
+
+    subgraph AG["📋 Cấu hình agent · nạp mỗi phiên"]
+        direction TB
+        cfg["CLAUDE.md / AGENTS.md<br/>bạn tự chỉnh — installer không copy"]:::cfg
+        skills["Skills · playbook kích hoạt theo ý định"]:::cfg
+        rules["Rules · style theo đường dẫn"]:::cfg
+        mem["Memory · được index canh<br/>kho live là per-project, không phải bản trong repo"]:::cfg
     end
 
-    subgraph guards["Hook lúc chạy (wire vào settings.json)"]
-        block["block_dangerous.py<br/>PreToolUse"]
-        refine["prompt-refiner-inject.py<br/>UserPromptSubmit"]
-        simplify["post_edit_simplify.py<br/>PostToolUse"]
-        ctx["context_tracker.py<br/>PostToolUse"]
-        life["session_start / session_end /<br/>precompact_backup / compact_restore /<br/>skill_routing_inject"]
-        wrap["hook_logger<br/>fail-open + log crash"]
+    subgraph HK["🪝 Hook lúc chạy · wire vào settings.json"]
+        direction TB
+        block["block_dangerous · PreToolUse"]:::hook
+        refine["prompt-refiner-inject · UserPromptSubmit"]:::hook
+        edits["post_edit_simplify + context_tracker · PostToolUse"]:::hook
+        life["session_start / session_end · precompact_backup<br/>compact_restore · skill_routing_inject"]:::hook
+        wrap(["hook_logger · fail-open + log crash"]):::wrapn
+        block & refine & edits & life -.->|bọc bởi| wrap
     end
 
-    subgraph gate["Gate commit / CI — tự dogfood, ship dạng template<br/>(.pre-commit-config.yaml + .github/workflows/ci.yml)"]
-        leak["leak_scan.py"]
-        inv["invariants.py"]
-        slint["skill_lint.py"]
-        ctxb["check_context_budget.py"]
-        man["sync_manifest.py"]
-        metr["readme_metrics.py"]
-        tests["pytest"]
+    subgraph GT["✅ Gate commit / CI · tự dogfood, ship dạng template"]
+        direction LR
+        leak["leak_scan"]:::chk
+        inv["invariants"]:::chk
+        slint["skill_lint"]:::chk
+        ctxb["check_context_budget"]:::chk
+        man["sync_manifest"]:::chk
+        metr["readme_metrics"]:::chk
+        tests["pytest"]:::chk
     end
 
-    install["install.py"] -->|"chép vào (+ tool, agents, secrets_guard)"| agent
-    install -->|wire| guards
-    install -->|"--with-git-hook"| githook["git pre-commit<br/>chỉ chạy leak_scan"]
-    githook -.->|"cùng leak_scan, một trong các bước của gate"| leak
+    GH -.->|"leak_scan của nó = một bước của gate"| leak
 
-    block -.->|bọc bởi| wrap
-    refine -.->|bọc bởi| wrap
-    simplify -.->|bọc bởi| wrap
-    ctx -.->|bọc bởi| wrap
-    life -.->|bọc bởi| wrap
-
-    classDef config fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    classDef entry fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef cfg fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
     classDef hook fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef check fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef entry fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-
-    class cfg,skills,rules,mem config
-    class block,refine,simplify,ctx,life,wrap hook
-    class leak,inv,slint,ctxb,man,metr,tests check
-    class install,githook entry
+    classDef wrapn fill:#fcd34d,stroke:#b45309,stroke-width:2px,color:#78350f
+    classDef chk fill:#dcfce7,stroke:#16a34a,color:#14532d
 ```
 
 <details>
