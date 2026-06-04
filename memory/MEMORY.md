@@ -36,3 +36,19 @@
 - [Headless Python: stdout is None](headless-python-stdout-none-guard.md) — pythonw/service sets sys.stdout=None; `.reconfigure()` crashes at import; guard `if sys.stdout is not None`.
 - [Restart didn't take? PID + elevation](restart-didnt-work-check-pid-and-elevation.md) — prove the old process died: old PID still holds the port + a non-admin shell can't kill a SYSTEM process.
 - [requirements.txt ≠ deployed](requirements-txt-not-auto-installed.md) — a manifest bump doesn't pip-install in prod; new import = ModuleNotFoundError only in prod; name the deploy step.
+
+## 🧠 Distilled craft — agent reasoning, review & verification
+
+- [Verify load-bearing before asserting](verify-load-bearing-before-asserting.md) — check the load-bearing assumption + deciding axis against ground truth BEFORE you assert/recommend.
+- [Audit can be right yet misreason](audit-can-be-right-yet-misreason.md) — accurate on FACTS can still be wrong on cause/severity/fix; verify ground truth and correct it.
+- [Recommend user-benefit first](recommend-user-benefit-first.md) — rank by real user benefit/output quality FIRST; minimalism is only a tiebreaker, never an excuse.
+- [Read the full source before a verdict](read-full-skill-before-verdict.md) — judge an artifact from its full body, not its one-line blurb; guessing causes wrong verdicts.
+- [Apply a correction to all instances](apply-correction-to-all-instances.md) — corrected for a bias? scan the rest of the plan for the SAME bias and fix it pre-emptively.
+- [Retro: self-audit + pattern synthesis](retro-self-audit-and-pattern-synthesis.md) — lens your OWN process (corrections/reversals) AND synthesize the recurring pattern, not just atoms.
+- [gh post-push state is stale](gh-pr-checks-watch-no-checks-race.md) — `--watch` false-greens before CI registers; verify the run conclusion by id + git refs, not gh.
+- [Local gate must respect gitignore](local-gate-respect-gitignore.md) — a whole-repo scan hits gitignored local files CI never sees; use `--respect-gitignore`, run the real gate.
+- [Public-OK ≠ per-item safe](public-ok-doesnt-waive-leak-check.md) — a blanket "publish it all" authorizes intent, not per-item safety; leak-check each item.
+- [Disambiguate tokens before bulk rename](disambiguate-token-meanings-before-bulk-rename.md) — blind find-replace corrupts homonyms; scope to the exact target tokens, grep residuals after.
+- [Place a rule where it fires](place-rule-where-it-fires.md) — a path-scoped rule loads only on a matching EDIT; a fileless reasoning lesson belongs in always-loaded CLAUDE.md.
+- [Validate a check on the real corpus](audit-check-validate-on-real-corpus.md) — measure a new check on the messy REAL corpus, not clean fixtures; WARN not ERROR if only tidy pass.
+- [Synthetic example paths trip leak-scan](synthetic-example-paths-trip-leakscan.md) — an example path in a committed test/doc trips the scanner; use a fake non-home path like `Z:/code/proj_x`.
