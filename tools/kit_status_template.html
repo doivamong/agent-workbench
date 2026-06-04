@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Workbench — Báo cáo trạng thái kit</title>
+<style>
+/* ============================================================================
+   AGENT WORKBENCH — NỀN TẢNG THẨM MỸ DÙNG CHUNG (P1 prototype)
+   0 dependency · 1 file · mọi CSS trong <style> · chart = SVG nội tuyến
+   Nhúng VERBATIM vào cả 3 layout — chỉ KHÁC NHAU Ở BỐ CỤC.
+   ============================================================================ */
+
+/* ---- 1. DESIGN TOKENS -------------------------------------------------- */
+:root {
+  /* Bảng màu (cố định theo brief) */
+  --bg:           #0D0D0D;
+  --surface:      #15161A;
+  --surface-2:    #1B1C21;
+  --surface-3:    #212229;   /* lớp nổi thêm cho row hover / cell nhấn */
+  --border:       #2A2B30;
+  --border-soft:  #232429;   /* hairline chìm hơn cho chia trong cùng surface */
+  --text:         #C8C8C8;
+  --text-strong:  #ECECEC;
+  --text-dim:     #9CA0A8;   /* nhãn phụ, caption — nâng từ #8A8B92 để clear AA (~4.8:1) cho chữ nhỏ 10-11px */
+  --accent:       #CC2929;
+  --accent-deep:  #8E1C1C;   /* chân gradient hero, không dùng làm chữ */
+  --accent-fg:    #F4DCDC;   /* chữ trên nền accent đặc, đạt AA */
+
+  /* Màu trạng thái — tiết chế, không rải accent */
+  --ok:           #3FB37F;   /* PASS / xanh */
+  --ok-dim:       #1E3A2C;
+  --warn:         #D6A14B;   /* cảnh báo / vàng */
+  --warn-dim:     #3A2F18;
+  --danger:       var(--accent);
+  --danger-dim:   #3A1A1A;
+  --info:         #5B8DC9;   /* workflow / xanh dương trầm */
+  --info-dim:     #1B2735;
+
+  /* Thang phân loại skill (chấm/nhãn category) */
+  --cat-guard:    #CC2929;
+  --cat-workflow: #5B8DC9;
+  --cat-feature:  #3FB37F;
+  --cat-audit:    #D6A14B;
+  --cat-meta:     #9B7FD4;
+
+  /* TYPOGRAPHY — modular scale ~1.25 (11→13→16→20→25→31) */
+  --fs-xs:  11px;   /* nhãn uppercase, caption, footnote */
+  --fs-sm:  13px;   /* body phụ, meta, ô bảng */
+  --fs-md:  16px;   /* body chuẩn */
+  --fs-lg:  20px;   /* tiêu đề mục */
+  --fs-xl:  25px;   /* KPI vừa, tiêu đề section lớn */
+  --fs-2xl: 31px;   /* số KPI display, tiêu đề hero */
+  --fs-3xl: 39px;   /* KPI hero nổi bật (31×1.25) */
+
+  --lh-tight:  1.15;  /* số display, tiêu đề lớn */
+  --lh-snug:   1.3;   /* tiêu đề mục */
+  --lh-normal: 1.55;  /* body */
+
+  --ls-tight:  -0.01em;  /* tiêu đề/số lớn */
+  --ls-label:   0.08em;  /* nhãn uppercase chặt */
+  --ls-label-lg:0.14em;  /* nhãn uppercase rất nhỏ (eyebrow) */
+
+  --weight-display: 700; /* số KPI */
+  --weight-strong:  600;
+  --weight-normal:  400;
+
+  /* SPACING — thang 4/8px */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  /* Bo góc */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+
+  /* CHIỀU SÂU TINH TẾ — inset highlight + hairline, KHÔNG drop-shadow nặng */
+  --inset-hi:   inset 0 1px 0 rgba(255,255,255,.03);
+  --inset-hi-2: inset 0 1px 0 rgba(255,255,255,.05);
+  --ring-soft:  0 0 0 1px var(--border);
+  --depth-1:    var(--inset-hi), 0 1px 2px rgba(0,0,0,.35);
+  --depth-2:    var(--inset-hi-2), 0 2px 8px rgba(0,0,0,.45);
+
+  /* MỘT radial accent ở hero — duy nhất, tiết chế */
+  --hero-glow: radial-gradient(120% 140% at 12% 0%, rgba(204,41,41,.16) 0%, rgba(204,41,41,.05) 32%, transparent 64%);
+
+  /* Z-index thang gọn */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-sticky:  100;
+  --z-overlay: 1000;
+
+  /* Layout */
+  --maxw:    1120px;
+  --gutter:  var(--sp-6);
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Be Vietnam Pro", "Inter", sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+}
+
+/* ---- 2. BASE RESET ----------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: rgba(204,41,41,.30); color: var(--text-strong); }
+a { color: inherit; text-decoration: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+svg { display: block; }
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--sp-5) 0;
+}
+
+/* ---- 3. TYPOGRAPHY ----------------------------------------------------- */
+h1, h2, h3, h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-weight: var(--weight-strong);
+  line-height: var(--lh-snug);
+}
+h1 { font-size: var(--fs-2xl); letter-spacing: var(--ls-tight); line-height: var(--lh-tight); }
+h2 { font-size: var(--fs-xl); letter-spacing: var(--ls-tight); }
+h3 { font-size: var(--fs-lg); }
+h4 { font-size: var(--fs-md); }
+p  { margin: 0 0 var(--sp-3); }
+p:last-child { margin-bottom: 0; }
+strong { color: var(--text-strong); font-weight: var(--weight-strong); }
+small  { font-size: var(--fs-sm); }
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: .92em;
+}
+
+/* Eyebrow / nhãn uppercase chặt */
+.eyebrow {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label-lg);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+}
+.label {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+}
+.muted   { color: var(--text-dim); }
+.strong  { color: var(--text-strong); }
+.mono    { font-family: var(--font-mono); }
+
+/* ---- 4. SỐ / KPI ------------------------------------------------------- */
+/* .kit-num — số bold, tabular, dùng cho mọi con số nhấn */
+.kit-num {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+  letter-spacing: var(--ls-tight);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.kit-num--accent { color: var(--accent); }
+.kit-num--ok     { color: var(--ok); }
+.kit-num--warn   { color: var(--warn); }
+.kit-num--display { font-size: var(--fs-3xl); line-height: var(--lh-tight); }
+.kit-num--xl      { font-size: var(--fs-2xl); line-height: var(--lh-tight); }
+.kit-num--lg      { font-size: var(--fs-xl); }
+.kit-num__unit {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-normal);
+  color: var(--text-dim);
+  letter-spacing: 0;
+  margin-left: 2px;
+}
+
+/* KPI block — dùng chung, layout sắp xếp ở từng prototype */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.kpi__label { /* = .label */
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+}
+.kpi__value { line-height: var(--lh-tight); }
+.kpi__sub   { font-size: var(--fs-sm); color: var(--text-dim); }
+
+/* ---- 5. SURFACE / CARD / PANEL ---------------------------------------- */
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--depth-1);
+}
+.surface-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--inset-hi);
+}
+.panel { padding: var(--sp-5); }
+.panel--tight { padding: var(--sp-4); }
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.divide-top { border-top: 1px solid var(--border-soft); }
+
+/* HERO — MỘT radial accent duy nhất */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--depth-2);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hero-glow);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+.hero > * { position: relative; z-index: var(--z-raised); }
+
+/* ---- 6. BADGES / PILLS ------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .02em;
+  line-height: 1.6;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  color: var(--text-strong);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+/* Trạng thái — nền đặc đủ tương phản AA, KHÔNG mờ trắng-trên-sáng */
+.badge--ok     { color: var(--ok);     background: var(--ok-dim);     border-color: #2C5A45; }
+.badge--warn   { color: var(--warn);   background: var(--warn-dim);   border-color: #5A4A24; }
+.badge--danger { color: #F0A8A8;       background: var(--danger-dim); border-color: #5A2828; }
+.badge--info   { color: #A8C6E8;       background: var(--info-dim);   border-color: #2C4358; }
+.badge--dead   { color: var(--text-dim); background: var(--surface-3); border-color: var(--border); }
+
+/* Chấm category */
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.dot--guard    { background: var(--cat-guard); }
+.dot--workflow { background: var(--cat-workflow); }
+.dot--feature  { background: var(--cat-feature); }
+.dot--audit    { background: var(--cat-audit); }
+.dot--meta     { background: var(--cat-meta); }
+
+/* Pill môi trường — nhãn meta dạng viên */
+.env-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+  box-shadow: var(--inset-hi);
+}
+.env-pill .kit-num { font-size: var(--fs-xs); letter-spacing: 0; }
+.env-pill__live {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-dim);
+}
+
+/* ---- 7. PROGRESS / METER ---------------------------------------------- */
+.meter {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.4);
+}
+.meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+}
+.meter--ok   .meter__fill { background: linear-gradient(90deg, #1E6B49, var(--ok)); }
+.meter--warn .meter__fill { background: linear-gradient(90deg, #6B5320, var(--warn)); }
+
+/* ---- 8. TABLE ---------------------------------------------------------- */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.tbl caption {
+  text-align: left;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+  padding-bottom: var(--sp-3);
+}
+.tbl th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text);
+  vertical-align: middle;
+}
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl tbody tr { transition: background-color .12s ease; }
+.tbl tbody tr:hover { background: var(--surface-3); }
+/* Số trong bảng: bold, mono, right-align */
+.tbl .num, .tbl th.num { text-align: right; }
+.tbl td.num {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+.tbl td.num--zero { color: var(--text-dim); font-weight: var(--weight-normal); }
+.tbl .cell-name { color: var(--text-strong); font-weight: var(--weight-strong); }
+.tbl .cell-skill {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-strong);
+}
+.tbl--zebra tbody tr:nth-child(even) { background: rgba(255,255,255,.012); }
+
+/* ---- 9. SVG-VIZ HELPERS ----------------------------------------------- */
+.viz { width: 100%; height: auto; overflow: visible; }
+/* Lưới — opacity thấp */
+.viz-grid { stroke: var(--border); stroke-width: 1; opacity: .35; }
+.viz-grid--soft { stroke: var(--border-soft); stroke-width: 1; opacity: .5; }
+.viz-baseline { stroke: var(--border); stroke-width: 1; opacity: .9; }
+.viz-axis-label {
+  fill: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.viz-axis-title {
+  fill: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+/* Thanh — bo góc, trầm; đỉnh highlight = accent */
+.viz-bar      { fill: var(--info); rx: 2; }
+.viz-bar--mut { fill: #2F3947; }
+.viz-bar--hi  { fill: var(--accent); }
+/* Đường — bo (round join/cap) */
+.viz-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.viz-area { fill: url(#vizAreaGrad); opacity: .9; }
+.viz-dot      { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.viz-dot--hi  { fill: var(--accent); stroke: var(--bg); stroke-width: 2; } /* MỘT đỉnh highlight */
+.viz-peak-label {
+  fill: var(--text-strong);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.viz-peak-line { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
+/* Track + value cho bar ngang (sparkline trong bảng) */
+.viz-track { fill: var(--surface-3); }
+.viz-val   { fill: var(--info); }
+.viz-val--hi { fill: var(--accent); }
+.viz-val--zero { fill: var(--border); }
+
+/* Sparkbar inline (cho cột "lần kích hoạt") */
+.sparkbar {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+  vertical-align: middle;
+}
+.sparkbar i {
+  width: 3px;
+  background: var(--info);
+  border-radius: 1px;
+  display: block;
+}
+.sparkbar i.hi { background: var(--accent); }
+
+/* ---- 10. BUTTONS (semantic — KHÔNG btn-primary mọi nút) ---------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-strong);
+  cursor: pointer;
+  box-shadow: var(--inset-hi);
+  transition: background-color .14s ease, border-color .14s ease, transform .06s ease;
+}
+.btn:hover  { background: var(--surface-3); border-color: #34353C; }
+.btn:active { transform: translateY(1px); }
+.btn--confirm { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn--confirm:hover { background: #D83434; border-color: #D83434; }
+.btn--success { color: var(--ok); border-color: #2C5A45; background: var(--ok-dim); }
+.btn--danger  { color: #F0A8A8; border-color: #5A2828; background: var(--danger-dim); }
+.btn--neutral { /* mặc định */ }
+.btn--ghost   { background: transparent; border-color: transparent; color: var(--text-dim); }
+.btn--ghost:hover { background: var(--surface-2); color: var(--text-strong); }
+.btn--sm { padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); }
+
+/* ---- 11. EMPTY STATE (icon SVG vẽ tay, không emoji) -------------------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-3);
+  padding: var(--sp-7) var(--sp-5);
+  color: var(--text-dim);
+}
+.empty__icon { color: var(--border); }
+.empty__icon svg { stroke: currentColor; fill: none; stroke-width: 1.5; }
+.empty__title { color: var(--text-strong); font-weight: var(--weight-strong); font-size: var(--fs-md); }
+.empty__msg { font-size: var(--fs-sm); max-width: 38ch; }
+
+/* ---- 12. NUMERIC UTILITIES ------------------------------------------------- */
+.stack > * + * { margin-top: var(--sp-4); }
+.stack-sm > * + * { margin-top: var(--sp-2); }
+.stack-lg > * + * { margin-top: var(--sp-6); }
+.row { display: flex; align-items: center; gap: var(--sp-3); }
+.row--between { justify-content: space-between; }
+.row--baseline { align-items: baseline; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.hairline { border-top: 1px solid var(--border); }
+.hairline-soft { border-top: 1px solid var(--border-soft); }
+.container { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-6) var(--gutter); }
+.text-right { text-align: right; }
+.nowrap { white-space: nowrap; }
+.delta-up   { color: var(--ok); }
+.delta-down { color: var(--accent); }
+
+/* ---- 13. A11Y: chuyển động bọc prefers-reduced-motion ------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- 14. PRINT (bản report) ------------------------------------------- */
+@media print {
+  :root {
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #fafafa; --surface-3: #f2f2f2;
+    --border: #cccccc; --border-soft: #e2e2e2;
+    --text: #222222; --text-strong: #000000; --text-dim: #555555;
+  }
+  body { background: #fff; color: #222; }
+  .hero::before { display: none; }
+  .surface, .surface-2, .hero { box-shadow: none; border-color: #cccccc; }
+  .btn, .env-pill__live, .no-print { display: none !important; }
+  .viz-bar, .viz-val { fill: #555 !important; }
+  .viz-bar--hi, .viz-val--hi, .viz-line, .viz-dot--hi { fill: #CC2929 !important; stroke: #CC2929 !important; }
+  .container { max-width: none; padding: 0; }
+  a[href]::after { content: ""; }
+  .panel, .surface, .hero { break-inside: avoid; }
+  thead { display: table-header-group; }
+}
+
+/* ============================================================================
+   LAYOUT C — STATUS PAGE: RAIL TÓM TẮT TRÁI (sticky) + ANCHOR NAV + CỘT PHẢI
+   Đòn bẩy riêng của bố cục này (KHÔNG đụng shared_css ở trên).
+   ============================================================================ */
+
+html { scroll-behavior: smooth; }
+
+.statuspage {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--sp-6) var(--gutter);
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+
+/* ---- RAIL TRÁI: sticky tóm tắt + anchor nav ---------------------------- */
+.rail {
+  position: sticky;
+  top: var(--sp-5);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  /* giới hạn chiều cao để rail dài vẫn cuộn riêng được */
+  max-height: calc(100vh - var(--sp-6) * 2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-right: 2px;
+}
+.rail::-webkit-scrollbar { width: 8px; }
+.rail::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-pill); }
+.rail::-webkit-scrollbar-track { background: transparent; }
+
+/* Khối thương hiệu trên đầu rail */
+.rail__brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-1);
+}
+.rail__brand-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.rail__logo {
+  width: 26px; height: 26px;
+  flex: none;
+  color: var(--accent);
+}
+.rail__name {
+  font-size: var(--fs-md);
+  font-weight: var(--weight-strong);
+  color: var(--text-strong);
+  letter-spacing: var(--ls-tight);
+}
+.rail__screen {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+}
+
+/* Trạng thái tổng "Mọi thứ ổn" — chip lớn */
+.overall {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid #2C5A45;
+  background: var(--ok-dim);
+  box-shadow: var(--inset-hi);
+}
+.overall__pulse {
+  position: relative;
+  width: 12px; height: 12px;
+  flex: none;
+}
+.overall__pulse::before,
+.overall__pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.overall__pulse::after {
+  animation: overallPulse 2.4s ease-out infinite;
+  opacity: .55;
+}
+@keyframes overallPulse {
+  0%   { transform: scale(1);   opacity: .55; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.overall__txt { display: flex; flex-direction: column; line-height: 1.2; }
+.overall__title { color: var(--ok); font-weight: var(--weight-strong); font-size: var(--fs-sm); }
+.overall__sub { color: #7FB89E; font-size: var(--fs-xs); }
+
+/* Mini-KPI trong rail (4 chỉ số at-a-glance) */
+.rail-kpis {
+  display: flex;
+  flex-direction: column;
+}
+.rail-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.rail-kpi:last-child { border-bottom: 0; }
+.rail-kpi__meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rail-kpi__label {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+}
+.rail-kpi__sub { font-size: var(--fs-xs); color: var(--text-dim); }
+.rail-kpi__val { text-align: right; white-space: nowrap; }
+
+/* Anchor nav — thuần CSS, hover/active mượt */
+.railnav { display: flex; flex-direction: column; }
+.railnav__cap {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label-lg);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+  padding: 0 var(--sp-3) var(--sp-2);
+}
+.railnav a {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  transition: background-color .14s ease, color .14s ease, border-color .14s ease;
+}
+.railnav a:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+  border-left-color: var(--border);
+}
+/* :target highlight — section đang được nhắm tới sẽ làm link tương ứng sáng.
+   Vì CSS không "biết" scroll, ta dùng :target trên section + adjacency không
+   khả thi xuyên cột; thay vào đó dùng :hover + focus-visible cho a11y, và
+   cho phép active qua :target của chính link (khi click). */
+.railnav a:active { color: var(--accent); border-left-color: var(--accent); }
+.railnav__count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail__foot {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  line-height: 1.5;
+  padding-top: var(--sp-2);
+}
+.rail__foot .mono { color: var(--text); }
+
+/* ---- CỘT PHẢI: các section chi tiết ----------------------------------- */
+.content { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+
+/* Mỗi section có offset để anchor không bị che (dù không có header dính) */
+.sec { scroll-margin-top: var(--sp-5); }
+.sec__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+.sec__head h2 { font-size: var(--fs-lg); }
+.sec__eyebrow {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label-lg);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: var(--weight-strong);
+  margin-bottom: 2px;
+}
+
+/* Hero nhỏ gọn cho status page */
+.statushero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.statushero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.statushero__meta { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* Lưới gates */
+.gate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+}
+.gate-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  box-shadow: var(--inset-hi);
+}
+.gate-card__icon {
+  width: 26px; height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ok-dim);
+  color: var(--ok);
+}
+.gate-card__icon svg { stroke: currentColor; fill: none; stroke-width: 2; }
+.gate-card__body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.gate-card__name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-strong);
+  font-weight: var(--weight-strong);
+}
+.gate-card__detail { font-size: var(--fs-xs); color: var(--text-dim); }
+.gate-card__state {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  font-weight: var(--weight-strong);
+  color: var(--ok);
+}
+
+/* Phân bố loại — chú giải + tổng */
+.cat-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+}
+.cat-item__name { font-size: var(--fs-sm); color: var(--text); text-transform: capitalize; }
+.cat-item__nums { margin-left: auto; font-size: var(--fs-xs); color: var(--text-dim); }
+.cat-item__nums b { color: var(--text-strong); font-family: var(--font-mono); }
+
+/* Sparkbar cell trong bảng skill — căn phải */
+.cell-spark { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-3); }
+
+/* Memory: ô meter to + chỉ số phụ */
+.mem-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--sp-5);
+  align-items: center;
+}
+.mem-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.mem-stat { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+/* Hooks: chip sự kiện */
+.hook-events { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-4); }
+.hook-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+.hook-chip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--info); flex: none; }
+
+/* Tools: 2 cột — số đã cài + danh sách thiếu */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0,1fr);
+  gap: var(--sp-5);
+  align-items: stretch;
+}
+.tools-missing {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-2);
+}
+.tool-miss {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  border: 1px dashed #4A3030;
+  background: var(--danger-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: #E6B0B0;
+}
+.tool-miss svg { stroke: #C77; fill: none; stroke-width: 2; flex: none; }
+.tools-donut { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); justify-content: center; }
+
+.section-foot {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+/* Skip link (a11y) */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: var(--z-overlay);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  color: var(--text-strong);
+}
+.skip:focus { left: var(--sp-4); top: var(--sp-4); }
+
+/* ---- RESPONSIVE: rail xếp lên trên thành summary strip ----------------- */
+@media (max-width: 880px) {
+  .statuspage {
+    grid-template-columns: 1fr;
+    gap: var(--sp-5);
+  }
+  .rail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    flex-direction: column;
+    gap: var(--sp-4);
+  }
+  /* mini-KPI thành strip ngang */
+  .rail-kpis {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+  .rail-kpi {
+    flex: 1 1 140px;
+    border-bottom: 0;
+    padding: var(--sp-3);
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+  }
+  /* nav thành hàng cuốn ngang */
+  .railnav { flex-direction: row; flex-wrap: wrap; }
+  .railnav__cap { width: 100%; padding-bottom: var(--sp-1); }
+  .railnav a { border-left: 0; border: 1px solid var(--border-soft); }
+  .mem-grid { grid-template-columns: 1fr; }
+  .tools-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .mem-stats { grid-template-columns: 1fr; }
+  .statushero__top { flex-direction: column; }
+}
+
+@media print {
+  .statuspage { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .rail { position: static; max-height: none; overflow: visible; }
+  .railnav, .overall__pulse::after { display: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#noi-dung">Bỏ qua tới nội dung chính</a>
+
+<div class="statuspage">
+
+  <!-- ===================== RAIL TRÁI (sticky) ===================== -->
+  <aside class="rail surface panel" aria-label="Tóm tắt nhanh và điều hướng">
+
+    <div class="rail__brand">
+      <div class="rail__brand-mark">
+        <svg class="rail__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M8 11.5l2.6 2.6L16 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="rail__name">Agent Workbench</span>
+      </div>
+      <span class="rail__screen">Báo cáo trạng thái kit</span>
+    </div>
+
+    <!-- Trạng thái tổng -->
+    $rail_overall
+
+    <!-- 4 chỉ số at-a-glance -->
+    $rail_kpis
+
+    <!-- Anchor nav -->
+    $rail_nav
+
+    $rail_foot
+  </aside>
+
+  <!-- ===================== CỘT PHẢI (nội dung) ===================== -->
+  <main class="content" id="noi-dung">
+$honesty_banner
+
+    <!-- HERO -->
+    $hero
+
+    <!-- ===== GATES ===== -->
+    $gates
+
+    <!-- ===== SKILLS ===== -->
+    $skills
+
+    <!-- ===== TELEMETRY ===== -->
+    $telemetry
+
+    <!-- ===== TOOLS ===== -->
+    $tools
+
+    <!-- ===== MEMORY ===== -->
+    $memory
+
+    <!-- ===== HOOKS ===== -->
+    $hooks
+
+    $footer
+
+  </main>
+</div>
+</body>
+</html>

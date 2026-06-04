@@ -10,9 +10,85 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Core: stdlib-only](https://img.shields.io/badge/core-stdlib--only-blue.svg)](#at-a-glance)
 
-<kbd>[Why](#why-this-exists)</kbd> · <kbd>[What's inside](#whats-inside)</kbd> · <kbd>[How it fits together](#how-it-fits-together)</kbd> · <kbd>[Quickstart](#quickstart-5-minutes)</kbd> · <kbd>[Install](#install-it-into-your-own-project)</kbd> · <kbd>[Honesty](#status--honesty)</kbd> · <kbd>[🇻🇳 Tiếng Việt](docs/README.vi.md)</kbd>
+<kbd>[Try it](#fastest-proof)</kbd> · <kbd>[Getting started](docs/getting-started.md)</kbd> · <kbd>[What's inside](#whats-inside)</kbd> · <kbd>[Quickstart](#quickstart-5-minutes)</kbd> · <kbd>[Install](#install-it-into-your-own-project)</kbd> · <kbd>[Honesty](#status--honesty)</kbd> · <kbd>[🇻🇳 Tiếng Việt](docs/README.vi.md)</kbd>
 
 </div>
+
+---
+
+## What is this?
+
+A drop-in kit that keeps an AI coding agent (Claude Code & others) **consistent and safe** on a
+codebase you maintain for months — skills, path-scoped rules, fail-open hooks, and stdlib-only
+guard tools, installed in one command.
+
+- **What it is (and isn't)** — the generic, reusable layer pulled from one real private codebase: a
+  copy-pasteable kit of small, independent, opt-in pieces. **Not a framework, not a security
+  product** — and the guards state what they do **not** defend against.
+- **What you get** — skills + rules + hooks + stdlib guard tools, wired in by one command.
+- **Why trust it** — the command blocker and leak scanner are *seatbelts, not security boundaries*;
+  every guard says what it does not do. ([Honest by design ↓](#honest-by-design))
+
+New here? **[See it work in 30 seconds — no install ↓](#fastest-proof)** — or pick your path:
+
+## Choose your path
+
+| You are… | Read in this order |
+|---|---|
+| **New to Claude Code** | [getting-started](docs/getting-started.md) → [workflow](docs/workflow.md) → [SECURITY](docs/SECURITY.md) |
+| **A power user sizing it up** | [SKILL_CATALOG](SKILL_CATALOG.md) → [skills README](.claude/skills/README.md) → [workflow](docs/workflow.md) |
+| **Installing it into your repo** | [Fastest proof ↓](#fastest-proof) → `python install.py --dry-run` → [memory-governance](docs/memory-governance.md) |
+| **Người Việt mới bắt đầu** | [README.vi](docs/README.vi.md) → [Thuật ngữ](docs/README.vi.md#thuật-ngữ-nhanh) → [getting-started](docs/getting-started.md) |
+
+## Honest by design
+
+> Every guard states what it does **not** do. `block_dangerous` and `leak_scan` are seatbelts
+> against accidents, **not security boundaries** — they fail *closed* on anything they can't parse,
+> and a determined operator can evade any string matcher. `secrets_guard` is a stdlib construction,
+> **not an audited crypto library** — use `age`/`sops` if your threat model is adversarial. Every
+> capability is tagged **LIVE / BLUEPRINT / ADOPTER-FILLS / REJECTED** in
+> [`SKILL_CATALOG.md`](SKILL_CATALOG.md), so you always know what runs vs. what you build. Full
+> threat model: [`docs/SECURITY.md`](docs/SECURITY.md); the standing limits sit in
+> [Status & honesty ↓](#status--honesty).
+
+## Fastest proof
+
+The core is **stdlib-only** — prove it runs *before* you `pip install` anything:
+
+```bash
+git clone https://github.com/doivamong/agent-workbench && cd agent-workbench
+
+python examples/hook_block_demo.py    # see dangerous commands get blocked — no install
+python tools/leak_scan.py . --respect-gitignore   # the repo scans itself
+```
+
+> **You should see:** the classifier marks `git status`, `git push origin main`, `pytest` as
+> allowed and `rm -rf /`, `git push … --force`, `DROP TABLE` as **BLOCKED**, ending with
+> `All classifications correct.` — and leak_scan prints `0 finding(s)`. **No `pip` yet — that's the
+> point: the core is stdlib-only.**
+
+<details>
+<summary><b>What the run actually prints</b> (abbreviated)</summary>
+
+```text
+$ python examples/hook_block_demo.py
+BLOCKED?  EXPECTED  COMMAND
+------------------------------------------------------------
+False     False     git status  [OK]
+False     False     pytest tests/  [OK]
+True      True      rm -rf /   [OK]
+True      True      git push origin main --force   [OK]
+True      True      DROP TABLE users;   [OK]
+
+All classifications correct.
+
+$ python tools/leak_scan.py . --respect-gitignore
+0 finding(s) across 182 file(s).
+```
+</details>
+
+For the full setup, jump to the [Quickstart](#quickstart-5-minutes) below, or follow the guided
+[10-minute walkthrough](docs/getting-started.md).
 
 ---
 
@@ -27,16 +103,6 @@
 > **The result.** A copy-pasteable kit that installs into any project in one command and
 > starts blocking dangerous shell commands, refining vague prompts, and gating commits
 > immediately. Core is **stdlib-only**, the demos run in seconds, and CI is green.
-
-<details>
-<summary><b>New here? Start with the guided tour →</b></summary>
-
-Read [`docs/getting-started.md`](docs/getting-started.md) for a guided walkthrough: clone,
-run a few demos, then point the installer at one of your own projects. The rest of this
-README is the reference map — skim the [What's inside](#whats-inside) table, then dive into
-the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you care about.
-
-</details>
 
 ---
 
@@ -55,13 +121,10 @@ It is deliberately **domain-stripped**. Every business identifier, secret, machi
 piece of customer data has been removed and verified with a leak scanner (see
 [`docs/SANITIZATION.md`](docs/SANITIZATION.md)). What remains is methodology you can lift.
 
-> **Why it's public — and why it isn't about stars.** The codebase this came from can never be
-> public; the methodology inside it is too useful to stay buried there for good. So it's shared
-> for one plain reason: *let whoever needs it lift it, and skip the stumbling, the guesswork, and
-> the avoidable mistakes it already cost to learn.* Success here isn't traction or attention — it
-> is that the kit is **available, correct, and honest** the day someone reaches for it. If it
-> spares one person an avoidable wrong turn — a stranger, or its own author starting the next
-> codebase — it has done its job. That is the only scoreboard here.
+> **Why it's public — and why it isn't about stars.** The private codebase this came from can never
+> be public; the methodology inside it is too useful to stay buried. It isn't optimized for stars or
+> traction — only to be **available, correct, and honest** the day someone reaches for it. (The full
+> reasoning is tenet 2 in [`PHILOSOPHY.md`](PHILOSOPHY.md).)
 
 > **Honesty is the deal, not decoration.** Because the point is to spare you avoidable pain, every
 > tool states plainly what it does *not* do (see [Status & honesty](#status--honesty) and
@@ -82,29 +145,17 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 
 | When you need to… | What this gives you | Path |
 |---|---|---|
-| **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates — short, high-signal project instructions loaded every session, portable across AI coding tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
-| **Encode reusable playbooks** | A skill system with anatomy, tiers, a registry, and **sixteen** runnable skills across all five tiers — nine **workflows** (plan-then-code, prompt-refiner, research, handover, stress-test, tdd, cook, external-ref, lessons-capture), four **guards** (review, debug, output-guard, config-guard), a **meta** router (using-skills), a **feature** (optimize), and an **audit** (dead-code-audit) | [`.claude/skills/`](.claude/skills/) |
-| **Carry context across sessions** | A file-based, index-gated memory scaffold (example facts to replace). The harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/` — see [memory-governance.md](docs/memory-governance.md) | [`memory/`](memory/) |
-| **Catch common footguns** | Hooks that catch common destructive shell commands (whitespace/flag-order tolerant — a *seatbelt*, not a security boundary), flag vague prompts, nudge a simplify pass after a burst of edits, and wrap everything fail-open with crash logging | [`.claude/hooks/`](.claude/hooks/) |
-| **Keep secrets encrypted at rest** | A dependency-free (stdlib-only) file encryptor — HMAC-CTR stream cipher + PBKDF2 — for keeping sensitive files encrypted in a private backup. A **custom stdlib construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium if you have a real adversarial threat model (see [`docs/SECURITY.md`](docs/SECURITY.md)) | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
-| **Codify rules that must never break** | A tiny framework turning project invariants into fast, greppable checks you can wire into a pre-commit / CI gate | [`tools/invariants.py`](tools/invariants.py) |
-| **Run only the relevant tests** | An AST-based "which tests does this change affect?" selector — faster CI than running everything | [`tools/affected_tests.py`](tools/affected_tests.py) |
-| **Catch leaked secrets before commit** | A line-based secret/identifier *tripwire* with a private deny-list (catches common shapes + your own identifiers), an opt-in `--entropy` sweep for random-looking tokens, and `--respect-gitignore` to skip files that never ship — the commit-time seatbelt used to vet this export | [`tools/leak_scan.py`](tools/leak_scan.py) |
-| **Vet third-party code before you vendor it** | A license/attribution *tripwire* — greps a file or tree for OSS-license, copyright, and "adapted-from" markers and says what each implies for reuse. Honest limit: it reads markers, not meaning — a clean result is not proof of original authorship | [`tools/license_scan.py`](tools/license_scan.py) |
-| **Keep memory honest** | A hygiene tripwire for the memory system — flags malformed frontmatter, dangling index links, orphan facts, broken `[[wiki-links]]`, and an oversized index | [`tools/memory_audit.py`](tools/memory_audit.py) |
-| **Roll back a bad memory edit** | A manual snapshot/restore CLI for the memory store (which lives outside git, so `git checkout` can't save you) — snapshot before a risky mutation, restore *additively* if it goes wrong; manual-only, never a hook/cron | [`tools/memory_snapshot.py`](tools/memory_snapshot.py) |
-| **Publish a public-safe slice of memory** | A leak-gated, **fail-closed** sync — copies only facts marked `visibility: public` (or already published) that pass `leak_scan`, into a public repo's `memory/`; strips per-session frontmatter, leaves the index human-curated, manual-run only | [`tools/memory_sync.py`](tools/memory_sync.py) |
-| **Check memory actually reaches the agent** | A read-only wiring trip-wire — the harness auto-loads `MEMORY.md` from a per-project path, not this repo's `memory/`, so facts curated in the wrong dir are silently never recalled. Flags that mismatch and an over-budget live index; stat-verifies every path and writes nothing | [`tools/memory_recall_doctor.py`](tools/memory_recall_doctor.py) |
-| **Keep the memory load-budget in one place** | The single source of truth for the `MEMORY.md` load budget (≤ 200 lines / ~25 KB, past which entries silently truncate out of recall) — imported by the memory audit + recall-doctor so the cap can't drift apart (it did once, `24576`→`25600`). A shared constants module, not a runnable CLI | [`tools/memory_budget.py`](tools/memory_budget.py) |
-| **Keep skills in sync** | A linter that catches drift between `skill-registry.md` and the `SKILL.md` files (a folder with no row, a row with no folder, frontmatter gaps, missing trigger markers) | [`tools/skill_lint.py`](tools/skill_lint.py) |
-| **Catch file-set drift** | A manifest gate over the source-of-truth dirs (skills, hooks, rules, tools, scripts): adding or removing a file without updating its dependent docs/wiring fails CI. Paired with a `PostToolUse` hook that nudges you the moment a new file lands | [`tools/sync_manifest.py`](tools/sync_manifest.py) |
-| **Keep the README counts honest** | A generator/gate for the "At a glance" numbers (deps/tests/demos/tools/skills): `--check` fails CI when a count is stale, `--write` recomputes them from the tree — so two branches stop conflicting on hand-typed counts. Gates the numbers, not the prose lists | [`tools/readme_metrics.py`](tools/readme_metrics.py) |
-| **Watch the context budget** | An auditor for everything Claude Code loads each session (skills, agents, rules, the CLAUDE.md chain, MCP servers) — buckets each as always/sometimes/rarely and flags the heavy ones, so "short, high-signal context" gets a number (heuristic, not a real tokenizer) | [`tools/check_context_budget.py`](tools/check_context_budget.py) |
-| **Catch an un-installed dependency** | A pre-commit *seatbelt* that warns (never blocks) when a commit adds a line to `requirements.txt`, so you remember to install it where the code runs before it fails at import | [`tools/check_requirements_diff.py`](tools/check_requirements_diff.py) |
-| **See which skills actually fire** | An opt-in prompt-logger + report that surfaces which skills get used and which are dead weight — to prune them or fix their trigger text. Honest proxy: it counts name *mentions*, not true uses | [`tools/skill_usage_report.py`](tools/skill_usage_report.py) |
-| **Codify recurring traps as rules** | Path-scoped rules that auto-load when you edit a matching file — slash-command style, and measurement honesty (don't trust a green check you didn't verify) | [`.claude/rules/`](.claude/rules/) |
-| **Run a real pre-commit gate** | A ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) wiring the leak scanner + invariant checks before every commit | [`.pre-commit-config.yaml`](.pre-commit-config.yaml) |
-| **Try each demo in ~30 seconds** | Each tool ships a runnable `examples/` entry | [`examples/`](examples/) |
+| **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates and path-scoped rules — short, high-signal, loaded every session, portable across AI tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) · [`.claude/rules/`](.claude/rules/) |
+| **Encode reusable workflows** | A skill system with tiers, a registry, and sixteen runnable skills (plan-then-code, research, review, debug, tdd, …) the agent invokes by intent | [`.claude/skills/`](.claude/skills/) |
+| **Catch footguns at runtime** | Fail-open hooks that block common destructive shell commands (a *seatbelt*, **not a security boundary**), flag vague prompts, and nudge a simplify pass — a crash logs and exits clean, never halting you | [`.claude/hooks/`](.claude/hooks/) |
+| **Carry memory across sessions** | A file-based memory scaffold (example facts to replace; live recall reads a per-project path, **not** this repo's `memory/`) plus tools to keep it honest, snapshot/restore it, check it reaches the agent, and publish a public-safe slice (**fail-closed**) | [`memory/`](memory/) · [`tools/`](tools/) |
+| **Gate commits & CI honestly** | A leak/identifier scanner (a commit-time *seatbelt* with an opt-in entropy sweep), an invariant framework, an AST test-selector, a README-count gate, and a file-set manifest — plus a ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) | [`tools/`](tools/) |
+| **Encrypt secrets at rest** | A stdlib file encryptor (HMAC-CTR + PBKDF2) — a **custom construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium for a real adversarial threat model | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
+| **Vet code & measure cost** | A license/attribution scan (**reads markers, not meaning** — a clean result isn't proof of authorship), a context-budget auditor (**heuristic, not a real tokenizer**), and a skill-usage report (**counts mentions, not uses**) | [`tools/license_scan.py`](tools/license_scan.py) · [`tools/check_context_budget.py`](tools/check_context_budget.py) |
+| **Try any of it in ~30 seconds** | Every tool ships a runnable `examples/` entry | [`examples/`](examples/) |
+
+**Full per-capability list with `LIVE` / `BLUEPRINT` / `ADOPTER-FILLS` / `REJECTED` status →
+[`SKILL_CATALOG.md`](SKILL_CATALOG.md).**
 
 ## How it fits together
 
@@ -240,10 +291,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **405**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **17** (`examples/`) |
+| Tests | **418**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **18** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
+| Standalone tools | **17** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -275,7 +326,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 405 tests
+python -m pytest -q                 # 418 tests
 ```
 
 ## Install it into your own project
@@ -314,6 +365,11 @@ deny-list for [`tools/leak_scan.py`](tools/leak_scan.py).
 ## Documentation
 
 🇻🇳 *Tóm tắt — Bảng tra cứu: đọc file nào, khi nào. Người đọc tiếng Việt xem bản dịch đầy đủ ở [docs/README.vi.md](docs/README.vi.md).*
+
+> *Lost? Use the [persona router](#choose-your-path) up top. The maps below are reference depth:
+> **[SKILL_CATALOG](SKILL_CATALOG.md)** = every capability by status · **[What's inside](#whats-inside)**
+> = by need · **[workflow.md](docs/workflow.md)** = by task · **[skills README](.claude/skills/README.md)**
+> = by tier.*
 
 | Group | Key file | When to read |
 |---|---|---|
@@ -369,7 +425,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 405 tests · MIT
+**Agent Workbench** · stdlib-only core · 418 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
