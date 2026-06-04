@@ -69,7 +69,11 @@ def test_git_hook_written_with_repo(tmp_path):
     main([str(tmp_path), "--with-git-hook"])
     hook = tmp_path / ".git" / "hooks" / "pre-commit"
     assert hook.is_file()
-    assert "leak_scan.py" in hook.read_text(encoding="utf-8")
+    body = hook.read_text(encoding="utf-8")
+    assert "leak_scan.py" in body
+    # Must mirror CI / .pre-commit-config so adopters don't get false positives
+    # from their git-ignored local files.
+    assert "--respect-gitignore" in body
 
 
 # --- --merge-settings ------------------------------------------------------
