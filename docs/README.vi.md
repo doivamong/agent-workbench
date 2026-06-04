@@ -30,7 +30,7 @@
 <details>
 <summary><b>Người mới? Bắt đầu bằng hướng dẫn có dẫn dắt →</b></summary>
 
-Đọc [`docs/getting-started.md`](getting-started.md) để có một lượt đi có dẫn dắt: clone, chạy ba
+Đọc [`docs/getting-started.md`](getting-started.md) để có một lượt đi có dẫn dắt: clone, chạy vài
 demo, rồi trỏ installer vào một dự án của bạn. Phần còn lại của trang này là bản đồ tra cứu — lướt
 bảng [Bên trong có gì](#bên-trong-có-gì), rồi chỉ đào sâu vào các khối `<details>` cho cơ chế bạn
 quan tâm.
@@ -229,7 +229,7 @@ chuyển đi được và cái gì cố ý để lại:
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
 | Tests | **405**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
 | Demo chạy được | **17** (`examples/`) |
-| Skills | **16** (9 workflow + 4 guard + 1 meta + 1 feature + 1 audit) |
+| Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **16** (15 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
 ## Quickstart (5 phút)

@@ -32,7 +32,7 @@
 <summary><b>New here? Start with the guided tour →</b></summary>
 
 Read [`docs/getting-started.md`](docs/getting-started.md) for a guided walkthrough: clone,
-run the three demos, then point the installer at one of your own projects. The rest of this
+run a few demos, then point the installer at one of your own projects. The rest of this
 README is the reference map — skim the [What's inside](#whats-inside) table, then dive into
 the [`<details>` deep-dives](#how-it-fits-together) only for the mechanisms you care about.
 

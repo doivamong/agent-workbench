@@ -71,8 +71,9 @@ def test_git_hook_written_with_repo(tmp_path):
     assert hook.is_file()
     body = hook.read_text(encoding="utf-8")
     assert "leak_scan.py" in body
-    # Must mirror CI / .pre-commit-config so adopters don't get false positives
-    # from their git-ignored local files.
+    # Keep this flag in sync with CI / .pre-commit-config by hand — the assertion
+    # only checks the substring is present, it does not measure parity with those
+    # files. (Adopters' git-ignored local files would otherwise false-positive.)
     assert "--respect-gitignore" in body
 
 
