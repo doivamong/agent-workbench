@@ -39,3 +39,6 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# generated kit-status report (snapshot artifact, not source)
+kit-status.html
