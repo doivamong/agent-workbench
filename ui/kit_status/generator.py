@@ -3,7 +3,7 @@
 
 Gathers REAL Agent-Workbench data from the project it runs in — skills + their
 tiers and (if wired) telemetry fire-counts, installed tools, wired hooks, and the
-MEMORY.md budget — and renders the status-rail layout (``kit_status_template.html``)
+MEMORY.md budget — and renders the status-rail layout (``ui/kit_status/template.html``)
 with ``string.Template``. Stdlib only; the output is a single self-contained HTML
 file with no external network (inline CSS + inline SVG), so it opens offline.
 
@@ -16,11 +16,11 @@ Honesty (this is the load-bearing part — see .claude/rules/measurement-honesty
     scope for a report). They show ``chưa chạy`` unless you pass ``--gates-json``.
 
 Usage:
-    python tools/kit_status_report.py                      # -> kit-status.html
-    python tools/kit_status_report.py --output /tmp/x.html
-    python tools/kit_status_report.py --days 14 --open
-    python tools/kit_status_report.py --run-gates               # run read-only gates live
-    python tools/kit_status_report.py --gates-json gates.json   # {"leak_scan": true, ...}
+    python ui/kit_status/generator.py                      # -> kit-status.html
+    python ui/kit_status/generator.py --output /tmp/x.html
+    python ui/kit_status/generator.py --days 14 --open
+    python ui/kit_status/generator.py --run-gates               # run read-only gates live
+    python ui/kit_status/generator.py --gates-json gates.json   # {"leak_scan": true, ...}
 
 What it does NOT do: it does not run the gates, does not measure skills the model
 auto-fired without typing their name (telemetry only sees name signals in prompts),
@@ -43,11 +43,15 @@ if hasattr(sys.stdout, "reconfigure"):  # legacy Windows console safety
     sys.stdout.reconfigure(encoding="utf-8")
 
 HERE = Path(__file__).resolve().parent
-TEMPLATE = HERE / "kit_status_template.html"
+TEMPLATE = HERE / "template.html"
 
-# Reuse the single source of truth for the memory budget; fall back honestly if the
-# memory tools were not installed in this project (they are opt-in via the installer).
-sys.path.insert(0, str(HERE))
+# This generator lives in ui/kit_status/, so the kit's tools/ (with the shared
+# memory_budget + memory_recall_doctor modules it reuses) is two levels up. Put that on
+# the path so we REUSE the single sources of truth instead of re-deriving them. If those
+# tools are not installed here (they are opt-in), the imports fall back honestly — never
+# silently re-derive a wrong constant (.claude/rules/measurement-honesty.md).
+_TOOLS = HERE.parent.parent / "tools"
+sys.path.insert(0, str(_TOOLS))
 try:
     from memory_budget import INDEX_MAX_BYTES  # type: ignore
 except Exception:

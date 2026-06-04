@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "ui" / "kit_status"))
 
-import kit_status_report as ksr  # noqa: E402
+import generator as ksr  # noqa: E402
 
 
 def _make_project(tmp: Path, skills: dict[str, str], *, wired: bool = False,
