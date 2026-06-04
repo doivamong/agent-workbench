@@ -223,6 +223,11 @@
       "lines": 237,
       "bytes": 9855
     },
+    "tools/kit_status_report.py": {
+      "category": "tools",
+      "lines": 633,
+      "bytes": 37042
+    },
     "tools/leak_scan.py": {
       "category": "tools",
       "lines": 321,
