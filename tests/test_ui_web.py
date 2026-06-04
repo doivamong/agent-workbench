@@ -179,3 +179,79 @@ def test_payload_cannot_break_out_of_json_script_tag(tmp_path):
     view = webapp.build_view(ctx, 14)
     assert "</script>" not in view["chart_json"]   # tag cannot be closed early
     assert "\\u003c" in view["chart_json"]          # '<' escaped to <
+
+
+# --- HTMX dynamic layer: vendored htmx, fragment routes, tier filter --------
+
+def test_htmx_is_vendored_and_served(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    r = _client(proj).get("/static/htmx.min.js")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert 'version:"2.0.3' in body          # the pinned vendored version
+    assert "sourceMappingURL" not in body    # no devtools map fetch
+
+
+def test_page_wires_htmx_controls(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    html = _render(proj)
+    assert "htmx.min.js" in html             # script loaded (vendored, offline)
+    assert 'id="dyn"' in html                # the swap target
+    assert 'name="days"' in html and 'hx-get="/fragment"' in html
+    assert 'name="tier"' in html and 'hx-get="/fragment/skills"' in html
+    # no external refs anywhere on the page
+    assert not re.search(r'(?:src|href)="https?://', html)
+
+
+def test_fragment_is_a_partial_not_a_full_page(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    r = _client(proj).get("/fragment?days=7&tier=all")
+    assert r.status_code == 200
+    frag = r.get_data(as_text=True)
+    assert "<html" not in frag and "<body" not in frag   # a fragment, not a page
+    assert 'id="chart-data"' in frag                      # carries fresh chart data
+    assert "· 7 ngày" in frag                             # honours the requested window
+
+
+def test_day_window_is_whitelisted(tmp_path):
+    # An out-of-range/garbage window falls back to the default — never reaches gather().
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    c = _client(proj, days=14)
+    assert c.get("/fragment?days=9999").status_code == 200
+    assert c.get("/fragment?days=abc").status_code == 200
+    assert "· 14 ngày" in c.get("/fragment?days=9999").get_data(as_text=True)
+
+
+def test_skills_fragment_filters_by_tier(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow",
+                                    "awb-cook": "workflow"})
+    r = _client(proj).get("/fragment/skills?days=14&tier=guard")
+    assert r.status_code == 200
+    table = r.get_data(as_text=True)
+    assert table.lstrip().startswith("<table")           # table fragment only
+    assert "awb-review" in table                          # the guard skill
+    assert "awb-tdd" not in table and "awb-cook" not in table  # workflow skills filtered out
+
+
+def test_tier_filter_does_not_distort_totals(tmp_path):
+    # Filtering the table must not change the headline skill count (a view concern only).
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    body = _client(proj).get("/fragment?tier=guard").get_data(as_text=True)
+    assert '>2</span>&nbsp;skill' in body or "2</span>&nbsp;skill" in body  # still counts all 2
+
+
+def test_fragments_preserve_honesty(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, wired=False)
+    frag = _client(proj).get("/fragment").get_data(as_text=True)
+    assert "chưa đo" in frag
+    assert "ứng viên chết" not in frag
+    skills = _client(proj).get("/fragment/skills").get_data(as_text=True)
+    assert "chưa đo" in skills and "ứng viên chết" not in skills
+
+
+def test_fragments_have_no_external_refs(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, wired=True, fired={"awb-review": 2})
+    for path in ("/fragment", "/fragment/skills"):
+        frag = _client(proj).get(path).get_data(as_text=True)
+        assert not re.search(r'(?:src|href)="https?://', frag)
+        assert "cdn" not in frag.lower()

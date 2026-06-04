@@ -10,11 +10,13 @@
 
 The stdlib report at [`ui/kit_status/`](../kit_status/) already renders the same data as a
 self-contained, offline HTML file with **zero dependencies**. This web layer adds *interactive
-charts* (Chart.js) on top of the **same single data source** — it does **not** re-implement
-data collection. If you don't want a dependency, use `ui/kit_status/`; both are honest about
-the same three telemetry states.
+charts* (Chart.js) and *in-place controls* (HTMX — change the day window, refresh, filter
+skills by tier without a full reload) on top of the **same single data source** — it does
+**not** re-implement data collection. If you don't want a dependency, use `ui/kit_status/`;
+both are honest about the same three telemetry states.
 
-- **Not** auto-refreshing / a daemon — it's an on-demand snapshot; reload to re-snapshot.
+- **Not** auto-refreshing / a daemon — refresh is **manual** (a button re-reads the disk); there
+  is no polling, websocket, or background process.
 - **Not** remote/multi-user — localhost, single developer, no auth.
 - **Not** force-shipped — `ui/web/` is opt-in: not in `install.py`'s `COPY_MAP`, not a
   manifest root. Removing `ui/web/` breaks nothing in the core or the `ui/kit_status` report.
@@ -41,6 +43,24 @@ the served page makes **no external network request**, so it renders with the ne
   Source: `https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js` (MIT licence).
   Obtaining it was a one-time fetch; re-vendoring is the only time the network is touched.
   The trailing `//# sourceMappingURL` comment was stripped so devtools never fetches the map.
+- **htmx v2.0.3**, vendored at [`static/htmx.min.js`](static/htmx.min.js).
+  Source: `https://cdn.jsdelivr.net/npm/htmx.org@2.0.3/dist/htmx.min.js` (0BSD / MIT licence).
+  Drives the in-place controls by fetching server-rendered HTML fragments (same-origin only).
+
+## Dynamic controls (HTMX)
+
+The controls fetch **server-rendered fragments** (no client-side data logic, no JSON API) so
+the honesty model lives in exactly one place — Jinja templates fed by `build_view()`:
+
+- **Cửa sổ (day window)** `7 / 14 / 30 ngày` → `GET /fragment?days=N&tier=…` swaps the whole
+  data region (`#dyn`); Chart.js re-initialises on `htmx:afterSwap` (old chart destroyed first).
+- **Làm mới (refresh)** → re-reads the project from disk and swaps `#dyn`.
+- **Lọc loại (tier filter)** → `GET /fragment/skills?tier=…` swaps **only** the skills table
+  (`#skills-region`), so the charts are not redrawn. Filtering is a view concern: the headline
+  counts and the tier doughnut always reflect the full set.
+
+The day window is whitelisted to `{7, 14, 30}`; a garbage `?days=` falls back to the default
+rather than reaching `gather()`. Fragments are partials (no `<html>`), same-origin, offline.
 
 ## Honesty (load-bearing)
 

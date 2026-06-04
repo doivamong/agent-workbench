@@ -43,7 +43,7 @@ sys.path.insert(0, str(_KIT_STATUS))
 import generator as ksr  # noqa: E402
 
 try:
-    from flask import Flask, render_template
+    from flask import Flask, render_template, request
 except ModuleNotFoundError as exc:  # fail loud with the fix, not a bare ImportError
     raise SystemExit(
         "ui/web/ needs Flask (the kit's only runtime dependency, isolated here).\n"
@@ -79,13 +79,26 @@ TIER_COLOR = {
     "meta": "#9B7FD4",
 }
 
+# Selectable telemetry windows (the only day values the dashboard offers / accepts).
+DAY_OPTIONS = [7, 14, 30]
+# Tier filter values. "all" plus the five real tiers; ALL_TIERS is the validation set.
+TIERS_FOR_FILTER = [{"value": "all", "label": "Tất cả"}] + [
+    {"value": t, "label": TIER_VI[t]} for t in ("workflow", "guard", "feature", "audit", "meta")]
+ALL_TIERS = {t["value"] for t in TIERS_FOR_FILTER}
 
-def build_view(ctx: dict, days: int) -> dict:
+
+def build_view(ctx: dict, days: int, tier: str = "all") -> dict:
     """Shape gather()'s raw dict into what the template + charts need.
 
     Adds nothing the data doesn't support — every derived value is computed from ctx.
-    The ``measured`` flag is the honesty gate: configured AND has data."""
+    The ``measured`` flag is the honesty gate: configured AND has data. ``tier`` filters
+    only the SKILLS TABLE (a view concern) — counts, the dead tally, and the tier doughnut
+    always reflect the full set, so filtering never distorts the honest totals."""
     measured = bool(ctx["wired"]) and ctx["total"] > 0
+    if tier not in ALL_TIERS:
+        tier = "all"
+    skills_table = ([s for s in ctx["skills"] if s["tier"] == tier]
+                    if tier != "all" else ctx["skills"])
 
     # Tier distribution is a STATIC property of the skills (not telemetry), so it is
     # always honest to show — independent of whether telemetry was measured.
@@ -117,10 +130,14 @@ def build_view(ctx: dict, days: int) -> dict:
     return {
         "ctx": ctx,
         "days": days,
+        "day_options": DAY_OPTIONS,
+        "tiers_for_filter": TIERS_FOR_FILTER,
+        "active_tier": tier,
         "measured": measured,
         "tier_dist": tier_dist,
         "mem_pct": mem_pct,
         "n_skills": len(ctx["skills"]),
+        "skills_table": skills_table,
         "dead": ctx["dead_candidates"],
         "n_tools_full": len(ctx["tools_present"]) + len(ctx["tools_missing"]),
         # Embedded as <script type="application/json">. Escape '<' so a skill name like
@@ -129,12 +146,42 @@ def build_view(ctx: dict, days: int) -> dict:
     }
 
 
-@app.route("/")
-def dashboard():
-    days = int(app.config.get("DAYS", 14))
+def _parse_days(raw: str | None, default: int) -> int:
+    """Whitelist the day window to DAY_OPTIONS — an out-of-range/garbage query never
+    reaches gather() (which would otherwise build an arbitrarily long series)."""
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return v if v in DAY_OPTIONS else default
+
+
+def _view(days_raw: str | None = None, tier_raw: str | None = None) -> dict:
+    """gather() + build_view for the configured project — shared by the page and fragments."""
+    days = _parse_days(days_raw, int(app.config.get("DAYS", 14)))
+    tier = tier_raw if tier_raw in ALL_TIERS else "all"
     proj = Path(app.config.get("PROJECT", _project_dir()))
     ctx = ksr.gather(proj, days, gates_json=None, run_gates=False)
-    return render_template("dashboard.html.jinja", **build_view(ctx, days))
+    return build_view(ctx, days, tier)
+
+
+@app.route("/")
+def dashboard():
+    return render_template("dashboard.html.jinja", **_view())
+
+
+@app.route("/fragment")
+def fragment_body():
+    """The whole dynamic region (banner + KPIs + grid) — HTMX-swapped on day change / refresh."""
+    return render_template("_body.html.jinja",
+                           **_view(request.args.get("days"), request.args.get("tier")))
+
+
+@app.route("/fragment/skills")
+def fragment_skills():
+    """Just the skills table — HTMX-swapped on tier filter, so the charts are not redrawn."""
+    return render_template("_skills.html.jinja",
+                           **_view(request.args.get("days"), request.args.get("tier")))
 
 
 def main(argv: list[str] | None = None) -> int:

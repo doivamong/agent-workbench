@@ -1,0 +1,34 @@
+{#- Skills table fragment. Rendered standalone by GET /fragment/skills (HTMX tier filter)
+    and included by _body.html.jinja for the initial page. Iterates `skills_table` (already
+    filtered by tier in app.build_view); `measured` drives the honesty states. -#}
+<table class="tbl">
+  <thead>
+    <tr>
+      <th scope="col">Skill</th>
+      <th scope="col">Loại</th>
+      <th scope="col" class="num">Kích hoạt</th>
+      <th scope="col">Trạng thái</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in skills_table %}
+    <tr>
+      <td><span class="cell-skill"><span class="dot dot--{{ s.tier }}"></span>{{ s.name }}</span></td>
+      <td class="muted">{{ s.tier }}</td>
+      {% if not measured %}
+      <td class="num num--zero">—</td>
+      <td><span class="badge">chưa đo</span></td>
+      {% elif s.fired == 0 %}
+      <td class="num num--zero">0</td>
+      <td><span class="badge badge--dead">ứng viên chết</span></td>
+      {% else %}
+      <td class="num">{{ s.fired }}</td>
+      <td><span class="badge badge--ok">sống</span></td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted" style="text-align:center;padding:var(--sp-5)">
+      Không có skill thuộc loại này.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

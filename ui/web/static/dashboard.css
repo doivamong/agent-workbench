@@ -328,6 +328,41 @@ strong { color: var(--text-strong); font-weight: var(--weight-strong); }
 
 .foot { text-align: center; padding: var(--sp-6) 0; color: var(--text-dim); font-size: var(--fs-sm); }
 
+/* ---- 9b. CONTROLS (HTMX day window / refresh / tier filter) ------------ */
+.controls {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--sp-3);
+  margin-top: var(--sp-4); padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-soft);
+}
+.control { display: flex; flex-direction: column; gap: var(--sp-1); }
+.control__label {
+  font-size: var(--fs-xs); letter-spacing: var(--ls-label);
+  text-transform: uppercase; color: var(--text-dim); font-weight: var(--weight-strong);
+}
+.control__input {
+  min-height: 44px;                 /* ≥44px touch target */
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: var(--weight-strong);
+  color: var(--text-strong); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  cursor: pointer;
+}
+.control__input:hover { border-color: #34353C; }
+.controls__hint { font-size: var(--fs-xs); align-self: center; }
+/* Semantic button (refresh) — not a btn-primary-everywhere; neutral surface. */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: 44px; padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: var(--weight-strong);
+  color: var(--text-strong); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-md); cursor: pointer;
+  transition: background-color .14s ease, border-color .14s ease;
+}
+.btn:hover { background: var(--surface-3); border-color: #34353C; }
+.btn svg { stroke: currentColor; }
+/* HTMX in-flight cue — opacity only (no layout shift); disabled under reduced-motion. */
+.htmx-request#dyn, #dyn.htmx-request { opacity: .55; transition: opacity .15s ease; }
+
 /* ---- 10. A11Y: reduced motion ----------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
