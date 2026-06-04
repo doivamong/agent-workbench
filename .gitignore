@@ -16,6 +16,8 @@ excel_data/
 plans/
 handovers/
 *.bat
+# ...but the committed Windows ops wrappers ARE kit assets (thin, brand-free, no paths):
+!ops/win/*.bat
 known_violations.json
 **/.cache/
 .claude/.logs/
@@ -42,3 +44,6 @@ Thumbs.db
 
 # generated kit-status report (snapshot artifact, not source)
 kit-status.html
+
+# ops/ runtime artifacts (pidfile, log, snapshots, release zips) — machine-specific, not source
+.ops/

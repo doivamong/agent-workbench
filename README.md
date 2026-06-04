@@ -152,6 +152,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | **Gate commits & CI honestly** | A leak/identifier scanner (a commit-time *seatbelt* with an opt-in entropy sweep), an invariant framework, an AST test-selector, a README-count gate, and a file-set manifest — plus a ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) | [`tools/`](tools/) |
 | **Encrypt secrets at rest** | A stdlib file encryptor (HMAC-CTR + PBKDF2) — a **custom construction, not an audited crypto library**; fine for at-rest backups, but use `age`/`sops`/libsodium for a real adversarial threat model | [`scripts/secrets_guard.py`](scripts/secrets_guard.py) |
 | **Vet code & measure cost** | A license/attribution scan (**reads markers, not meaning** — a clean result isn't proof of authorship), a context-budget auditor (**heuristic, not a real tokenizer**), and a skill-usage report (**counts mentions, not uses**) | [`tools/license_scan.py`](tools/license_scan.py) · [`tools/check_context_budget.py`](tools/check_context_budget.py) |
+| **Operate this repo** | Cross-platform stdlib `ops/` tools — control the opt-in dashboard (start/stop/restart/status), pack a **verifiable release zip** (sha256 manifest = integrity, not authenticity), and snapshot/restore the working tree (gitignore-respecting, dry-run by default). Engine for the dashboard's admin layer | [`ops/`](ops/) |
 | **Try any of it in ~30 seconds** | Every tool ships a runnable `examples/` entry | [`examples/`](examples/) |
 
 **Full per-capability list with `LIVE` / `BLUEPRINT` / `ADOPTER-FILLS` / `REJECTED` status →
@@ -291,8 +292,8 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **457**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **19** (`examples/`) |
+| Tests | **477**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **20** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
@@ -326,7 +327,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 457 tests
+python -m pytest -q                 # 477 tests
 ```
 
 ## Install it into your own project
@@ -441,7 +442,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 457 tests · MIT
+**Agent Workbench** · stdlib-only core · 477 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
