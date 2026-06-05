@@ -12,4 +12,7 @@ if not "%RC%"=="0" (
   echo.
   echo   [!] restart reported a problem ^(exit %RC%^). See .ops\dashboard.log
 )
+rem Keep the window open so the result/error stays readable on double-click (the proven,
+rem battle-tested approach: just pause). Programmatic callers use ops/dashboard_ctl.py directly.
+pause
 endlocal & exit /b %RC%
