@@ -1,0 +1,109 @@
+"""Tests for ops/dashboard_ctl.py — stdlib only (no Flask). The healthcheck is
+exercised against a throwaway http.server; stop() against a dummy child process."""
+import os
+import socket
+import subprocess
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import ops.dashboard_ctl as dc  # noqa: E402
+
+
+def _free_port() -> int:
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+class _Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, *a):  # silence
+        pass
+
+
+@pytest.fixture
+def server():
+    port = _free_port()
+    httpd = HTTPServer(("127.0.0.1", port), _Handler)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    try:
+        yield port
+    finally:
+        httpd.shutdown()
+
+
+def test_pidfile_roundtrip(tmp_path):
+    pf = tmp_path / "d.pid"
+    assert dc.read_pid(pf) is None
+    dc.write_pid(4242, pf)
+    assert dc.read_pid(pf) == 4242
+    dc.clear_pid(pf)
+    assert dc.read_pid(pf) is None
+
+
+def test_read_pid_garbage(tmp_path):
+    pf = tmp_path / "d.pid"
+    pf.write_text("not-a-pid", encoding="utf-8")
+    assert dc.read_pid(pf) is None
+
+
+def test_pid_alive_self_and_dead():
+    assert dc.pid_alive(os.getpid()) is True
+    assert dc.pid_alive(None) is False
+    assert dc.pid_alive(2_000_000_000) is False  # almost certainly not a live PID
+
+
+def test_port_and_health(server):
+    port = server
+    assert dc.port_listening("127.0.0.1", port) is True
+    assert dc.health_ok("127.0.0.1", port) is True
+    st = dc.status("127.0.0.1", port)
+    assert st["listening"] and st["healthy"]
+
+
+def test_port_not_listening():
+    p = _free_port()  # bound then closed → nothing listening
+    assert dc.port_listening("127.0.0.1", p) is False
+    assert dc.health_ok("127.0.0.1", p) is False
+
+
+def test_build_start_cmd():
+    cmd = dc.build_start_cmd("127.0.0.1", 5151)
+    assert cmd[0] == sys.executable
+    assert "--port" in cmd and "5151" in cmd
+    assert str(dc.APP) in cmd
+    assert dc.build_start_cmd("0.0.0.0", 1, extra=["--admin"])[-1] == "--admin"
+
+
+def test_stop_terminates_recorded_process(tmp_path, monkeypatch):
+    monkeypatch.setattr(dc, "PIDFILE", tmp_path / "d.pid")
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    dc.write_pid(proc.pid)
+    assert dc.pid_alive(proc.pid)
+    res = dc.stop(timeout=15)
+    assert res["result"] == "stopped"
+    assert not dc.pid_alive(proc.pid)
+    proc.wait(timeout=5)
+
+
+def test_stop_not_running(tmp_path, monkeypatch):
+    monkeypatch.setattr(dc, "PIDFILE", tmp_path / "none.pid")
+    res = dc.stop()
+    assert res["result"] == "not-running"

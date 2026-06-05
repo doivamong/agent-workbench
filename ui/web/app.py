@@ -168,6 +168,12 @@ def _view(days_raw: str | None = None, tier_raw: str | None = None) -> dict:
     return build_view(ctx, days, tier)
 
 
+@app.route("/health")
+def health():
+    """Cheap liveness probe (no gather()) — used by ops/dashboard_ctl.py's healthcheck."""
+    return "ok", 200
+
+
 @app.route("/")
 def dashboard():
     return render_template("dashboard.html.jinja", **_view())

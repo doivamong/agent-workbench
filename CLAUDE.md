@@ -47,6 +47,7 @@ path-scoped rule files (see `.claude/rules/`).*
 |------|------|
 | Safety hooks (+ how they're wired) | [`.claude/hooks/`](.claude/hooks/), [`.claude/settings.json`](.claude/settings.json) |
 | Reusable tools | [`tools/`](tools/), [`scripts/`](scripts/) |
+| Repo-operation tools (stdlib, not installed) | [`ops/`](ops/) — dashboard control, release pack, tree snapshot |
 | Skill system | [`.claude/skills/README.md`](.claude/skills/README.md) |
 | Memory system | [`memory/README.md`](memory/README.md) |
 | Tests | [`tests/`](tests/) |
