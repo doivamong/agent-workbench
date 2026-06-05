@@ -18,8 +18,8 @@ both are honest about the same three telemetry states.
 - **Not** auto-refreshing / a daemon — refresh is **manual** (a button re-reads the disk); there
   is no polling, websocket, or background process.
 - **Not** multi-user — the read-only `/` has no auth (run it localhost, or firewall-gate a LAN
-  bind). The opt-in `/admin` surface *can* require a password, which is what lets it open over a
-  trusted LAN (see *Password auth* below).
+  bind). The `/admin` surface is always mounted but **inert until you set a password**; the
+  password is the login gate that also lets it open over a trusted LAN (see *Password auth* below).
 - **Not** force-shipped — `ui/web/` is opt-in: not in `install.py`'s `COPY_MAP`, not a
   manifest root. Removing `ui/web/` breaks nothing in the core or the `ui/kit_status` report.
 
@@ -35,8 +35,9 @@ python ui/web/app.py --project /path/to/another/project
 ```
 
 Flags: `--host`, `--port` (default **5151**; 5000 collides with common dev servers / macOS
-AirPlay), `--days` (telemetry window, default 14), `--project`, `--admin` (opt-in action
-surface — see below), `--debug`.
+AirPlay), `--days` (telemetry window, default 14), `--project`. `--admin` is a **deprecated
+no-op** (`/admin` is always mounted now — set a password to enable it, see below); `--debug` is
+**refused outright** (admin is always mounted and the Werkzeug debugger is an RCE console).
 
 ## Exposing to a LAN (`--host 0.0.0.0`) — the firewall is the control, not the app
 
@@ -45,18 +46,19 @@ from another device **exposes the read-only page — your skills, telemetry, too
 budget — to every host on the subnet, with no authentication.** The app does **not** protect
 that data; it is read-only by design, but it is not access-controlled. **The actual control is
 your OS firewall** — restrict the port to the local subnet (e.g. a `LocalSubnet`-scoped rule),
-or don't bind `0.0.0.0` at all. (The opt-in `/admin` *action* surface is separate: it refuses a
-`0.0.0.0` bind outright — see below — so a LAN bind never exposes the destructive buttons; only
-the read-only data is on the wire **unless you set an admin password** — see *Password auth*.) Note: `ops/dashboard_ctl.py restart` reuses the last-started
-host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
+or don't bind `0.0.0.0` at all. (The `/admin` *action* surface is separate: with **no password
+configured it is inert** on every host — login is impossible, every action 403s — so a LAN bind
+never exposes the destructive buttons; only the read-only data is on the wire **unless you set an
+admin password** — see *Password auth*.) Note: `ops/dashboard_ctl.py restart` reuses the
+last-started host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
 
 **Defaulting to a LAN bind (e.g. to view the dashboard from a phone on the same Wi-Fi):** set the
 environment variable `AWB_DASHBOARD_HOST=0.0.0.0` on your machine. The shipped default stays
 `127.0.0.1` (safe for everyone) — only your machine, with the env var set, defaults to a LAN bind,
 so a bare `python ui/web/app.py` or a double-click of `restart_all.bat` binds the LAN with no extra
-flag. `/admin` still refuses `0.0.0.0` (run it with `--host 127.0.0.1`), and the firewall is still
-the real control. On Windows set it once with `setx AWB_DASHBOARD_HOST 0.0.0.0` (re-open the shell
-after), or per-session `set AWB_DASHBOARD_HOST=0.0.0.0`.
+flag. `/admin` over that LAN bind stays **inert until you set a password** (then login is the gate),
+and the firewall is still the real control. On Windows set it once with `setx AWB_DASHBOARD_HOST
+0.0.0.0` (re-open the shell after), or per-session `set AWB_DASHBOARD_HOST=0.0.0.0`.
 
 ## Offline by design
 
@@ -86,30 +88,36 @@ the honesty model lives in exactly one place — Jinja templates fed by `build_v
 The day window is whitelisted to `{7, 14, 30}`; a garbage `?days=` falls back to the default
 rather than reaching `gather()`. Fragments are partials (no `<html>`), same-origin, offline.
 
-## Opt-in `/admin` action surface (`--admin`)
+## `/admin` action surface — always mounted, **login is the gate**
 
-`/` is **always read-only**. With `--admin`, the dashboard *also* mounts an action surface at
-`/admin` ([`admin.py`](admin.py)) that turns the Phase-1 [`ops/`](../../ops/) engine into web
-buttons — **restart**, **snapshot the tree**, **pack a release**, **verify** a release, a
-**guarded tree-restore**, plus a **System / LAN** panel (**LAN default on/off**, **open the
-firewall**, **autostart on/off**, with the phone URLs and the elevated commands shown). Every
-*action* runs the Phase-1 CLI as a **subprocess** (an arg list,
-never a shell string — process isolation; the exit code + stderr are surfaced); only read-only
-enumeration for the dropdowns imports the APIs directly. Without the flag the blueprint is never
-registered, so every `/admin*` path is a plain **404**.
+`/` is **always read-only**. The dashboard **always** mounts an action surface at `/admin`
+([`admin.py`](admin.py)) that turns the Phase-1 [`ops/`](../../ops/) engine into web buttons —
+**restart**, **snapshot the tree**, **pack a release**, **verify** a release, a **guarded
+tree-restore**, plus a **System / LAN** panel (**LAN default on/off**, **open the firewall**,
+**autostart on/off**, with the phone URLs and the elevated commands shown). Every *action* runs
+the Phase-1 CLI as a **subprocess** (an arg list, never a shell string — process isolation; the
+exit code + stderr are surfaced); only read-only enumeration for the dropdowns imports the APIs
+directly.
+
+**With no password configured `/admin` is inert** (full Approach A): every action is **403 on any
+host**, `GET /admin` redirects to a login page you cannot pass (there is nothing to authenticate
+against), and `POST /admin/login` cannot create a session. Setting a password is what *enables*
+admin; **login** — not a flag, not the host — is the gate. The read-only `/` always shows an
+**“Đăng nhập admin”** link to `/admin/login`, so there is no relaunch to go from read-only to admin.
 
 The guards (the design was stress-tested to GO only with all of them):
 
-- **Opt-in, default-off** — no `--admin` → `/admin*` is 404 and no CSRF token is minted.
+- **Inert without a password** — no password ⇒ login is impossible ⇒ every `/admin` action is
+  **403 on any host** (even with a valid CSRF token), and no admin mutation is reachable.
+- **Login required** — with a password set, every path except the login endpoint needs a
+  logged-in session; a valid CSRF token is **not** a substitute for login.
 - **CSRF** — every mutation is POST-only and must carry the per-process `secrets.token_urlsafe`
   token (in a hidden field or `X-CSRF-Token`), checked with `hmac.compare_digest` *before* any
   side effect. GETs never mutate.
-- **Host / Origin allowlist** — *without a password* every admin request must arrive on a
-  localhost `Host` (and, if present, the bound port); a cross-origin `Origin`/`Referer` is refused.
-  *With a password* login is the gate, so a LAN `Host` is allowed (a `SameSite=Strict` session
-  cookie + CSRF cover what the host allowlist used to). `--admin` refuses to start under `--debug`
-  (the Werkzeug debugger is a remote console), and refuses a `0.0.0.0` bind **unless** an admin
-  password is configured.
+- **No host restriction once logged in** — login is the gate, so a LAN `Host` is allowed (a
+  `SameSite=Strict` session cookie + CSRF cover what a host allowlist would: a cross-site /
+  DNS-rebind request carries no session cookie → 401). `--debug` is **refused outright** (the
+  Werkzeug debugger is a remote console); `--admin` is a **deprecated no-op**.
 - **Server-enumerated targets** — the restore/verify target is chosen *by name* from a list this
   server produced (the snapshots / releases dirs); a client-supplied path is rejected. Subprocess
   calls are arg lists, never a shell string.
@@ -119,15 +127,15 @@ The guards (the design was stress-tested to GO only with all of them):
 - **Detached self-restart**, and **every action audited** to `.ops/ops.log` (subprocess errors
   surfaced, not swallowed).
 
-### Password auth — open `/admin` over a LAN (Phase A)
+### Password auth — enable `/admin` (and open it over a LAN) (Phase A)
 
-By default `/admin` is **localhost-only with no login** (the host allowlist is the only gate). To
-reach it from another device (e.g. a phone on the same Wi-Fi) you must set an **admin password**;
-that is the only thing that lets `--admin` accept a `0.0.0.0` bind:
+`/admin` is **inert until you set a password**. The **first** password can be set **only** via the
+environment at startup (a one-time set + restart) — there is deliberately **no unauthenticated
+setup form** (it would let any local actor seize admin before you do):
 
 ```sh
 export AWB_ADMIN_PASSWORD='your-strong-passphrase'   # plaintext, hashed at startup
-python ui/web/app.py --admin --host 0.0.0.0          # now allowed; without the password it refuses
+python ui/web/app.py --host 0.0.0.0                  # /admin now enabled; login is the gate (LAN ok)
 ```
 
 Prefer not to put the plaintext in your environment? Pre-compute the hash and pass it instead —
@@ -145,21 +153,18 @@ audited to `.ops/ops.log`. The CSRF token and the guarded-restore flow still app
 **Changing the password from the web:** once logged in, the **Đổi mật khẩu admin** panel on
 `/admin` (POST `/admin/password`, needs the correct old password + a new one ≥8 chars) persists
 the new hash to `.ops/admin.hash` (gitignored, never committed). That stored hash **takes
-precedence over the env password** and takes effect immediately — no restart. The env var stays
-the *bootstrap* secret (its value is simply ignored once a web password is set), so **keep
-`AWB_ADMIN_PASSWORD` set** — if you delete it and restart with a `0.0.0.0` bind, startup refuses
-the LAN bind because it checks the env at boot. The new password is still **cleartext on HTTP/LAN**
-in transit (same honest limit below).
+precedence over the env password** and takes effect immediately — no restart. So you relaunch
+**once** to *enable* admin (set the env password), and **zero** times thereafter to keep using it.
+The env var stays the *bootstrap* secret (its value is simply ignored once a web password is set);
+if you delete both the env var and `.ops/admin.hash` and restart, `/admin` goes back to **inert**.
+The new password is still **cleartext on HTTP/LAN** in transit (same honest limit below).
 
-**Honest limit (documented on purpose):**
-- *No-password (localhost) mode:* admin **trusts every local process that can reach the bound
-  port** — any such process can read the CSRF token from the served page. Opt-in, default-off, and
-  **not for shared machines**.
-- *Password (LAN) mode:* this is **plain HTTP** — the password and session cookie travel in
-  **cleartext** and can be sniffed by anyone on the network path. The password stops a casual
-  bystander, **not** a network attacker. Only enable it on a **trusted** LAN; **never** expose it to
-  the Internet. (TLS is deliberately out of scope for Phase A — a documented trade-off, not an
-  oversight.)
+**Honest limit (documented on purpose):** once a password is set, this is **plain HTTP** — the
+password and session cookie travel in **cleartext** and can be sniffed by anyone on the network
+path. The password stops a casual bystander, **not** a network attacker. Only enable it on a
+**trusted** LAN; **never** expose it to the Internet. (TLS is deliberately out of scope for Phase
+A — a documented trade-off, not an oversight.) With **no** password, `/admin` is inert — there is
+nothing to sniff because nothing can be done.
 
 Try it offline (no port opened): `python examples/ops_web_admin_demo.py`.
 

@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""ui/web/admin.py — the opt-in /admin action surface (Flask blueprint).
+"""ui/web/admin.py — the /admin action surface (Flask blueprint).
 
-Mounted ONLY by ``app.create_app(admin=True)`` (i.e. ``python ui/web/app.py --admin``);
-without the flag this blueprint is never registered, so every ``/admin*`` path is a plain
-404. It turns the Phase-1 ops engine (``ops/dashboard_ctl.py``, ``ops/tree_snapshot.py``,
-``ops/release_pack.py``) into web buttons — restart, snapshot, pack, verify, and a guarded
-tree-restore — **reusing those callable APIs**, never re-implementing them.
+**Always mounted** by ``app.create_app`` (full Approach A), but **login is the gate**: with
+**no password configured the surface is inert** — every action is 403 on any host, ``GET
+/admin`` redirects to a login page that cannot create a session. Setting a password (the env
+``AWB_ADMIN_PASSWORD``/``_HASH`` at startup, or a web change-password later) is what *enables*
+it; login then unlocks it. This supersedes the old ``--admin`` flag gate (a flag authenticates
+nobody, a login does). It turns the Phase-1 ops engine (``ops/dashboard_ctl.py``,
+``ops/tree_snapshot.py``, ``ops/release_pack.py``) into web buttons — restart, snapshot, pack,
+verify, and a guarded tree-restore — **reusing those callable APIs**, never re-implementing them.
 
 The guards (the design was stress-tested to GO only with all of these):
-  * **Opt-in, default-off** — no ``--admin`` → these routes don't exist.
+  * **Inert without a password** — no password ⇒ no login is possible ⇒ every action is 403 on
+    any host. Login (not a flag, not the host) is the gate.
+  * **Login required** — with a password set, every path except the login endpoint needs a
+    logged-in session (pbkdf2 hash, constant-time verify, lockout, idle timeout); a valid CSRF
+    token is NOT a substitute for login.
   * **CSRF** — every mutation is POST-only and must carry the per-process token
     (``secrets.token_urlsafe`` minted in create_app), checked with ``hmac.compare_digest``
     before any side effect. GETs never mutate.
-  * **Host / Origin allowlist** — every admin request must arrive with a localhost Host (and,
-    if present, the bound port); a cross-origin ``Origin``/``Referer`` is refused.
   * **Server-enumerated targets** — the restore/verify target is chosen by name from a list
     THIS server produced (snapshots / releases dirs); a client-supplied path is rejected.
     Subprocess calls are arg lists, never a shell string.
@@ -23,11 +28,10 @@ The guards (the design was stress-tested to GO only with all of these):
   * **Audited** — every action (and every blocked request) appends a JSON line to
     ``.ops/ops.log``; subprocess errors are surfaced, not swallowed.
 
-HONEST LIMIT (documented on purpose): admin mode **trusts every local process that can
-reach the bound port** — any such process can read the CSRF token from the served page.
-It is opt-in, default-off, localhost-only, and **not for shared machines**. The CSRF/Origin
-checks stop a cross-origin *browser* from forging requests; they do NOT stop a local
-attacker who can already talk to the port.
+HONEST LIMIT (documented on purpose): this is **plain HTTP** — once a password is set, the
+password and the session cookie travel in **cleartext** over the LAN and can be sniffed by
+anyone on the network path. The password stops a casual bystander, **not** a network attacker.
+Only enable it on a **trusted** network, never Internet-facing (TLS is out of scope for Phase A).
 
 DESIGN — engine actions run via SUBPROCESS (handover decision D4). Every engine *action*
 (snapshot · pack · verify · restore preview & apply) runs as ``subprocess python
@@ -49,7 +53,6 @@ import os
 import secrets
 import subprocess
 import sys
-import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
@@ -90,9 +93,6 @@ def _system_status() -> dict:
     return {"lan": lan, "autostart": autostart}
 
 admin_bp = Blueprint("admin", __name__, template_folder="templates")
-
-# Only these hostnames may reach /admin. urlsplit strips the brackets from "[::1]".
-_ALLOWED_HOSTNAMES = {"127.0.0.1", "localhost", "::1"}
 
 
 # --------------------------------------------------------------------------- #
@@ -157,29 +157,8 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Guards (before_request) — Host/Origin allowlist + CSRF
+# Guards (before_request) — login gate (full Approach A) + CSRF
 # --------------------------------------------------------------------------- #
-def _host_allowed(value: str, *, match_port: bool) -> bool:
-    """True if ``value`` (a Host header or an Origin/Referer URL) names a localhost host —
-    and, when ``match_port`` and the value carries a port, that port is the one we bound."""
-    if not value:
-        return False
-    try:
-        parts = urllib.parse.urlsplit(value if "://" in value else "//" + value)
-    except ValueError:
-        return False
-    if parts.hostname not in _ALLOWED_HOSTNAMES:
-        return False
-    try:
-        port = parts.port
-    except ValueError:
-        return False
-    want = current_app.config.get("PORT")
-    if match_port and port is not None and want and port != int(want):
-        return False
-    return True
-
-
 def _pw_store_path() -> Path:
     """Where a web-changed password hash persists. Under .ops/ (gitignored, never committed)."""
     return _ops_root() / ".ops" / "admin.hash"
@@ -249,32 +228,32 @@ def _record_login_failure(ip: str) -> None:
 
 @admin_bp.before_request
 def _enforce_guards():
-    auth = _auth_enabled()
-    # Host allowlist is the localhost gate ONLY in the no-auth (back-compat) mode. With auth,
-    # login is the real gate — and a wildcard bind serves arbitrary LAN hosts we can't
-    # enumerate — so the host check is relaxed; SameSite=Strict + CSRF + the password cover
-    # what the host allowlist used to (a cross-site/DNS-rebind request carries no session
-    # cookie, so it 401s at the auth gate below).
-    if not auth and not _host_allowed(request.host, match_port=True):
-        _audit("guard", "blocked-host", host=request.host, path=request.path)
+    effective = _effective_password_hash()
+    # NO PASSWORD ⇒ admin is INERT (full Approach A). There is no login (you cannot
+    # authenticate against an empty hash) and no action runs — on ANY host. The ONLY thing
+    # that renders is the login page itself (GET), which shows the "set AWB_ADMIN_PASSWORD and
+    # restart" bootstrap notice. This is the load-bearing guarantee: login is the gate, and
+    # with no password there is no gate to pass, so every mutation is refused (even with a
+    # valid CSRF token — the 403 below fires before the CSRF check is ever reached).
+    if not effective:
+        if request.endpoint == "admin.login" and request.method in ("GET", "HEAD"):
+            return  # let the login page render the bootstrap notice
+        _audit("guard", "blocked-no-password", path=request.path)
+        if request.method in ("GET", "HEAD"):
+            return redirect("/admin/login")
         abort(403)
-    # Auth gate (Phase A): with a password configured, every admin path except the login
-    # endpoint needs a logged-in session. A valid CSRF token is NOT a substitute for login.
-    if auth and request.endpoint != "admin.login" and not _is_authed():
+    # PASSWORD SET ⇒ login is the gate. Every admin path except the login endpoint needs a
+    # logged-in session; a valid CSRF token is NOT a substitute for login. The host is NOT
+    # checked — a wildcard bind serves arbitrary LAN hosts we can't enumerate, and
+    # SameSite=Strict + the session cookie + CSRF cover what the old host-allowlist used to (a
+    # cross-site/DNS-rebind request carries no session cookie, so it 401s here).
+    if request.endpoint != "admin.login" and not _is_authed():
         _audit("guard", "blocked-unauthenticated", path=request.path)
         if request.method in ("GET", "HEAD"):
             return redirect("/admin/login")
         abort(401)
+    # Cross-origin CSRF defence on every mutation: the per-process token, constant-time compared.
     if request.method not in ("GET", "HEAD", "OPTIONS"):
-        # Cross-origin CSRF defence — meaningful in the no-auth localhost mode. With auth,
-        # SameSite=Strict already strips the session cookie from cross-site requests (→ 401),
-        # and a LAN origin is legitimate, so the localhost origin allowlist is not applied.
-        if not auth:
-            origin = request.headers.get("Origin") or request.headers.get("Referer")
-            if origin and not _host_allowed(origin, match_port=False):
-                _audit("guard", "blocked-origin", origin=origin, path=request.path)
-                abort(403)
-        # The per-process CSRF token, constant-time compared (applies in both modes).
         token = request.form.get("csrf") or request.headers.get("X-CSRF-Token") or ""
         want = current_app.config.get("ADMIN_TOKEN") or ""
         if not want or not hmac.compare_digest(str(token), str(want)):
@@ -391,12 +370,16 @@ def _token() -> str:
 def login():
     """Password login (Phase A). GET renders the form (reachable unauthenticated, carries the
     CSRF token); POST verifies the password against the configured pbkdf2 hash with a
-    constant-time compare. Success mints an authenticated session; failure is audited."""
+    constant-time compare. Success mints an authenticated session; failure is audited.
+
+    With NO password configured this route is only reachable as a GET (the inert guard 403s a
+    POST before it gets here); the page then shows the bootstrap notice instead of a form."""
+    no_password = not _effective_password_hash()
     if request.method == "POST":
         ip = request.remote_addr or "?"
         if _is_locked(ip):
             _audit("login", "locked-out")
-            return render_template("admin_login.html.jinja", token=_token(),
+            return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
                                    error="Tạm khoá do nhập sai quá nhiều lần. Thử lại sau."), 429
         stored = _effective_password_hash()
         if stored and verify_password(request.form.get("password", ""), stored):
@@ -408,9 +391,10 @@ def login():
             return redirect("/admin")
         _record_login_failure(ip)
         _audit("login", "failed")
-        return render_template("admin_login.html.jinja", token=_token(),
+        return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
                                error="Sai mật khẩu."), 401
-    return render_template("admin_login.html.jinja", token=_token(), error=None)
+    return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
+                           error=None)
 
 
 @admin_bp.route("/logout", methods=["POST"])

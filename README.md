@@ -292,7 +292,7 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **566**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Tests | **564**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **21** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
@@ -327,7 +327,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 566 tests
+python -m pytest -q                 # 564 tests
 ```
 
 ## Install it into your own project
@@ -442,7 +442,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 566 tests · MIT
+**Agent Workbench** · stdlib-only core · 564 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
