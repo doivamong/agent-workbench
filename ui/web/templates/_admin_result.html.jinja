@@ -1,0 +1,15 @@
+{#- Result of one admin action — HTMX-swapped into #admin-result. Neutral/ok/err surface
+    using the shared design tokens. role=status + aria-live so the outcome is announced. -#}
+<div class="admin-result {{ 'admin-result--ok' if ok else 'admin-result--err' }}"
+     role="status" aria-live="polite">
+  <div class="admin-result__head">
+    <span class="admin-result__dot" aria-hidden="true"></span>
+    <strong>{{ title }}</strong>
+  </div>
+  <p class="admin-result__msg">{{ message }}</p>
+  {% if detail %}
+  <ul class="admin-result__detail">
+    {% for d in detail %}<li class="mono">{{ d }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>

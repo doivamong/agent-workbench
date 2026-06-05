@@ -9,12 +9,17 @@ so there is exactly one place that collects kit state.
 
 Run it (after ``pip install -r ui/web/requirements.txt``):
 
-    python ui/web/app.py                 # serves http://127.0.0.1:5151
+    python ui/web/app.py                 # serves http://127.0.0.1:5151 (read-only)
     python -m ui.web.app                 # same, as a module (from the repo root)
     python ui/web/app.py --project /path/to/another/awb/project
+    python ui/web/app.py --admin         # ALSO mount the opt-in /admin action surface
 
 Offline by design: Chart.js and all CSS/JS are vendored under ``ui/web/static/``;
 the served page makes no external network request, so it renders with the network off.
+
+``/`` is **always read-only**. The action surface (restart / snapshot / pack / verify /
+guarded tree-restore) lives under ``/admin`` and is mounted ONLY with ``--admin`` (default
+OFF → ``/admin*`` is 404). See ``ui/web/admin.py`` for the guards and the honest limit.
 
 Honesty (load-bearing — see ``.claude/rules/measurement-honesty.md``): telemetry has
 three states — *not-wired* / *wired-but-empty* / *measured*. A skill is shown as
@@ -23,14 +28,15 @@ data. The timeseries chart renders only when measured; otherwise the page shows 
 empty state — never a "pretty zero" implying data that was not collected.
 
 What this does NOT do: it does not auto-refresh (re-load the page to re-snapshot), does not
-run the heavy gates, is localhost/single-dev only (no auth, no remote serving), and does not
-re-implement data collection — that lives once in ``generator.gather()``.
+run the heavy gates, and does not re-implement data collection — that lives once in
+``generator.gather()``.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import secrets
 import sys
 from pathlib import Path
 
@@ -38,12 +44,15 @@ from pathlib import Path
 # ui/kit_status/ package; put it on the path and import gather(). We do NOT
 # re-implement collection here (handover dead-end: "reuse generator.gather()").
 HERE = Path(__file__).resolve().parent
+# Put this dir on the path too, so the lazy ``import admin`` in create_app() resolves even
+# under ``python -m ui.web.app --admin`` (where only cwd, not this dir, is on sys.path).
+sys.path.insert(0, str(HERE))
 _KIT_STATUS = HERE.parent / "kit_status"
 sys.path.insert(0, str(_KIT_STATUS))
 import generator as ksr  # noqa: E402
 
 try:
-    from flask import Flask, render_template, request
+    from flask import Flask, current_app, render_template, request
 except ModuleNotFoundError as exc:  # fail loud with the fix, not a bare ImportError
     raise SystemExit(
         "ui/web/ needs Flask (the kit's only runtime dependency, isolated here).\n"
@@ -54,8 +63,6 @@ except ModuleNotFoundError as exc:  # fail loud with the fix, not a bare ImportE
 # The kit repo root — default project to inspect is the kit itself, so running this
 # inside the kit shows the kit's own state. Overridable via CLAUDE_PROJECT_DIR / --project.
 _REPO_ROOT = HERE.parent.parent
-
-app = Flask(__name__)
 
 
 def _project_dir() -> Path:
@@ -160,37 +167,81 @@ def _parse_days(raw: str | None, default: int) -> int:
 
 
 def _view(days_raw: str | None = None, tier_raw: str | None = None) -> dict:
-    """gather() + build_view for the configured project — shared by the page and fragments."""
-    days = _parse_days(days_raw, int(app.config.get("DAYS", 14)))
+    """gather() + build_view for the configured project — shared by the page and fragments.
+
+    Reads config off ``current_app`` (not a module global) so the factory can serve more
+    than one app (e.g. a read-only app and an admin app) without their config bleeding."""
+    cfg = current_app.config
+    days = _parse_days(days_raw, int(cfg.get("DAYS", 14)))
     tier = tier_raw if tier_raw in ALL_TIERS else "all"
-    proj = Path(app.config.get("PROJECT", _project_dir()))
+    proj = Path(cfg.get("PROJECT", _project_dir()))
     ctx = ksr.gather(proj, days, gates_json=None, run_gates=False)
     return build_view(ctx, days, tier)
 
 
-@app.route("/health")
-def health():
-    """Cheap liveness probe (no gather()) — used by ops/dashboard_ctl.py's healthcheck."""
-    return "ok", 200
+def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151,
+               debug: bool = False) -> "Flask":
+    """Build the Flask app. ``/`` and the read-only fragments are always present; the
+    ``/admin`` action surface is mounted ONLY when ``admin=True``.
+
+    Refuses to mount admin under ``--debug`` (Werkzeug's debugger is an RCE console) or a
+    wildcard bind (``0.0.0.0`` exposes the token-readable surface to the whole network) —
+    admin is a localhost-only, single-developer convenience (see ui/web/admin.py)."""
+    if admin and host in ("0.0.0.0", "::"):
+        raise ValueError("--admin refuses a wildcard bind; admin is localhost-only "
+                         f"(got --host {host}). Bind 127.0.0.1.")
+    if admin and debug:
+        raise ValueError("--admin refuses --debug: the Werkzeug debugger is a remote code "
+                         "console. Run admin without --debug.")
+
+    app = Flask(__name__)
+    app.config["DAYS"] = 14
+    app.config["PROJECT"] = _project_dir()
+    app.config["ADMIN"] = bool(admin)
+
+    @app.context_processor
+    def _inject_admin_flag() -> dict:
+        # Templates show the /admin nav link only when the surface is actually mounted.
+        return {"admin_enabled": bool(current_app.config.get("ADMIN"))}
+
+    @app.route("/health")
+    def health():
+        """Cheap liveness probe (no gather()) — used by ops/dashboard_ctl.py's healthcheck."""
+        return "ok", 200
+
+    @app.route("/")
+    def dashboard():
+        return render_template("dashboard.html.jinja", **_view())
+
+    @app.route("/fragment")
+    def fragment_body():
+        """The whole dynamic region — HTMX-swapped on day change / refresh."""
+        return render_template("_body.html.jinja",
+                               **_view(request.args.get("days"), request.args.get("tier")))
+
+    @app.route("/fragment/skills")
+    def fragment_skills():
+        """Just the skills table — HTMX-swapped on tier filter, so charts aren't redrawn."""
+        return render_template("_skills.html.jinja",
+                               **_view(request.args.get("days"), request.args.get("tier")))
+
+    if admin:
+        # Mint a per-process CSRF secret and record the bound host/port for the allowlist.
+        # Imported lazily so the read-only app never pulls in the ops engine.
+        import admin as _admin  # noqa: PLC0415 — local import keeps read-only path dep-free
+        app.config["ADMIN_TOKEN"] = secrets.token_urlsafe(32)
+        app.config["HOST"] = host
+        app.config["PORT"] = int(port)
+        app.config["OPS_ROOT"] = str(_REPO_ROOT)
+        app.register_blueprint(_admin.admin_bp, url_prefix="/admin")
+
+    return app
 
 
-@app.route("/")
-def dashboard():
-    return render_template("dashboard.html.jinja", **_view())
-
-
-@app.route("/fragment")
-def fragment_body():
-    """The whole dynamic region (banner + KPIs + grid) — HTMX-swapped on day change / refresh."""
-    return render_template("_body.html.jinja",
-                           **_view(request.args.get("days"), request.args.get("tier")))
-
-
-@app.route("/fragment/skills")
-def fragment_skills():
-    """Just the skills table — HTMX-swapped on tier filter, so the charts are not redrawn."""
-    return render_template("_skills.html.jinja",
-                           **_view(request.args.get("days"), request.args.get("tier")))
+# Module-level read-only app — what `python ui/web/app.py` (no --admin) and the existing
+# tests use. The admin app is a SEPARATE instance built in main(), so the default-off app
+# can never accidentally carry admin routes.
+app = create_app()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -200,14 +251,35 @@ def main(argv: list[str] | None = None) -> int:
                     help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
     ap.add_argument("--project", help="project root to inspect (default: $CLAUDE_PROJECT_DIR or the kit repo)")
-    ap.add_argument("--debug", action="store_true", help="Flask debug mode (dev only)")
+    ap.add_argument("--admin", action="store_true",
+                    help="mount the opt-in /admin action surface (localhost-only; default OFF)")
+    ap.add_argument("--debug", action="store_true", help="Flask debug mode (dev only; incompatible with --admin)")
     args = ap.parse_args(argv)
 
-    app.config["DAYS"] = args.days
-    app.config["PROJECT"] = (Path(args.project).resolve() if args.project else _project_dir())
+    # Fail fast and loud at the CLI boundary (create_app re-checks as defence in depth).
+    if args.admin and args.debug:
+        raise SystemExit("refusing: --admin is incompatible with --debug (RCE debugger).")
+    if args.admin and args.host in ("0.0.0.0", "::"):
+        raise SystemExit("refusing: --admin must bind 127.0.0.1 (localhost-only), not "
+                         f"{args.host}.")
+
+    built = create_app(admin=args.admin, host=args.host, port=args.port, debug=args.debug)
+    built.config["DAYS"] = args.days
+    built.config["PROJECT"] = (Path(args.project).resolve() if args.project else _project_dir())
+
+    if args.admin:
+        # Record our own PID so ops/dashboard_ctl.py (and the /admin restart button, which
+        # spawns it) can find and restart THIS process even if launched directly.
+        import admin as _admin  # noqa: PLC0415
+        _admin.record_own_pid()
+        print("⚠  /admin is MOUNTED. It trusts every local process that can reach the port "
+              "(it can read the CSRF token). Opt-in, default-off, not for shared machines.",
+              file=sys.stderr)
+
     print(f"Agent Workbench dashboard → http://{args.host}:{args.port}  "
-          f"(project: {app.config['PROJECT']})", file=sys.stderr)
-    app.run(host=args.host, port=args.port, debug=args.debug)
+          f"(project: {built.config['PROJECT']}{', /admin ON' if args.admin else ''})",
+          file=sys.stderr)
+    built.run(host=args.host, port=args.port, debug=args.debug)
     return 0
 
 
