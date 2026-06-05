@@ -60,7 +60,9 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+import ops.autostart as autos      # noqa: E402  — read-only status; enable/disable may need admin
 import ops.dashboard_ctl as dctl   # noqa: E402  — reused engine (process control)
+import ops.lan_setup as lans       # noqa: E402  — read-only status; enable/disable (setx, no admin)
 import ops.release_pack as rpack   # noqa: E402  — read-only enumeration (list_releases)
 import ops.tree_snapshot as tsnap  # noqa: E402  — read-only enumeration (list_snapshots) + is_git_repo
 
@@ -68,6 +70,24 @@ import ops.tree_snapshot as tsnap  # noqa: E402  — read-only enumeration (list
 # imported APIs above; writes go through these scripts.
 _TS = REPO_ROOT / "ops" / "tree_snapshot.py"
 _RP = REPO_ROOT / "ops" / "release_pack.py"
+_LAN = REPO_ROOT / "ops" / "lan_setup.py"
+_AS = REPO_ROOT / "ops" / "autostart.py"
+
+
+def _system_status() -> dict:
+    """Read-only system view for the /admin panel: the LAN bind default + the autostart task
+    state, sourced from the lan_setup / autostart status APIs (imported directly, like the
+    snapshot/release enumeration — no mutation). Each is defensive: a status call that raises
+    (e.g. schtasks missing on POSIX) degrades to an error marker rather than 500-ing the page."""
+    try:
+        lan = lans.status(current_app.config.get("PORT", 5151))
+    except Exception as exc:  # noqa: BLE001 — a status probe must never break the page
+        lan = {"error": str(exc)}
+    try:
+        autostart = autos.status()
+    except Exception as exc:  # noqa: BLE001
+        autostart = {"error": str(exc)}
+    return {"lan": lan, "autostart": autostart}
 
 admin_bp = Blueprint("admin", __name__, template_folder="templates")
 
@@ -392,6 +412,7 @@ def admin_page():
         port=current_app.config.get("PORT", 5151),
         dirty=_tree_dirty(_ops_root()),
         auth_enabled=_auth_enabled(),
+        system=_system_status(),
     )
 
 
@@ -456,6 +477,91 @@ def action_verify():
                        ok=True), 200
     return _result("verify", "Phát hiện vấn đề toàn vẹn",
                    f"{len(problems)} vấn đề trong {name}.", ok=False, detail=problems), 200
+
+
+def _lan_action(cmd: str):
+    """Run ``lan_setup.py <enable|disable>`` — sets AWB_DASHBOARD_HOST via setx (no admin
+    needed) and applies the start-state. Surfaces the engine's result + the phone URLs."""
+    port = int(current_app.config.get("PORT", 5151))
+    rc, data, err = _run_engine(_LAN, [cmd, "--port", str(port), "--json"])
+    if rc != 0 or not data:
+        _audit(f"lan-{cmd}", "error", rc=rc, stderr=err)
+        return _result("lan", "Lỗi", f"Lệnh LAN thất bại (mã {rc}). {err}", ok=False), 500
+    _audit(f"lan-{cmd}", data.get("action", cmd))
+    urls = data.get("lan_urls") or []
+    if cmd == "enable":
+        msg = "Đã bật mặc định LAN. Khởi động lại dashboard để áp dụng."
+        if urls:
+            msg += " Mở từ điện thoại: " + ", ".join(urls)
+    else:
+        msg = "Đã tắt mặc định LAN — quay về localhost-only."
+    return _result("lan", "LAN " + ("BẬT" if cmd == "enable" else "TẮT"), msg, ok=True), 200
+
+
+@admin_bp.route("/action/lan-enable", methods=["POST"])
+def action_lan_enable():
+    return _lan_action("enable")
+
+
+@admin_bp.route("/action/lan-disable", methods=["POST"])
+def action_lan_disable():
+    return _lan_action("disable")
+
+
+@admin_bp.route("/action/firewall-open", methods=["POST"])
+def action_firewall_open():
+    """Open the inbound LAN firewall rule. This NEEDS admin; a non-elevated dashboard can't
+    do it, so a failure is surfaced honestly (run the command elevated / the self-elevating
+    win/lan_on.bat) rather than pretending it worked."""
+    port = int(current_app.config.get("PORT", 5151))
+    rc, data, err = _run_engine(_LAN, ["firewall", "--port", str(port), "--json"])
+    if data is None:
+        _audit("firewall", "error", rc=rc, stderr=err)
+        return _result("firewall", "Lỗi", f"Mở firewall thất bại (mã {rc}). {err}", ok=False), 500
+    result = data.get("result")
+    _audit("firewall", result)
+    ok = result == "opened"
+    msg = {
+        "opened": "Đã mở cổng inbound cho LAN (chỉ local subnet).",
+        "failed": "Không mở được — cần quyền admin. Chạy lệnh dưới trong PowerShell "
+                  "(Run as administrator), hoặc bấm đúp win/lan_on.bat (tự nâng quyền UAC).",
+        "manual": "Trên hệ này hãy chạy lệnh dưới thủ công.",
+        "dry-run": "(dry-run) lệnh sẽ chạy:",
+    }.get(result, str(result))
+    detail = [d for d in (data.get("detail"), data.get("command")) if d]
+    return _result("firewall", "Firewall LAN", msg, ok=ok, detail=detail or None), 200
+
+
+def _autostart_action(cmd: str):
+    """Run ``autostart.py <enable|disable>`` (schtasks). May need admin; an access-denied is
+    surfaced with the self-elevating win/autostart_on.bat, not swallowed."""
+    rc, data, err = _run_engine(_AS, [cmd, "--json"])
+    if data is None:
+        _audit(f"autostart-{cmd}", "error", rc=rc, stderr=err)
+        return _result("autostart", "Lỗi", f"Lệnh autostart thất bại (mã {rc}). {err}", ok=False), 500
+    result = data.get("result")
+    _audit(f"autostart-{cmd}", result)
+    ok = result in ("enabled", "removed")
+    msg = {
+        "enabled": "Đã bật tự khởi động lúc đăng nhập (chạy ẩn).",
+        "removed": "Đã tắt tự khởi động.",
+        "failed": "Không tạo được tác vụ — cần quyền admin. Bấm đúp "
+                  "win/autostart_on.bat (tự nâng quyền UAC).",
+        "not-found": "Không có tác vụ tự khởi động để xoá.",
+        "manual": "Trên hệ này hãy cấu hình systemd thủ công (xem chi tiết).",
+    }.get(result, str(result))
+    detail = [d for d in (data.get("detail"), data.get("systemd_unit"), data.get("hint")) if d]
+    return _result("autostart", "Tự khởi động", msg, ok=ok, detail=detail or None), 200
+
+
+@admin_bp.route("/action/autostart-enable", methods=["POST"])
+def action_autostart_enable():
+    return _autostart_action("enable")
+
+
+@admin_bp.route("/action/autostart-disable", methods=["POST"])
+def action_autostart_disable():
+    return _autostart_action("disable")
 
 
 @admin_bp.route("/restore/preview", methods=["POST"])
