@@ -1,5 +1,5 @@
 {
-  "$comment": "This is the kit's own dogfooded config; the installer's --merge-settings writes the same blocks into an adopter project (minus the maintainer-only sync_guard). It wires this kit's hooks (10 hook commands across PreToolUse/UserPromptSubmit/PostToolUse/PreCompact/SessionStart/SessionEnd) AND pre-allows a few safe, common commands so the agent prompts you less. Paths use $CLAUDE_PROJECT_DIR so they are portable. Tighten or extend the allow-list to fit your project — keep it to read-only / safe-by-default commands.",
+  "$comment": "This is the kit's own dogfooded config; the installer's --merge-settings writes the same blocks into an adopter project (minus the maintainer-only sync_guard and the opt-in skill_usage_logger). It wires this kit's hooks (11 hook commands across PreToolUse/UserPromptSubmit/PostToolUse/PreCompact/SessionStart/SessionEnd) AND pre-allows a few safe, common commands so the agent prompts you less. Paths use $CLAUDE_PROJECT_DIR so they are portable. Tighten or extend the allow-list to fit your project — keep it to read-only / safe-by-default commands.",
   "permissions": {
     "allow": [
       "Bash(python -m pytest:*)",
