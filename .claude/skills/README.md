@@ -106,3 +106,11 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`awb-stress-test/SKILL.md`](awb-stress-test/SKILL.md) | A **workflow** skill: pressure-test a change through fixed lenses before building — design verdict + edge-case list |
 | [`awb-output-guard/SKILL.md`](awb-output-guard/SKILL.md) | A **guard** skill: keep long/whole-file generation complete — no truncation or placeholders |
 | [`awb-using-skills/SKILL.md`](awb-using-skills/SKILL.md) | A **meta** skill: the routing protocol — pick the right skill when several match (auto-injected each session by [`skill_routing_inject.py`](../hooks/scripts/skill_routing_inject.py)) |
+| [`awb-handover/SKILL.md`](awb-handover/SKILL.md) | A **workflow** skill: package settled work into a handover a cold reader can execute |
+| [`awb-tdd/SKILL.md`](awb-tdd/SKILL.md) | A **workflow** skill: red-green-refactor in vertical slices — one failing test → minimal code → repeat |
+| [`awb-cook/SKILL.md`](awb-cook/SKILL.md) | A **workflow** skill: advanced build — graduated oversight + multi-perspective planning, orchestrating the guards |
+| [`awb-external-ref/SKILL.md`](awb-external-ref/SKILL.md) | A **workflow** skill: reuse outside code responsibly — license decision + injection / supply-chain checks |
+| [`awb-lessons-capture/SKILL.md`](awb-lessons-capture/SKILL.md) | A **workflow** skill: mine a finished session for durable lessons, write only the approved ones to live memory |
+| [`awb-config-guard/SKILL.md`](awb-config-guard/SKILL.md) | A **guard** skill: catch the two silent config-access traps (wrong context; nested key → silent `None`) |
+| [`awb-optimize/SKILL.md`](awb-optimize/SKILL.md) | A **feature** skill: baseline → measure → fix the top bottleneck → re-measure → before/after table |
+| [`awb-dead-code-audit/SKILL.md`](awb-dead-code-audit/SKILL.md) | An **audit** skill: find genuinely dead code behind a false-positive gate — never auto-deletes |
