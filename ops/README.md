@@ -33,7 +33,8 @@ way is invisible to it (it never hunts-and-kills by port). Localhost/single-dev 
 `restart` reuses the host:port the dashboard was last started on (recorded in
 `.ops/dashboard.json`), so a LAN bind survives a no-arg restart. To **default** to a LAN bind
 (e.g. to reach the read-only page from a phone), set `AWB_DASHBOARD_HOST=0.0.0.0` — the shipped
-default stays localhost; the firewall is the control; `/admin` still refuses `0.0.0.0`. See the
+default stays localhost; the firewall is the control; `/admin` doesn't gate on the host — login
+is the gate (inert with no password, login-gated with one). See the
 "Exposing to a LAN" section of [`ui/web/README.md`](../ui/web/README.md).
 
 One-step helper: [`lan_setup.py`](lan_setup.py) (`status` / `enable` / `disable` / `firewall`).
@@ -42,7 +43,7 @@ One-step helper: [`lan_setup.py`](lan_setup.py) (`status` / `enable` / `disable`
 prints your LAN URL(s). The bare CLI prints the firewall command for you; the Windows double-click
 [`win/lan_on.bat`](win/lan_on.bat) runs `enable` then **opens the firewall for you via a UAC
 prompt** (the env var is set as you; only the firewall step self-elevates). `win/lan_off.bat`
-reverts. `/admin` still refuses `0.0.0.0`.
+reverts. `/admin` doesn't gate on the host — login is the gate.
 ```sh
 python ops/lan_setup.py status      # env default · what restart will bind · LAN URL(s)
 python ops/lan_setup.py enable       # default to a LAN bind (env + start-state)
@@ -54,7 +55,8 @@ Start at logon (so the dashboard is there after a reboot): [`autostart.py`](auto
 [`win/autostart_on.bat`](win/autostart_on.bat) (self-elevates via UAC) / `win/autostart_off.bat`.
 It binds whatever `AWB_DASHBOARD_HOST` defaults to — so combine with `lan_setup enable` for a
 dashboard that comes up on the LAN every boot. **Honest limit:** that means it's reachable on your
-subnet at every logon — the firewall stays the control; `/admin` still refuses `0.0.0.0`.
+subnet at every logon — the firewall stays the control; `/admin` doesn't gate on the host —
+login is the gate.
 
 Set/reset the `/admin` password: double-click [`win/set_password.bat`](win/set_password.bat) (no
 UAC — only writes a repo file), a thin wrapper around [`../ui/web/set_password.py`](../ui/web/set_password.py).
