@@ -76,6 +76,13 @@ Classify each as a **lesson** (a durable "do it this way / not that way"), a **r
 narration of what happened), or a **decision** (a choice and its rationale). Only **lessons** —
 and decisions whose rationale is strong enough to re-bind a future session — proceed.
 
+**For a failure event specifically — ask the prevention question.** A bug, a silent trap, or a
+self-process miss carries a second question beyond "what's the lesson": *what standing directive
+would have structurally prevented it?* A fact in recall memory is *maybe* surfaced next time; an
+always-loaded `CLAUDE.md` line or a path-scoped rule is *always* enforced. Note that candidate
+sink now — you weigh it at P6. This does **not** change where this skill *writes* (still memory
+only); the sink is a suggestion for the human, not an auto-write.
+
 ### P1 — Extract raw candidates, then checkpoint
 
 Write each candidate as **one line**: *symptom -> root cause -> the correct way*. Merge obvious
@@ -162,6 +169,21 @@ human consider promoting an apparently-recurring pattern to a path-scoped rule (
 the reason promotion stays manual are in
 [`docs/memory-governance.md`](../../../docs/memory-governance.md) §4). The decision is theirs.
 
+There are **two distinct reasons** to suggest an always-loaded sink, and only the first needs
+recurrence:
+
+- **Recurrence** — a pattern seen ≥ 3× across ≥ 2 sessions (the §4 threshold) earns a path-scoped
+  rule because it keeps happening.
+- **Failure-prevention guarantee** — a *single* severe failure (the P3 severity-rescue kind) whose
+  correct fix only binds if it is *always loaded* can warrant suggesting the sink on one sighting —
+  the same one-sighting logic P3 row 1 already uses for KEEP. The case here is enforcement-guarantee,
+  not frequency.
+
+Either way it stays **suggest-only**: name the candidate sink — recall memory vs an always-on
+`CLAUDE.md` line vs a path-scoped rule that loads only on a matching edit (place the directive where
+it *fires*; see [`docs/lessons-as-rules.md`](../../../docs/lessons-as-rules.md)). The human writes
+the rule; this skill still writes to memory and nowhere else.
+
 ## What this skill does NOT do
 
 - Does **NOT** replace native auto-memory — on harnesses that auto-capture (Claude Code v2.1.59+),
@@ -187,6 +209,7 @@ the reason promotion stays manual are in
 | "The path looks right, I'll just write it." | A mis-derived path writes the fact where nothing recalls it — a silent loss. Confirm with the recall-doctor first. |
 | "I'll write it now and ask after." | The whole point of the HARD GATE is that memory is outside git — there's no clean undo. Approval comes first. |
 | "It recurred, I'll promote it to a rule." | One session can't prove recurrence. Suggest it; let the human decide (P6). |
+| "It's a failure, but filing it to recall memory is enough." | Recall *may* surface it next time; if a standing directive would have prevented it, also suggest the always-loaded sink (P6). For a failure, "maybe recalled" vs "always enforced" is the whole difference. |
 
 ## Honest limit
 

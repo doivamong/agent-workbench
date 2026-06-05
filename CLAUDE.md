@@ -44,6 +44,12 @@ path-scoped rule files (see `.claude/rules/`).*
   `git rev-list --left-right --count origin/main...HEAD` plus whether your target files already
   changed upstream; fast-forward/rebase first, and if a merged PR already did the work, switch to
   review instead of re-doing it. (Verify the work isn't already done — not just that a claim is true.)
+- **One session per working tree.** Never run two agent/Claude sessions on the same checkout — they
+  race the git index and switch HEAD under each other (silently sweeping uncommitted work into the
+  wrong commit, or mis-basing a new branch). Give each concurrent session its own `git worktree`
+  (commit via `pre-commit run --all-files` and audit `git config --local --list` after — committing
+  from a linked worktree can leak an absolute `GIT_DIR` and corrupt the shared `.git/config`), or a
+  separate clone for full isolation.
 - **Match the surrounding code's style** rather than importing your own conventions.
 
 ## Project map
