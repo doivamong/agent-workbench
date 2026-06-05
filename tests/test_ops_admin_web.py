@@ -454,3 +454,187 @@ def test_destructive_restore_has_confirm_dialog(tmp_path):
         "/admin/restore/preview",
         data={"csrf": _token(app), "snapshot": z.name}).get_data(as_text=True)
     assert "hx-confirm" in preview  # the apply button confirms before overwriting files
+
+
+# --------------------------------------------------------------------------- #
+# Phase A — auth (token/password login so /admin can be opened over LAN)
+# --------------------------------------------------------------------------- #
+# B1 — password hashing: stdlib pbkdf2, salted, constant-time verify, never plaintext.
+def test_password_hash_roundtrips_and_rejects_wrong():
+    h = webadmin.hash_password("correct horse battery staple")
+    assert webadmin.verify_password("correct horse battery staple", h) is True
+    assert webadmin.verify_password("wrong", h) is False
+
+
+def test_password_hash_is_salted_and_never_plaintext():
+    h1 = webadmin.hash_password("hunter2")
+    h2 = webadmin.hash_password("hunter2")
+    assert "hunter2" not in h1          # the stored form never contains the password
+    assert h1 != h2                     # a random salt makes each hash unique
+    assert webadmin.verify_password("hunter2", h2)  # ...yet both still verify
+
+
+def test_verify_password_tolerates_garbage_stored_value():
+    # A malformed/empty stored hash must verify False, not raise — defensive at the boundary.
+    for bad in ("", "not-a-hash", "pbkdf2_sha256$x$y", "$$$"):
+        assert webadmin.verify_password("anything", bad) is False
+
+
+def _auth_app(ops_root: Path | None = None, *, password: str = "s3cret-pw",
+              host: str = "127.0.0.1", port: int = 5151):
+    """An /admin app with auth CONFIGURED (a password hash) — so login is required."""
+    app = webapp.create_app(admin=True, host=host, port=port,
+                            admin_password_hash=webadmin.hash_password(password))
+    app.config.update(TESTING=True)
+    if ops_root is not None:
+        ops_root.mkdir(parents=True, exist_ok=True)
+        app.config["OPS_ROOT"] = str(ops_root)
+    return app
+
+
+# B2 — when a password is configured, every /admin path requires a logged-in session.
+def test_auth_unauthenticated_get_admin_redirects_to_login(tmp_path):
+    app = _auth_app(tmp_path / "r")
+    r = app.test_client().get("/admin")
+    assert r.status_code == 302
+    assert "/admin/login" in r.headers["Location"]
+
+
+def test_auth_unauthenticated_action_is_401_even_with_valid_csrf(tmp_path):
+    app = _auth_app(tmp_path / "r")
+    # A valid CSRF token is NOT a substitute for a login session.
+    r = app.test_client().post("/admin/action/snapshot", data={"csrf": _token(app)})
+    assert r.status_code == 401
+
+
+# B3 — login: the login page is reachable unauthenticated; the right password opens a
+# session that unlocks /admin; a wrong password is refused and audited.
+def test_auth_login_page_reachable_unauthenticated(tmp_path):
+    app = _auth_app(tmp_path / "r")
+    r = app.test_client().get("/admin/login")
+    assert r.status_code == 200
+    assert "<form" in r.get_data(as_text=True)
+    assert _token(app) in r.get_data(as_text=True)  # CSRF token embedded for the login POST
+
+
+def test_auth_login_correct_password_unlocks_admin(tmp_path):
+    app = _auth_app(tmp_path / "r", password="open-sesame")  # leak-scan: ignore
+    c = app.test_client()
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": "open-sesame"})
+    assert r.status_code in (200, 302)
+    assert c.get("/admin").status_code == 200                       # page now reachable
+    assert c.post("/admin/action/snapshot",
+                  data={"csrf": _token(app)}).status_code == 200     # ...and actions work
+
+
+def test_auth_login_wrong_password_refused_and_audited(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="right-one")  # leak-scan: ignore
+    c = app.test_client()
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": "WRONG"})
+    assert r.status_code == 401
+    assert c.get("/admin").status_code == 302                       # still locked out
+    recs = [json.loads(ln) for ln in
+            (repo / ".ops" / "ops.log").read_text(encoding="utf-8").splitlines()]
+    assert any(r["action"] == "login" and r["result"] == "failed" for r in recs)
+
+
+# B4 — lockout: after enough failed attempts the source is temporarily refused, so even the
+# CORRECT password can't get in (brute-force guard).
+def test_auth_lockout_refuses_even_correct_password(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="right-one")  # leak-scan: ignore
+    c = app.test_client()
+    for _ in range(6):  # exhaust the attempt budget
+        c.post("/admin/login", data={"csrf": _token(app), "password": "nope"})
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": "right-one"})
+    assert r.status_code == 429                         # locked out despite correct password
+    assert c.get("/admin").status_code == 302           # still not authenticated
+    recs = [json.loads(ln) for ln in
+            (repo / ".ops" / "ops.log").read_text(encoding="utf-8").splitlines()]
+    assert any(r["action"] == "login" and r["result"] == "locked-out" for r in recs)
+
+
+# B5 — the session cookie is hardened, and an idle session expires (forces re-login).
+def test_auth_session_cookie_is_httponly_and_samesite_strict(tmp_path):
+    app = _auth_app(tmp_path / "r", password="pw")
+    c = app.test_client()
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": "pw"})
+    set_cookie = r.headers.get("Set-Cookie", "")
+    assert "HttpOnly" in set_cookie
+    assert "SameSite=Strict" in set_cookie
+
+
+def test_auth_idle_session_expires_and_requires_relogin(tmp_path):
+    app = _auth_app(tmp_path / "r", password="pw")
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "pw"})
+    assert c.get("/admin").status_code == 200            # freshly logged in
+    with c.session_transaction() as sess:                # forge an old login time
+        sess["login_at"] = "2000-01-01T00:00:00"
+    assert c.get("/admin").status_code == 302            # idle past timeout → back to login
+
+
+# B6 — a LAN (wildcard) bind under --admin is refused WITHOUT auth but allowed WITH it; once
+# auth is on, a request arriving with a LAN Host passes the host gate (login is the real gate).
+def test_auth_lan_bind_refused_without_password_allowed_with(tmp_path):
+    with pytest.raises(ValueError):
+        webapp.create_app(admin=True, host="0.0.0.0")            # no auth → refused
+    app = webapp.create_app(admin=True, host="0.0.0.0",
+                            admin_password_hash=webadmin.hash_password("pw"))
+    assert app.config["ADMIN"] is True                          # built without raising
+
+
+def test_auth_lan_host_passes_host_gate_when_auth_enabled(tmp_path):
+    app = _auth_app(tmp_path / "r", host="0.0.0.0", port=5151)
+    c = app.test_client()
+    lan = {"Host": "192.168.1.50:5151"}
+    # A LAN Host is NOT a blocked-host 403 — it bounces to login (auth is the gate, not the host).
+    r = c.get("/admin", headers=lan)
+    assert r.status_code == 302 and "/admin/login" in r.headers["Location"]
+    # Log in over the LAN host, then the LAN request is served.
+    c.post("/admin/login", data={"csrf": _token(app), "password": "s3cret-pw"}, headers=lan)
+    assert c.get("/admin", headers=lan).status_code == 200
+
+
+def test_no_auth_admin_still_blocks_foreign_host(tmp_path):
+    # Back-compat: without a password, the localhost host-allowlist is still the gate.
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().get("/admin", headers={"Host": "192.168.1.50:5151"})
+    assert r.status_code == 403
+
+
+# B7 — back-compat: localhost admin WITHOUT a password needs no login at all.
+def test_no_auth_admin_needs_no_login(tmp_path):
+    app = _admin_app(tmp_path / "r")
+    c = app.test_client()
+    assert c.get("/admin").status_code == 200                          # no login redirect
+    assert c.post("/admin/action/snapshot",
+                  data={"csrf": _token(app)}).status_code == 200
+
+
+# Wiring — main()/env resolves the admin password; a LAN bind needs it.
+def test_resolve_admin_password_hash_from_env(monkeypatch):
+    monkeypatch.delenv("AWB_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("AWB_ADMIN_PASSWORD_HASH", raising=False)
+    assert webapp._resolve_admin_password_hash() == ""                 # neither set → no auth
+    monkeypatch.setenv("AWB_ADMIN_PASSWORD", "from-plain")
+    assert webadmin.verify_password("from-plain", webapp._resolve_admin_password_hash())
+    monkeypatch.setenv("AWB_ADMIN_PASSWORD_HASH", "pre-computed-wins")
+    assert webapp._resolve_admin_password_hash() == "pre-computed-wins"  # explicit hash wins
+
+
+def test_cli_admin_lan_refused_without_password(monkeypatch):
+    monkeypatch.delenv("AWB_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("AWB_ADMIN_PASSWORD_HASH", raising=False)
+    with pytest.raises(SystemExit):
+        webapp.main(["--admin", "--host", "0.0.0.0"])
+
+
+def test_auth_logout_clears_session(tmp_path):
+    app = _auth_app(tmp_path / "r", password="pw")
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "pw"})
+    assert c.get("/admin").status_code == 200
+    c.post("/admin/logout", data={"csrf": _token(app)})
+    assert c.get("/admin").status_code == 302   # session cleared → bounced back to login
