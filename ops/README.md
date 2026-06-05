@@ -30,6 +30,12 @@ Windows convenience: double-click [`win/restart_all.bat`](win/restart_all.bat) (
 stops/restarts the process in its own `.ops/dashboard.pid`; a dashboard you started another
 way is invisible to it (it never hunts-and-kills by port). Localhost/single-dev only.
 
+`restart` reuses the host:port the dashboard was last started on (recorded in
+`.ops/dashboard.json`), so a LAN bind survives a no-arg restart. To **default** to a LAN bind
+(e.g. to reach the read-only page from a phone), set `AWB_DASHBOARD_HOST=0.0.0.0` — the shipped
+default stays localhost; the firewall is the control; `/admin` still refuses `0.0.0.0`. See the
+"Exposing to a LAN" section of [`ui/web/README.md`](../ui/web/README.md).
+
 ### `tree_snapshot.py` — a dev safety net
 ```sh
 python ops/tree_snapshot.py snapshot              # zip the tree (respects .gitignore)

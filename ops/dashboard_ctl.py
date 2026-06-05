@@ -49,7 +49,11 @@ PIDFILE = OPS_DIR / "dashboard.pid"
 LOGFILE = OPS_DIR / "dashboard.log"
 STATEFILE = OPS_DIR / "dashboard.json"  # records the last-started host:port (see write_state)
 
-DEFAULT_HOST = "127.0.0.1"
+# Default bind host. Ships as localhost-only (safe for every adopter); set the env var
+# AWB_DASHBOARD_HOST=0.0.0.0 on your own machine to default to a LAN bind (e.g. to reach the
+# read-only dashboard from a phone on the same subnet). The firewall is the real control — see
+# ui/web/README.md. The /admin action surface still refuses a 0.0.0.0 bind regardless.
+DEFAULT_HOST = os.environ.get("AWB_DASHBOARD_HOST") or "127.0.0.1"
 DEFAULT_PORT = 5151
 
 

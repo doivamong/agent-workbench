@@ -246,7 +246,9 @@ app = create_app()
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Opt-in web dashboard for the kit's own state.")
-    ap.add_argument("--host", default="127.0.0.1", help="bind host (default: 127.0.0.1, localhost-only)")
+    ap.add_argument("--host", default=os.environ.get("AWB_DASHBOARD_HOST") or "127.0.0.1",
+                    help="bind host (default: 127.0.0.1, localhost-only; set env AWB_DASHBOARD_HOST"
+                         "=0.0.0.0 to default to a LAN bind — read-only only, /admin still refuses it)")
     ap.add_argument("--port", type=int, default=5151,
                     help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
