@@ -36,12 +36,16 @@ way is invisible to it (it never hunts-and-kills by port). Localhost/single-dev 
 default stays localhost; the firewall is the control; `/admin` still refuses `0.0.0.0`. See the
 "Exposing to a LAN" section of [`ui/web/README.md`](../ui/web/README.md).
 
-One-step helper: [`lan_setup.py`](lan_setup.py) (`status` / `enable` / `disable`) sets that env
-var and prints your LAN URL(s) + the exact firewall command to run once as admin (it never opens
-the firewall for you). Windows double-click: [`win/lan_on.bat`](win/lan_on.bat) / `win/lan_off.bat`.
+One-step helper: [`lan_setup.py`](lan_setup.py) (`status` / `enable` / `disable` / `firewall`).
+`enable` sets the env var **and** the persisted start-state to a LAN bind (so the very next
+`restart` binds the LAN immediately, before the env var even propagates to a logged-in shell) and
+prints your LAN URL(s). The bare CLI prints the firewall command for you; the Windows double-click
+[`win/lan_on.bat`](win/lan_on.bat) runs `enable` then **opens the firewall for you via a UAC
+prompt** (the env var is set as you; only the firewall step self-elevates). `win/lan_off.bat`
+reverts. `/admin` still refuses `0.0.0.0`.
 ```sh
-python ops/lan_setup.py status      # current bind, LAN URL(s), the firewall command
-python ops/lan_setup.py enable       # default to a LAN bind (then re-open the terminal)
+python ops/lan_setup.py status      # env default · what restart will bind · LAN URL(s)
+python ops/lan_setup.py enable       # default to a LAN bind (env + start-state)
 ```
 
 ### `tree_snapshot.py` — a dev safety net
