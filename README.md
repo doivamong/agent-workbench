@@ -292,10 +292,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **578**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **21** (`examples/`) |
+| Tests | **616**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **22** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **16** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
+| Standalone tools | **17** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -327,7 +327,7 @@ python examples/affected_tests_demo.py   # pick only the tests a change affects
 python examples/sync_manifest_demo.py     # file-set drift gate (added/removed files)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 578 tests
+python -m pytest -q                 # 616 tests
 ```
 
 ## Install it into your own project
@@ -335,8 +335,8 @@ python -m pytest -q                 # 578 tests
 🇻🇳 *Tóm tắt — Trỏ installer vào dự án bất kỳ: nó chép hooks/skills/rules/tool/`secrets_guard` + scaffold memory rồi tự wire hooks. Mở dự án bằng agent là có ngay: chặn lệnh Bash nguy hiểm, gắn cờ prompt mơ hồ, và (tuỳ chọn) gate commit chống rò rỉ.*
 
 This is the part that makes it real, not just a reference. Point the installer at any project
-and it copies the hooks, skills, rules, the project-facing tools (8 of the 15 in `tools/` — the
-other 7 are repo-maintenance tools that stay in the kit), `secrets_guard` (the 16th tool counted in
+and it copies the hooks, skills, rules, the project-facing tools (8 of the 16 in `tools/` — the
+other 8 are repo-maintenance tools that stay in the kit), `secrets_guard` (the 17th tool counted in
 "At a glance" — it lives in `scripts/`, not `tools/`), and the memory scaffold
 in, then wires the hooks for you:
 
@@ -442,7 +442,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 578 tests · MIT
+**Agent Workbench** · stdlib-only core · 616 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

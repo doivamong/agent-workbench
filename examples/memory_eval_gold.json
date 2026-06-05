@@ -1,0 +1,30 @@
+[
+  {
+    "query": "windows directory rename permission denied handle lock use robocopy",
+    "gold": ["windows-locked-dir-rename-robocopy.md"]
+  },
+  {
+    "query": "sqlite live read needs read only mode wal checkpoint changes file bytes",
+    "gold": ["sqlite-live-read-mode-ro.md"]
+  },
+  {
+    "query": "gh license info reports none for a repo that has a license verify via api",
+    "gold": ["gh-license-info-unreliable.md"]
+  },
+  {
+    "query": "measure cold not warm a warm re-run hides the defender file scan on windows",
+    "gold": ["measure-cold-not-warm-windows.md"]
+  },
+  {
+    "query": "a security feature can be theater verify tamper-evident yet asserts nothing",
+    "gold": ["security-feature-can-be-theater.md"]
+  },
+  {
+    "query": "verify the load-bearing assumption against ground truth before asserting",
+    "gold": ["verify-load-bearing-before-asserting.md"]
+  },
+  {
+    "query": "a synthetic example path in a committed test trips the leak scanner",
+    "gold": ["synthetic-example-paths-trip-leakscan.md"]
+  }
+]
