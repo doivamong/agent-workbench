@@ -183,6 +183,45 @@ def test_reduced_motion_guard_in_css(tmp_path):
     assert "prefers-reduced-motion: reduce" in css
 
 
+# --- Phase C: mobile-first structure guards (CSS can't be unit-tested for layout, but
+# these pin the load-bearing structural elements so a refactor can't silently remove them
+# and reintroduce mobile horizontal-overflow). ------------------------------------------
+
+def test_skills_region_is_persistent_scroll_wrapper(tmp_path):
+    # The skills table reflows on mobile by scrolling inside #skills-region (.table-scroll).
+    # The wrapper lives on the PERSISTENT region (not in the fragment) so it survives the
+    # HTMX tier-filter swap; pair with test_skills_fragment_filters_by_tier, which pins the
+    # fragment staying a pure <table>. Removing the class silently re-widens the page on a phone.
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    html = _render(proj)
+    m = re.search(r'<div id="skills-region"[^>]*>', html)
+    assert m, "the #skills-region wrapper must exist"
+    tag = m.group(0)
+    assert "table-scroll" in tag                  # the mobile horizontal-scroll box
+    assert 'role="region"' in tag and "tabindex" in tag   # keyboard-focusable, not pointer-only
+
+
+def test_responsive_viewport_meta_present(tmp_path):
+    # Without the viewport meta a phone renders the page at desktop width and zooms out —
+    # the whole mobile-first layout is moot. Guard it on both the read-only page and login.
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    home = _render(proj)
+    assert re.search(r'<meta name="viewport"[^>]*width=device-width', home)
+    login = _client(proj).get("/admin/login").get_data(as_text=True)
+    assert re.search(r'<meta name="viewport"[^>]*width=device-width', login)
+
+
+def test_css_layout_is_mobile_first(tmp_path):
+    # D1: the layout is authored small-viewport-up (min-width ENHANCEMENT), not desktop-down.
+    # Signature = a single-column grid base widened by min-width queries, with no max-width
+    # grid override left behind. Robust to breakpoint retuning (matches the pattern, not px).
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    css = _client(proj).get("/static/dashboard.css").get_data(as_text=True)
+    assert "grid-template-columns: 1fr" in css            # mobile base: one column
+    assert "@media (min-width:" in css                    # enhanced upward, not patched down
+    assert not re.search(r"@media \(max-width:\s*900px\)", css)  # old desktop-down grid gone
+
+
 def test_payload_cannot_break_out_of_json_script_tag(tmp_path):
     # Defence-in-depth: any '<' that reaches the embedded <script type="application/json">
     # must be escaped so a value can't close the tag early. Tier labels flow into the
