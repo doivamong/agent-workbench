@@ -213,6 +213,19 @@ def start(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = APP
             "url": f"http://{host}:{port}"}
 
 
+def _reap(pid: int) -> None:
+    """Reap a terminated child (POSIX) so it doesn't linger as a zombie that
+    ``os.kill(pid, 0)`` still reports as alive. No-op on Windows, and a no-op when
+    ``pid`` isn't our child (the real detached dashboard, reparented to init — killing
+    it is reaped by init, so there is nothing here to reap)."""
+    if sys.platform == "win32":
+        return
+    try:
+        os.waitpid(pid, os.WNOHANG)
+    except (ChildProcessError, OSError):
+        pass  # not our child, or already reaped
+
+
 def _terminate(pid: int, timeout: float = 10.0) -> bool:
     """Stop a process by PID, cross-platform; True if it is gone afterwards."""
     if sys.platform == "win32":
@@ -226,6 +239,7 @@ def _terminate(pid: int, timeout: float = 10.0) -> bool:
             return True
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            _reap(pid)
             if not pid_alive(pid):
                 return True
             time.sleep(0.2)
@@ -235,6 +249,7 @@ def _terminate(pid: int, timeout: float = 10.0) -> bool:
             return True
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        _reap(pid)
         if not pid_alive(pid):
             return True
         time.sleep(0.2)
