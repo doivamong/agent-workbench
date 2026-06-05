@@ -56,6 +56,11 @@ It binds whatever `AWB_DASHBOARD_HOST` defaults to — so combine with `lan_setu
 dashboard that comes up on the LAN every boot. **Honest limit:** that means it's reachable on your
 subnet at every logon — the firewall stays the control; `/admin` still refuses `0.0.0.0`.
 
+Set/reset the `/admin` password: double-click [`win/set_password.bat`](win/set_password.bat) (no
+UAC — only writes a repo file), a thin wrapper around [`../ui/web/set_password.py`](../ui/web/set_password.py).
+Use it to set the first password or **recover a forgotten one** (it writes the salted hash to
+`.ops/admin.hash`; the plaintext is never stored). Details in [`ui/web/README.md`](../ui/web/README.md).
+
 ### `tree_snapshot.py` — a dev safety net
 ```sh
 python ops/tree_snapshot.py snapshot              # zip the tree (respects .gitignore)

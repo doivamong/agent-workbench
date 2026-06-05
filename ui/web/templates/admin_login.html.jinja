@@ -1,6 +1,16 @@
 {#- Agent Workbench — /admin login (Phase A auth). Same tokens as the dashboard; fully
     offline (vendored css, no external refs). The form POSTs the per-process CSRF token plus
-    the password; on success a session cookie (HttpOnly, SameSite=Strict) unlocks /admin. -#}
+    the password; on success a session cookie (HttpOnly, SameSite=Strict) unlocks /admin.
+
+    Two states:
+      * no_password (INERT) — no admin password configured. Login is impossible; the card shows
+        how to BOOTSTRAP one (set the env var + restart). It deliberately renders NO password
+        field (a setup form would let any local actor seize admin before the owner does — guarded
+        by test_C1_no_password_login_page_shows_bootstrap_notice_not_a_setup_form).
+      * password set — the real login form, plus secondary links (back to the read-only
+        dashboard, how to change the password) and an owner-only "forgot password" recovery
+        disclosure. There is NO web reset button by design: recovery requires filesystem access
+        (delete .ops/admin.hash or set the env var), which is what proves you are the owner. -#}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -10,48 +20,89 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 </head>
 <body>
-<div class="shell">
-  <main class="panel" style="max-width:24rem;margin:4rem auto">
-    <div class="panel__eyebrow">Agent Workbench · /admin</div>
+<div class="auth-wrap">
+  <main class="auth">
+    <div class="auth__mark">
+      <svg class="auth__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="panel__eyebrow">Agent Workbench · /admin</div>
+        <h1 class="auth__title">{% if no_password %}Chưa bật admin{% else %}Đăng nhập{% endif %}</h1>
+      </div>
+    </div>
+
     {% if no_password %}
     {#- INERT: no password configured. /admin is mounted but every action is refused and login
         is impossible. Show how to enable admin — NOT an in-page setup form (that would let any
         local actor seize admin before the owner does). -#}
-    <h1>Chưa bật admin</h1>
-    <p class="panel__note">Khu vực điều khiển kit hiện <strong>chưa kích hoạt</strong>: chưa đặt
+    <p class="auth__lead">Khu vực điều khiển kit hiện <strong>chưa kích hoạt</strong>: chưa đặt
       mật khẩu quản trị, nên mọi thao tác đều bị từ chối và không thể đăng nhập.</p>
 
-    <div class="banner" role="note" style="background:var(--danger-dim);border-color:var(--accent-deep)">
+    <div class="banner banner--danger" role="note">
+      <span class="banner__dot" aria-hidden="true"></span>
       <span class="banner__txt">Để bật admin, đặt biến môi trường <span class="mono">AWB_ADMIN_PASSWORD</span>
         rồi <strong>khởi động lại</strong> dashboard. Sau lần đặt đầu tiên, có thể đổi mật khẩu
         ngay trong giao diện <span class="mono">/admin</span> (không cần khởi động lại).</span>
     </div>
 
-    <p class="panel__note" style="margin-top:1rem">Ví dụ (PowerShell):</p>
-    <p class="mono" style="word-break:break-all;font-size:.9em">$env:AWB_ADMIN_PASSWORD = 'mật-khẩu-mạnh'; python ui/web/app.py</p>
+    <div class="auth__field">
+      <span class="auth__label">Ví dụ (PowerShell)</span>
+      <p class="mono" style="word-break:break-all;font-size:.85em;margin:0">$env:AWB_ADMIN_PASSWORD = 'mật-khẩu-mạnh'; python ui/web/app.py</p>
+    </div>
 
-    <p class="panel__note" style="margin-top:1.5rem">
-      <a class="btn" href="/">← Về bảng điều khiển (chỉ đọc)</a>
-    </p>
+    <div class="auth__foot">
+      <div class="auth__links">
+        <a class="auth__link" href="/">← Về bảng điều khiển (chỉ đọc)</a>
+      </div>
+    </div>
+
     {% else %}
-    <h1>Đăng nhập</h1>
-    <p class="panel__note">Khu vực điều khiển kit. Nhập mật khẩu quản trị để tiếp tục.</p>
+    <p class="auth__lead">Khu vực điều khiển kit. Nhập mật khẩu quản trị để tiếp tục.</p>
 
     {% if error %}
-    <div class="banner" role="alert" style="background:var(--danger-dim);border-color:var(--accent-deep)">
-      {{ error }}
+    <div class="banner banner--danger" role="alert">
+      <span class="banner__dot" aria-hidden="true"></span>
+      <span class="banner__txt">{{ error }}</span>
     </div>
     {% endif %}
 
     <form method="post" action="/admin/login">
       <input type="hidden" name="csrf" value="{{ token }}">
-      <label for="password">Mật khẩu</label>
-      <input id="password" name="password" type="password" autocomplete="current-password"
-             autofocus required style="width:100%;margin:.5rem 0 1rem">
-      <button class="btn" type="submit">Đăng nhập</button>
+      <div class="auth__field">
+        <label class="auth__label" for="password">Mật khẩu</label>
+        <input id="password" name="password" type="password" class="auth__input"
+               autocomplete="current-password" autofocus required>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">Đăng nhập</button>
     </form>
 
-    <p class="panel__note" style="margin-top:1.5rem">
+    <div class="auth__foot">
+      <div class="auth__links">
+        <a class="auth__link" href="/">← Bảng điều khiển (chỉ đọc)</a>
+        <span class="auth__link" style="border:0;cursor:default">Đổi mật khẩu? Đăng nhập rồi vào <span class="mono">/admin</span></span>
+      </div>
+
+      <details class="auth__recover">
+        <summary>Quên mật khẩu?</summary>
+        <div class="auth__recover-body">
+          <p>Không có nút đặt lại qua web — <strong>có chủ đích</strong>: bất kỳ ai trong LAN cũng
+            sẽ chiếm được admin. Khôi phục cần quyền truy cập máy chủ (đó mới là bằng chứng bạn là
+            chủ). Trên máy chạy dashboard:</p>
+          <p style="margin:.5rem 0 0">1) <strong>Dễ nhất</strong> — đặt mật khẩu mới ngay (không cần
+            khởi động lại): bấm đúp <span class="mono">ops/win/set_password.bat</span>, hoặc chạy
+            <span class="mono">python ui/web/set_password.py</span>.</p>
+          <p style="margin:.5rem 0 0">2) Hoặc xoá mật khẩu đã lưu rồi <strong>khởi động lại</strong>:
+            <span class="mono">Remove-Item .ops/admin.hash</span> — quay về mật khẩu env (nếu có),
+            hoặc về trạng thái chưa bật.</p>
+          <p style="margin:.5rem 0 0">3) Hoặc đặt qua env rồi <strong>khởi động lại</strong>:
+            <span class="mono">$env:AWB_ADMIN_PASSWORD = 'mật-khẩu-mới'; python ui/web/app.py</span></p>
+        </div>
+      </details>
+    </div>
+
+    <p class="auth__note">
       ⚠️ Đây là cổng HTTP trên LAN — mật khẩu có thể bị nghe lén trong mạng. Chỉ bật trong
       mạng tin cậy, không hướng ra Internet.
     </p>

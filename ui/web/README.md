@@ -129,9 +129,10 @@ The guards (the design was stress-tested to GO only with all of them):
 
 ### Password auth — enable `/admin` (and open it over a LAN) (Phase A)
 
-`/admin` is **inert until you set a password**. The **first** password can be set **only** via the
-environment at startup (a one-time set + restart) — there is deliberately **no unauthenticated
-setup form** (it would let any local actor seize admin before you do):
+`/admin` is **inert until you set a password**. There is deliberately **no unauthenticated *web*
+setup form** (it would let any local actor seize admin before you do) — but you set the **first**
+password the same way you'd recover it: from the host, via the environment at startup **or** the
+local CLI below.
 
 ```sh
 export AWB_ADMIN_PASSWORD='your-strong-passphrase'   # plaintext, hashed at startup
@@ -142,8 +143,23 @@ Prefer not to put the plaintext in your environment? Pre-compute the hash and pa
 the plaintext then never touches the env or the process list:
 
 ```sh
-export AWB_ADMIN_PASSWORD_HASH="$(python -c 'import sys; sys.path.insert(0,"ui/web"); import admin; print(admin.hash_password("your-strong-passphrase"))')"
+export AWB_ADMIN_PASSWORD_HASH="$(python -c 'import sys; sys.path.insert(0,"ui/web"); import passwords; print(passwords.hash_password("your-strong-passphrase"))')"
 ```
+
+**Or set it offline with the CLI** ([`set_password.py`](set_password.py)) — no env, no web login,
+and the way to **recover a forgotten password** (running on the host machine is what proves you're
+the owner, so it does *not* ask for the old one):
+
+```sh
+python ui/web/set_password.py             # prompt twice, hidden input
+echo 'new-pass' | python ui/web/set_password.py --stdin     # scripted / non-interactive
+```
+
+It writes the same salted hash to `.ops/admin.hash` — the stored hash **wins over the env
+password** and takes effect immediately (no restart). On Windows, double-click
+[`../../ops/win/set_password.bat`](../../ops/win/set_password.bat) (no UAC — it only writes a repo
+file). The plaintext is never stored. (`set_password.py` is stdlib-only — it imports
+[`passwords.py`](passwords.py), not Flask — so it still runs if the web venv is broken.)
 
 How it works: the password is stored only as a salted **pbkdf2-sha256** hash and compared with
 `hmac.compare_digest`; login mints a session cookie (`HttpOnly` + `SameSite=Strict`) that expires

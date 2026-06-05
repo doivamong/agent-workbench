@@ -46,11 +46,9 @@ subprocess (it must outlive the dying process).
 """
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 import os
-import secrets
 import subprocess
 import sys
 from datetime import datetime
@@ -61,8 +59,11 @@ from flask import (Blueprint, abort, current_app, redirect, render_template,
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+import passwords                     # noqa: E402  — shared stdlib hashing (no Flask), see passwords.py
 import ops.autostart as autos      # noqa: E402  — read-only status; enable/disable may need admin
 import ops.dashboard_ctl as dctl   # noqa: E402  — reused engine (process control)
 import ops.lan_setup as lans       # noqa: E402  — read-only status; enable/disable (setx, no admin)
@@ -128,32 +129,12 @@ def _audit(action: str, result: str, **fields) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Password hashing (Phase A auth) — stdlib pbkdf2, salted, constant-time verify
+# Password hashing (Phase A auth) — re-exported from the shared stdlib module so the
+# offline set_password.py CLI and this web route hash identically. See passwords.py for
+# the format / constant-time-verify rationale.
 # --------------------------------------------------------------------------- #
-# The stored form is self-describing: ``pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>``.
-# It never contains the plaintext; the random per-call salt makes each hash unique even for
-# the same password. Verification is constant-time and never raises on a malformed stored
-# value (returns False) so a garbage config can't crash the login path.
-_PBKDF2_ROUNDS = 200_000
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ROUNDS)
-    return f"pbkdf2_sha256${_PBKDF2_ROUNDS}${salt.hex()}${dk.hex()}"
-
-
-def verify_password(password: str, stored: str) -> bool:
-    try:
-        scheme, rounds_s, salt_hex, hash_hex = str(stored).split("$")
-        if scheme != "pbkdf2_sha256":
-            return False
-        expected = bytes.fromhex(hash_hex)
-        dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
-                                 bytes.fromhex(salt_hex), int(rounds_s))
-    except (ValueError, AttributeError):
-        return False
-    return hmac.compare_digest(dk, expected)
+hash_password = passwords.hash_password
+verify_password = passwords.verify_password
 
 
 # --------------------------------------------------------------------------- #
@@ -404,7 +385,7 @@ def logout():
     return redirect("/admin/login")
 
 
-_MIN_PASSWORD_LEN = 8
+_MIN_PASSWORD_LEN = passwords.MIN_PASSWORD_LEN
 
 
 @admin_bp.route("/password", methods=["POST"])

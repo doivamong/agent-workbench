@@ -434,6 +434,78 @@ a.btn { text-decoration: none; }
 /* HTMX in-flight cue — opacity only (no layout shift); disabled under reduced-motion. */
 .htmx-request#dyn, #dyn.htmx-request { opacity: .55; transition: opacity .15s ease; }
 
+/* ---- 9c. AUTH (login page) --------------------------------------------- */
+/* The login screen is its own centered card — same tokens / hero-glow language as
+   the topbar, but self-contained (no topbar, no grid). Mobile-first: full-bleed
+   padding on a phone, a fixed-width card once there's room. */
+.auth-wrap {
+  min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-6) var(--sp-4);
+}
+.auth {
+  position: relative; overflow: hidden;
+  width: 100%; max-width: 26rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--depth-2);
+  padding: var(--sp-6);
+}
+.auth::before { content: ""; position: absolute; inset: 0; background: var(--hero-glow); pointer-events: none; }
+.auth > * { position: relative; }
+.auth__mark { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-5); }
+.auth__logo { width: 28px; height: 28px; flex: none; color: var(--accent); }
+.auth__title { margin-top: 2px; }
+.auth__lead { color: var(--text-dim); font-size: var(--fs-sm); margin-bottom: var(--sp-5); }
+
+.auth__field { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.auth__label {
+  font-size: var(--fs-xs); letter-spacing: var(--ls-label);
+  text-transform: uppercase; color: var(--text-dim); font-weight: var(--weight-strong);
+}
+.auth__input {
+  min-height: 44px; width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-sans); font-size: var(--fs-md); color: var(--text-strong);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.auth__input:hover { border-color: #34353C; }
+
+/* Login footer: secondary links + the owner-only recovery disclosure. */
+.auth__foot { margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--border-soft); }
+.auth__links { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; }
+.auth__link {
+  color: var(--text-dim); font-size: var(--fs-sm);
+  border-bottom: 1px solid transparent; transition: color .14s ease, border-color .14s ease;
+}
+.auth__link:hover { color: var(--text-strong); border-bottom-color: var(--border); }
+
+.auth__recover { margin-top: var(--sp-4); }
+.auth__recover > summary {
+  cursor: pointer; color: var(--text-dim); font-size: var(--fs-sm);
+  font-weight: var(--weight-strong); list-style: none; min-height: 44px;
+  display: flex; align-items: center; gap: var(--sp-2);
+}
+.auth__recover > summary::-webkit-details-marker { display: none; }
+.auth__recover > summary::before { content: "›"; transition: transform .14s ease; color: var(--text-dim); }
+.auth__recover[open] > summary::before { transform: rotate(90deg); }
+.auth__recover > summary:hover { color: var(--text-strong); }
+.auth__recover-body { margin-top: var(--sp-2); color: var(--text-dim); font-size: var(--fs-sm); }
+.auth__recover-body code, .auth__recover-body .mono { color: var(--text-strong); }
+
+.auth__note {
+  margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--border-soft);
+  color: var(--text-dim); font-size: var(--fs-xs); line-height: var(--lh-normal); overflow-wrap: anywhere;
+}
+
+/* Block / primary button variants — the login submit is the one primary action on the page. */
+.btn--block { width: 100%; justify-content: center; }
+.btn--primary { color: var(--accent-fg); background: var(--accent-deep); border-color: var(--accent); }
+.btn--primary:hover { background: var(--accent); border-color: var(--accent); }
+
+/* Danger-toned banner (login error / inert notice) — de-inlined from per-element styles. */
+.banner--danger { background: var(--danger-dim); border-color: var(--accent-deep); }
+.banner--danger .banner__dot { background: var(--accent); }
+
 /* ---- 10. A11Y: reduced motion ----------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
