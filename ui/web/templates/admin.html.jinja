@@ -145,6 +145,48 @@
         {% endif %}
       </section>
 
+      {#- System / LAN (read-only panel; actions added per slice) -#}
+      <section class="panel span-3" aria-labelledby="a-system">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Hệ thống</div>
+          <h2 id="a-system">Mạng LAN &amp; tự khởi động</h2>
+        </div></div>
+        {% set lan = system.lan %}{% set au = system.autostart %}
+        <p class="section-foot">
+          Bind hiện hành: <span class="mono">{{ lan.effective_bind or "?" }}</span> ·
+          mặc định LAN: <strong>{{ "BẬT" if lan.lan_default else "TẮT" }}</strong> ·
+          tự khởi động: <strong>{% if au.registered %}đã bật{% elif au.error %}lỗi{% else %}chưa bật{% endif %}</strong>
+        </p>
+        {% if lan.lan_urls %}
+        <p class="section-foot">Mở từ điện thoại cùng Wi-Fi:
+          {% for u in lan.lan_urls %}<span class="mono">{{ u }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+        {% if lan.firewall_command %}
+        <p class="section-foot muted">Mở firewall (cần quyền admin — chạy lệnh này trong PowerShell
+          <em>Run as administrator</em>, hoặc bấm đúp <span class="mono">win/lan_on.bat</span>):</p>
+        <p class="mono" style="word-break:break-all;font-size:.85em">{{ lan.firewall_command }}</p>
+        {% endif %}
+
+        <p class="section-foot">Thao tác (LAN bật/tắt không cần admin; firewall &amp; tự khởi động cần admin — sẽ báo nếu thiếu quyền):</p>
+        <div class="admin-form" style="display:flex;flex-wrap:wrap;gap:.5rem">
+          {% set acts = [
+            ("/admin/action/lan-enable",  "Bật mặc định LAN", "Đặt AWB_DASHBOARD_HOST=0.0.0.0 (setx) và áp dụng. Khởi động lại để có hiệu lực?"),
+            ("/admin/action/lan-disable", "Tắt mặc định LAN", "Quay về localhost-only?"),
+            ("/admin/action/firewall-open", "Mở firewall LAN", "Tạo rule inbound (cần quyền admin)?"),
+            ("/admin/action/autostart-enable", "Bật tự khởi động", "Tạo tác vụ chạy lúc đăng nhập (có thể cần admin)?"),
+            ("/admin/action/autostart-disable", "Tắt tự khởi động", "Xoá tác vụ tự khởi động?"),
+          ] %}
+          {% for url, label, confirm in acts %}
+          <form hx-post="{{ url }}" hx-target="#admin-result" hx-swap="innerHTML"
+                hx-confirm="{{ confirm }}" style="display:inline">
+            <input type="hidden" name="csrf" value="{{ token }}">
+            <button type="submit" class="btn">{{ label }}</button>
+          </form>
+          {% endfor %}
+        </div>
+      </section>
+
     </div>
   </main>
 

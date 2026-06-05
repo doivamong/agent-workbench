@@ -638,3 +638,107 @@ def test_auth_logout_clears_session(tmp_path):
     assert c.get("/admin").status_code == 200
     c.post("/admin/logout", data={"csrf": _token(app)})
     assert c.get("/admin").status_code == 302   # session cleared → bounced back to login
+
+
+# --------------------------------------------------------------------------- #
+# Phase B — lan_setup / autostart on /admin (system panel + web-safe toggles)
+# --------------------------------------------------------------------------- #
+# BB1 — the /admin page shows a read-only System panel sourced from the lan_setup /
+# autostart status APIs (monkeypatched here so the test is hermetic + fast).
+def test_admin_page_shows_system_panel(tmp_path, monkeypatch):
+    monkeypatch.setattr(webadmin.lans, "status", lambda port=5151: {
+        "effective_bind": "0.0.0.0", "lan_default": True,
+        "lan_urls": ["http://192.168.1.50:5151"],
+        "firewall_command": "powershell -Command New-NetFirewallRule-AWB"})
+    monkeypatch.setattr(webadmin.autos, "status", lambda: {"registered": True, "runs": "x"})
+    html = _admin_app(tmp_path / "r").test_client().get("/admin").get_data(as_text=True)
+    assert "192.168.1.50:5151" in html                 # phone URL surfaced
+    assert "New-NetFirewallRule-AWB" in html           # firewall command shown (run elevated)
+    assert "đã bật" in html                             # autostart registered state shown
+    for url in ("/admin/action/lan-enable", "/admin/action/lan-disable",
+                "/admin/action/firewall-open", "/admin/action/autostart-enable",
+                "/admin/action/autostart-disable"):
+        assert url in html                              # each action button is wired
+
+
+def test_system_status_helper_merges_both_tools(tmp_path, monkeypatch):
+    monkeypatch.setattr(webadmin.lans, "status", lambda port=5151: {"lan_default": False})
+    monkeypatch.setattr(webadmin.autos, "status", lambda: {"registered": False})
+    app = _admin_app(tmp_path / "r")
+    with app.app_context():
+        st = webadmin._system_status()
+    assert st["lan"]["lan_default"] is False and st["autostart"]["registered"] is False
+
+
+# BB2 — LAN enable/disable run lan_setup via subprocess (arg list); these need no admin.
+def test_lan_enable_runs_lan_setup_enable(tmp_path, monkeypatch):
+    calls = []
+
+    def spy(script, cli_args):
+        calls.append((script, cli_args))
+        return 0, {"action": "enable", "lan_urls": ["http://192.168.1.50:5151"]}, ""
+
+    monkeypatch.setattr(webadmin, "_run_engine", spy)
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/lan-enable", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    script, cli_args = calls[-1]
+    assert script.name == "lan_setup.py"
+    assert "enable" in cli_args and "--json" in cli_args
+
+
+def test_lan_disable_runs_lan_setup_disable(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (calls.append((s, a)) or (0, {"action": "disable"}, "")))
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/lan-disable", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    assert calls[0][0].name == "lan_setup.py" and "disable" in calls[0][1]
+
+
+def test_lan_action_requires_csrf(tmp_path):
+    app = _admin_app(tmp_path / "r")
+    assert app.test_client().post("/admin/action/lan-enable").status_code == 403
+
+
+# BB3 — firewall + autostart actions run the engines; an elevation failure is surfaced
+# honestly (the page tells you to run the self-elevating .bat), not silently swallowed.
+def test_firewall_open_runs_engine(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (calls.append((s, a)) or (0, {"result": "opened"}, "")))
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/firewall-open", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    assert calls[0][0].name == "lan_setup.py" and "firewall" in calls[0][1]
+
+
+def test_firewall_needs_admin_is_surfaced_not_swallowed(tmp_path, monkeypatch):
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (0, {"result": "failed", "detail": "needs administrator",
+                                          "command": "powershell New-NetFirewallRule"}, ""))
+    app = _admin_app(tmp_path / "r")
+    body = app.test_client().post("/admin/action/firewall-open",
+                                  data={"csrf": _token(app)}).get_data(as_text=True)
+    assert "lan_on.bat" in body or "admin" in body.lower()      # tells the user how to elevate
+
+
+def test_autostart_enable_runs_engine(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (calls.append((s, a)) or (0, {"result": "enabled"}, "")))
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/autostart-enable", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    assert calls[0][0].name == "autostart.py" and "enable" in calls[0][1]
+
+
+def test_autostart_disable_runs_engine(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (calls.append((s, a)) or (0, {"result": "removed"}, "")))
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/autostart-disable", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    assert calls[0][0].name == "autostart.py" and "disable" in calls[0][1]
