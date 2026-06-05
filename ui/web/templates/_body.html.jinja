@@ -143,7 +143,11 @@
         {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;chưa ai gọi tên</span>{% endif %}
       </div>
     </div>
-    <div id="skills-region">{% include "_skills.html.jinja" %}</div>
+    {#- Persistent scroll wrapper: the tier filter swaps only the <table> inside this
+        div, so the .table-scroll box (and its mobile horizontal scroll) survives the
+        swap and the fragment stays a pure <table> partial. -#}
+    <div id="skills-region" class="table-scroll" tabindex="0" role="region"
+         aria-label="Bảng skill và trạng thái — cuộn ngang trên màn hình nhỏ">{% include "_skills.html.jinja" %}</div>
   </section>
 
   {#- ===== Tools ===== -#}

@@ -87,6 +87,14 @@
     var tierCanvas = document.getElementById("chart-tiers");
     if (tierCanvas && data.tiers && data.tiers.values.length) {
       destroyOn(tierCanvas);
+      // On a narrow viewport a right-side legend would crush the doughnut to a
+      // sliver; the .chips list under the canvas already labels every tier, so we
+      // drop the in-chart legend there and keep it only where there's room.
+      var narrow = window.matchMedia &&
+        window.matchMedia("(max-width: 600px)").matches;
+      var tierLegend = narrow
+        ? { display: false }
+        : { position: "right", labels: { color: COL.text, boxWidth: 12, padding: 12 } };
       new Chart(tierCanvas.getContext("2d"), {
         type: "doughnut",
         data: {
@@ -103,9 +111,7 @@
           maintainAspectRatio: false,
           cutout: "62%",
           animation: anim,
-          plugins: {
-            legend: { position: "right", labels: { color: COL.text, boxWidth: 12, padding: 12 } },
-          },
+          plugins: { legend: tierLegend },
         },
       });
     }
