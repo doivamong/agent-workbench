@@ -4,10 +4,12 @@
 > opt-in dashboard, packaging a release, and snapshotting the working tree. These operate
 > on the workbench itself; they are **not** part of `install.py`'s payload and are **not**
 > counted among the kit's "standalone tools" (those are the reusable analysis tools in
-> [`tools/`](../tools/)).
+> [`tools/`](../tools/)). In short: a **maintainer add-on, not adopter payload** — value for
+> whoever *runs* this repo, not lifted methodology a stranger installs.
 
 Each tool is a CLI **and** a callable API. The opt-in [`ui/web`](../ui/web/) admin layer
-(`python ui/web/app.py --admin`) runs the **CLIs as subprocesses** for every action (process
+(`python ui/web/app.py`, then set a password to enable `/admin`) runs the **CLIs as
+subprocesses** for every action (process
 isolation; arg lists, never a shell) and imports the APIs only for read-only enumeration — so
 there is exactly one implementation behind both the terminal and the web buttons. The
 `tree_snapshot` / `release_pack` CLIs take `--root` / `--snap-dir` / `--rel-dir` so a caller can
@@ -99,7 +101,7 @@ The same three APIs back the web action surface at `/admin`. It is **always moun
 **no password configured it is inert** — every action is 403 on any host (even with a valid CSRF
 token), login is impossible, and `GET /admin` redirects to a login page that names
 `AWB_ADMIN_PASSWORD` as the way to enable admin. Setting a password is what enables it; **login**
-(not the old `--admin` flag, which is now a no-op) is the gate. On top it adds CSRF (per-process
+is the gate. On top it adds CSRF (per-process
 token + `hmac.compare_digest`), server-enumerated restore / verify targets, the plan-hash
 TOCTOU-guarded restore with an auto-backup, a detached self-restart, and an audit of every action
 to `.ops/ops.log`. **Honest limit:** once a password is set this is plain HTTP — the password and

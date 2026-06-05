@@ -57,7 +57,7 @@ guard-tier skill states what it does **not** do (the honesty contract `skill_lin
 |---|---|---|---|
 | Review a change in three passes (spec → build quality → adversarial) | guard | LIVE | [`awb-review`](.claude/skills/awb-review/) · model-invoked and bypassable; not a whole-codebase audit |
 | Debug methodically — reproduce → root cause → fix → prove | guard | LIVE | [`awb-debug`](.claude/skills/awb-debug/) · for an unknown cause, not a known one-line fix |
-| Keep long generation complete — no truncation / placeholders / "for brevity" | guard | LIVE | [`awb-output-guard`](.claude/skills/awb-output-guard/) · guarantees completeness, not correctness |
+| Keep long generation complete — no truncation / placeholders / "for brevity" | guard | LIVE | [`awb-output-guard`](.claude/skills/awb-output-guard/) · guards completeness, not correctness |
 | Catch the two silent config-access traps (wrong context; nested key → silent `None`) | guard | LIVE | [`awb-config-guard`](.claude/skills/awb-config-guard/) · the **advisory** layer over the deterministic `config-flat-access` invariant |
 
 ### Feature · Audit · Meta (3)
@@ -157,6 +157,10 @@ state. They are **not** part of `install.py`'s payload (the `ops/` tools are rep
 lives in [`ops/README.md`](ops/README.md), [`ui/web/README.md`](ui/web/README.md), and
 [`docs/SECURITY.md`](docs/SECURITY.md); this is the status map.
 
+> **Read this as a maintainer add-on, not adopter payload.** Its value is for whoever *runs this
+> repo* (operating the workbench, visualising its state) — not lifted methodology a stranger
+> installs. The transferable core is §1–6 above; this section is convenience for the maintainer.
+
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
 | Process control for the opt-in dashboard (start / stop / restart / status) | ops | LIVE | [`ops/dashboard_ctl.py`](ops/dashboard_ctl.py) + [`ops/win/restart_all.bat`](ops/win/restart_all.bat) · localhost/single-dev; only manages the process in its own pidfile, never hunts-and-kills by port |
@@ -166,7 +170,7 @@ lives in [`ops/README.md`](ops/README.md), [`ui/web/README.md`](ui/web/README.md
 | Start the dashboard at logon | ops | LIVE | [`ops/autostart.py`](ops/autostart.py) · Windows `ONLOGON` Scheduled Task / POSIX systemd *user* service; reachable on the subnet every logon — firewall stays the control |
 | Offline, zero-dependency status report | ui | LIVE | [`ui/kit_status/`](ui/kit_status/) · self-contained HTML rendered from the single data source; stdlib-only |
 | Interactive dashboard (charts + in-place controls) | ui | LIVE | [`ui/web/`](ui/web/) (Flask + Jinja + vendored Chart.js/htmx) · the kit's **only** runtime dependency, isolated from the stdlib core; manual refresh, not a daemon |
-| `/admin` web action surface — always-mounted, **login is the gate** | ui | LIVE | [`ui/web/admin.py`](ui/web/admin.py) + [`ui/web/set_password.py`](ui/web/set_password.py) · pbkdf2-sha256 password + lockout + CSRF + `SameSite` cookie; **inert without a password** (every action 403s); plain HTTP — **cleartext on a LAN, trusted-network only**; the old `--admin` flag is a deprecated no-op, `--debug` is refused |
+| `/admin` web action surface — always-mounted, **login is the gate** | ui | LIVE | [`ui/web/admin.py`](ui/web/admin.py) + [`ui/web/set_password.py`](ui/web/set_password.py) · pbkdf2-sha256 password + lockout + CSRF + `SameSite` cookie; **inert without a password** (every action 403s); plain HTTP — **cleartext on a LAN, trusted-network only**; `--debug` is refused |
 | Memory **recall-quality** benchmark | tool | LIVE | [`tools/memory_eval.py`](tools/memory_eval.py) · a stdlib retrieval benchmark over a hand-labeled gold set (recall@k / precision@k / MRR) — measures *retrieval*, not answer correctness; a **floor**, not a leaderboard; advisory, not a gate. Pairs with `memory_recall_doctor` (wiring) |
 | Redacted secret/identifier-shape leak detection | tool | LIVE | [`tools/leak_scan.py`](tools/leak_scan.py) · flags common secret/token shapes (private key, AWS, Slack/Telegram, `api_key=`/`password=`) with the matched value **redacted**; high-confidence secrets need a *named* opt-out. A line-based **seatbelt, not a dedicated scanner** (`docs/SECURITY.md`) |
 

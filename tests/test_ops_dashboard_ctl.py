@@ -115,7 +115,7 @@ def test_build_start_cmd():
     assert cmd[0] == sys.executable
     assert "--port" in cmd and "5151" in cmd
     assert str(dc.APP) in cmd
-    assert dc.build_start_cmd("0.0.0.0", 1, extra=["--admin"])[-1] == "--admin"
+    assert dc.build_start_cmd("0.0.0.0", 1, extra=["--days", "7"])[-1] == "7"
 
 
 def test_stop_terminates_recorded_process(tmp_path, monkeypatch):

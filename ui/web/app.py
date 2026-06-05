@@ -20,8 +20,8 @@ the served page makes no external network request, so it renders with the networ
 ``/`` is **always read-only**. The action surface (restart / snapshot / pack / verify /
 guarded tree-restore) lives under ``/admin`` and is **always mounted** — but with **no
 password configured it is inert** (every action 403, login impossible). Setting a password
-(``AWB_ADMIN_PASSWORD``) enables it; **login is the gate**. The old ``--admin`` flag is a
-deprecated no-op. See ``ui/web/admin.py`` for the guards and the honest limit.
+(``AWB_ADMIN_PASSWORD``) enables it; **login is the gate**. See ``ui/web/admin.py`` for the
+guards and the honest limit.
 
 Honesty (load-bearing — see ``.claude/rules/measurement-honesty.md``): telemetry has
 three states — *not-wired* / *wired-but-empty* / *measured*. A skill is shown as
@@ -196,7 +196,7 @@ def _resolve_admin_password_hash() -> str:
     return ""
 
 
-def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151,
+def create_app(*, host: str = "127.0.0.1", port: int = 5151,
                debug: bool = False, admin_password_hash: str | None = None) -> "Flask":
     """Build the Flask app. ``/`` and the read-only fragments are always present, and so is
     the ``/admin`` action surface — but **login is the gate** (full Approach A).
@@ -210,8 +210,7 @@ def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151
     ``--admin`` flag gate: a flag authenticates nobody, a login does.
 
     ``--debug`` is **refused outright** — admin is always mounted and the Werkzeug debugger is
-    a remote-code console the dashboard never needs. The ``admin`` parameter is a deprecated
-    **no-op** kept only so old ``--admin`` callers don't break."""
+    a remote-code console the dashboard never needs."""
     if debug:
         raise ValueError("the web dashboard refuses --debug: admin is always mounted and the "
                          "Werkzeug debugger is a remote code console. Run without --debug.")
@@ -281,8 +280,6 @@ def main(argv: list[str] | None = None) -> int:
                     help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
     ap.add_argument("--project", help="project root to inspect (default: $CLAUDE_PROJECT_DIR or the kit repo)")
-    ap.add_argument("--admin", action="store_true",
-                    help="DEPRECATED no-op: /admin is always mounted; set AWB_ADMIN_PASSWORD to enable it")
     ap.add_argument("--debug", action="store_true", help="(refused) Flask debug mode — admin is always mounted; the debugger is an RCE console")
     args = ap.parse_args(argv)
 
@@ -296,7 +293,6 @@ def main(argv: list[str] | None = None) -> int:
             setattr(sys, _name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115
 
     # Resolve auth once. /admin is always mounted; a configured password is what *enables* it.
-    # (--admin is a deprecated no-op kept so old scripts don't break.)
     pw_hash = _resolve_admin_password_hash()
 
     # Fail fast and loud at the CLI boundary (create_app re-checks as defence in depth).
