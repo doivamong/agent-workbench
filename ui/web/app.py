@@ -179,17 +179,35 @@ def _view(days_raw: str | None = None, tier_raw: str | None = None) -> dict:
     return build_view(ctx, days, tier)
 
 
+def _resolve_admin_password_hash() -> str:
+    """Resolve the admin password hash from the environment. A pre-computed hash in
+    ``AWB_ADMIN_PASSWORD_HASH`` wins (the plaintext never touches the env); otherwise a
+    plaintext ``AWB_ADMIN_PASSWORD`` is hashed at startup. Returns ``""`` when neither is set
+    (no-login, localhost-only mode)."""
+    pre = os.environ.get("AWB_ADMIN_PASSWORD_HASH")
+    if pre:
+        return pre
+    plain = os.environ.get("AWB_ADMIN_PASSWORD")
+    if plain:
+        import admin as _admin  # noqa: PLC0415 — local import keeps read-only path dep-free
+        return _admin.hash_password(plain)
+    return ""
+
+
 def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151,
-               debug: bool = False) -> "Flask":
+               debug: bool = False, admin_password_hash: str | None = None) -> "Flask":
     """Build the Flask app. ``/`` and the read-only fragments are always present; the
     ``/admin`` action surface is mounted ONLY when ``admin=True``.
 
-    Refuses to mount admin under ``--debug`` (Werkzeug's debugger is an RCE console) or a
-    wildcard bind (``0.0.0.0`` exposes the token-readable surface to the whole network) —
-    admin is a localhost-only, single-developer convenience (see ui/web/admin.py)."""
-    if admin and host in ("0.0.0.0", "::"):
-        raise ValueError("--admin refuses a wildcard bind; admin is localhost-only "
-                         f"(got --host {host}). Bind 127.0.0.1.")
+    Refuses to mount admin under ``--debug`` (Werkzeug's debugger is an RCE console). A
+    wildcard bind (``0.0.0.0``) is refused UNLESS ``admin_password_hash`` is configured —
+    without a login the token-readable surface would be exposed to the whole network; with
+    a password, login (not the host) is the gate, so LAN access is allowed (Phase A). On a
+    localhost bind admin stays a single-developer convenience: a password makes login
+    required; without one the host-allowlist remains the only gate (back-compat)."""
+    if admin and host in ("0.0.0.0", "::") and not admin_password_hash:
+        raise ValueError("--admin refuses a wildcard (LAN) bind without auth; set an admin "
+                         f"password (AWB_ADMIN_PASSWORD) to open /admin over LAN (got --host {host}).")
     if admin and debug:
         raise ValueError("--admin refuses --debug: the Werkzeug debugger is a remote code "
                          "console. Run admin without --debug.")
@@ -233,6 +251,17 @@ def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151
         app.config["HOST"] = host
         app.config["PORT"] = int(port)
         app.config["OPS_ROOT"] = str(_REPO_ROOT)
+        # Phase A auth: a configured password hash enables login; empty string = no login
+        # (localhost-only back-compat). secret_key signs the session cookie (per-process, so
+        # a restart invalidates old sessions). Cookie hardening: HttpOnly + SameSite=Strict.
+        # Secure stays off — this is an HTTP-over-LAN surface by design (documented honest limit).
+        app.config["ADMIN_PASSWORD_HASH"] = admin_password_hash or ""
+        app.secret_key = secrets.token_hex(32)
+        app.config.update(
+            SESSION_COOKIE_HTTPONLY=True,
+            SESSION_COOKIE_SAMESITE="Strict",
+            SESSION_COOKIE_SECURE=False,
+        )
         app.register_blueprint(_admin.admin_bp, url_prefix="/admin")
 
     return app
@@ -267,14 +296,18 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(sys, _name) is None:
             setattr(sys, _name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115
 
+    # Resolve auth once so both the CLI guard and create_app see the same decision.
+    pw_hash = _resolve_admin_password_hash() if args.admin else ""
+
     # Fail fast and loud at the CLI boundary (create_app re-checks as defence in depth).
     if args.admin and args.debug:
         raise SystemExit("refusing: --admin is incompatible with --debug (RCE debugger).")
-    if args.admin and args.host in ("0.0.0.0", "::"):
-        raise SystemExit("refusing: --admin must bind 127.0.0.1 (localhost-only), not "
-                         f"{args.host}.")
+    if args.admin and args.host in ("0.0.0.0", "::") and not pw_hash:
+        raise SystemExit("refusing: --admin over a LAN bind needs an admin password — set "
+                         "AWB_ADMIN_PASSWORD (or AWB_ADMIN_PASSWORD_HASH), or bind 127.0.0.1.")
 
-    built = create_app(admin=args.admin, host=args.host, port=args.port, debug=args.debug)
+    built = create_app(admin=args.admin, host=args.host, port=args.port, debug=args.debug,
+                       admin_password_hash=pw_hash or None)
     built.config["DAYS"] = args.days
     built.config["PROJECT"] = (Path(args.project).resolve() if args.project else _project_dir())
 
@@ -283,9 +316,14 @@ def main(argv: list[str] | None = None) -> int:
         # spawns it) can find and restart THIS process even if launched directly.
         import admin as _admin  # noqa: PLC0415
         _admin.record_own_pid()
-        print("⚠  /admin is MOUNTED. It trusts every local process that can reach the port "
-              "(it can read the CSRF token). Opt-in, default-off, not for shared machines.",
-              file=sys.stderr)
+        if pw_hash:
+            print("⚠  /admin is MOUNTED with password auth over HTTP. On a LAN the password is "
+                  "sniffable in cleartext — only enable on a trusted network, never Internet-facing.",
+                  file=sys.stderr)
+        else:
+            print("⚠  /admin is MOUNTED (localhost-only, NO password). It trusts every local "
+                  "process that can reach the port (it can read the CSRF token). Not for shared machines.",
+                  file=sys.stderr)
 
     print(f"Agent Workbench dashboard → http://{args.host}:{args.port}  "
           f"(project: {built.config['PROJECT']}{', /admin ON' if args.admin else ''})",

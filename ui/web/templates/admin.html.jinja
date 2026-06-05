@@ -33,6 +33,12 @@
         <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
         <span class="env-pill kit-num">{{ host }}:{{ port }}</span>
         <a class="btn" href="/">← Bảng điều khiển (chỉ đọc)</a>
+        {% if auth_enabled %}
+        <form method="post" action="/admin/logout" style="display:inline">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <button class="btn" type="submit">Đăng xuất</button>
+        </form>
+        {% endif %}
       </div>
     </div>
 

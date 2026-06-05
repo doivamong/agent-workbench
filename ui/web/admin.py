@@ -42,16 +42,19 @@ subprocess (it must outlive the dying process).
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import os
+import secrets
 import subprocess
 import sys
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, render_template, request
+from flask import (Blueprint, abort, current_app, redirect, render_template,
+                   request, session)
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
@@ -105,6 +108,35 @@ def _audit(action: str, result: str, **fields) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Password hashing (Phase A auth) — stdlib pbkdf2, salted, constant-time verify
+# --------------------------------------------------------------------------- #
+# The stored form is self-describing: ``pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>``.
+# It never contains the plaintext; the random per-call salt makes each hash unique even for
+# the same password. Verification is constant-time and never raises on a malformed stored
+# value (returns False) so a garbage config can't crash the login path.
+_PBKDF2_ROUNDS = 200_000
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ROUNDS)
+    return f"pbkdf2_sha256${_PBKDF2_ROUNDS}${salt.hex()}${dk.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        scheme, rounds_s, salt_hex, hash_hex = str(stored).split("$")
+        if scheme != "pbkdf2_sha256":
+            return False
+        expected = bytes.fromhex(hash_hex)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
+                                 bytes.fromhex(salt_hex), int(rounds_s))
+    except (ValueError, AttributeError):
+        return False
+    return hmac.compare_digest(dk, expected)
+
+
+# --------------------------------------------------------------------------- #
 # Guards (before_request) — Host/Origin allowlist + CSRF
 # --------------------------------------------------------------------------- #
 def _host_allowed(value: str, *, match_port: bool) -> bool:
@@ -128,19 +160,80 @@ def _host_allowed(value: str, *, match_port: bool) -> bool:
     return True
 
 
+def _auth_enabled() -> bool:
+    return bool(current_app.config.get("ADMIN_PASSWORD_HASH"))
+
+
+# An authenticated session is only valid for _IDLE_SECONDS after login; past that it must
+# re-authenticate (overridable per-app via config["ADMIN_IDLE_SECONDS"], e.g. in tests).
+_IDLE_SECONDS = 3600
+
+
+def _is_authed() -> bool:
+    if session.get("authed") is not True:
+        return False
+    login_at = session.get("login_at")
+    try:
+        elapsed = (datetime.now() - datetime.fromisoformat(login_at)).total_seconds()
+    except (ValueError, TypeError):
+        return False
+    return elapsed < current_app.config.get("ADMIN_IDLE_SECONDS", _IDLE_SECONDS)
+
+
+# Brute-force lockout: per-source-IP failure counter held in app.config (per-process, so a
+# restart clears it; per-app, so tests stay isolated). After _MAX_LOGIN_FAILS failures a
+# source is refused for _LOCKOUT_SECONDS — even with the correct password.
+_MAX_LOGIN_FAILS = 5
+_LOCKOUT_SECONDS = 300
+
+
+def _login_failures() -> dict:
+    return current_app.config.setdefault("LOGIN_FAILURES", {})
+
+
+def _is_locked(ip: str) -> bool:
+    rec = _login_failures().get(ip)
+    if not rec or rec[0] < _MAX_LOGIN_FAILS:
+        return False
+    if (datetime.now() - rec[1]).total_seconds() >= _LOCKOUT_SECONDS:
+        _login_failures().pop(ip, None)  # window elapsed → reset
+        return False
+    return True
+
+
+def _record_login_failure(ip: str) -> None:
+    count, first = _login_failures().get(ip, (0, datetime.now()))
+    _login_failures()[ip] = (count + 1, first)
+
+
 @admin_bp.before_request
 def _enforce_guards():
-    # Host allowlist applies to EVERY admin request (incl. GET) — DNS-rebind / wrong-vhost.
-    if not _host_allowed(request.host, match_port=True):
+    auth = _auth_enabled()
+    # Host allowlist is the localhost gate ONLY in the no-auth (back-compat) mode. With auth,
+    # login is the real gate — and a wildcard bind serves arbitrary LAN hosts we can't
+    # enumerate — so the host check is relaxed; SameSite=Strict + CSRF + the password cover
+    # what the host allowlist used to (a cross-site/DNS-rebind request carries no session
+    # cookie, so it 401s at the auth gate below).
+    if not auth and not _host_allowed(request.host, match_port=True):
         _audit("guard", "blocked-host", host=request.host, path=request.path)
         abort(403)
+    # Auth gate (Phase A): with a password configured, every admin path except the login
+    # endpoint needs a logged-in session. A valid CSRF token is NOT a substitute for login.
+    if auth and request.endpoint != "admin.login" and not _is_authed():
+        _audit("guard", "blocked-unauthenticated", path=request.path)
+        if request.method in ("GET", "HEAD"):
+            return redirect("/admin/login")
+        abort(401)
     if request.method not in ("GET", "HEAD", "OPTIONS"):
-        # Cross-origin browser CSRF — defence in depth (hostname is the security-relevant bit).
-        origin = request.headers.get("Origin") or request.headers.get("Referer")
-        if origin and not _host_allowed(origin, match_port=False):
-            _audit("guard", "blocked-origin", origin=origin, path=request.path)
-            abort(403)
-        # The real gate: the per-process CSRF token, constant-time compared.
+        # Cross-origin CSRF defence — meaningful in the no-auth localhost mode. With auth,
+        # SameSite=Strict already strips the session cookie from cross-site requests (→ 401),
+        # and a LAN origin is legitimate, so the localhost origin allowlist is not applied.
+        if not auth:
+            origin = request.headers.get("Origin") or request.headers.get("Referer")
+            if origin and not _host_allowed(origin, match_port=False):
+                _audit("guard", "blocked-origin", origin=origin, path=request.path)
+                abort(403)
+        # The per-process CSRF token, constant-time compared (applies in both modes).
         token = request.form.get("csrf") or request.headers.get("X-CSRF-Token") or ""
         want = current_app.config.get("ADMIN_TOKEN") or ""
         if not want or not hmac.compare_digest(str(token), str(want)):
@@ -253,6 +346,39 @@ def _token() -> str:
 # --------------------------------------------------------------------------- #
 # Routes
 # --------------------------------------------------------------------------- #
+@admin_bp.route("/login", methods=["GET", "POST"])
+def login():
+    """Password login (Phase A). GET renders the form (reachable unauthenticated, carries the
+    CSRF token); POST verifies the password against the configured pbkdf2 hash with a
+    constant-time compare. Success mints an authenticated session; failure is audited."""
+    if request.method == "POST":
+        ip = request.remote_addr or "?"
+        if _is_locked(ip):
+            _audit("login", "locked-out")
+            return render_template("admin_login.html.jinja", token=_token(),
+                                   error="Tạm khoá do nhập sai quá nhiều lần. Thử lại sau."), 429
+        stored = current_app.config.get("ADMIN_PASSWORD_HASH", "")
+        if stored and verify_password(request.form.get("password", ""), stored):
+            _login_failures().pop(ip, None)  # clear the counter on success
+            session.clear()
+            session["authed"] = True
+            session["login_at"] = datetime.now().isoformat(timespec="seconds")
+            _audit("login", "ok")
+            return redirect("/admin")
+        _record_login_failure(ip)
+        _audit("login", "failed")
+        return render_template("admin_login.html.jinja", token=_token(),
+                               error="Sai mật khẩu."), 401
+    return render_template("admin_login.html.jinja", token=_token(), error=None)
+
+
+@admin_bp.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    _audit("logout", "ok")
+    return redirect("/admin/login")
+
+
 @admin_bp.route("/", methods=["GET"], strict_slashes=False)
 def admin_page():
     """The action surface itself. Read-only GET: it only enumerates existing snapshots /
@@ -265,6 +391,7 @@ def admin_page():
         host=current_app.config.get("HOST", "127.0.0.1"),
         port=current_app.config.get("PORT", 5151),
         dirty=_tree_dirty(_ops_root()),
+        auth_enabled=_auth_enabled(),
     )
 
 

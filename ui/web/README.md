@@ -17,7 +17,9 @@ both are honest about the same three telemetry states.
 
 - **Not** auto-refreshing / a daemon — refresh is **manual** (a button re-reads the disk); there
   is no polling, websocket, or background process.
-- **Not** remote/multi-user — localhost, single developer, no auth.
+- **Not** multi-user — the read-only `/` has no auth (run it localhost, or firewall-gate a LAN
+  bind). The opt-in `/admin` surface *can* require a password, which is what lets it open over a
+  trusted LAN (see *Password auth* below).
 - **Not** force-shipped — `ui/web/` is opt-in: not in `install.py`'s `COPY_MAP`, not a
   manifest root. Removing `ui/web/` breaks nothing in the core or the `ui/kit_status` report.
 
@@ -45,7 +47,7 @@ that data; it is read-only by design, but it is not access-controlled. **The act
 your OS firewall** — restrict the port to the local subnet (e.g. a `LocalSubnet`-scoped rule),
 or don't bind `0.0.0.0` at all. (The opt-in `/admin` *action* surface is separate: it refuses a
 `0.0.0.0` bind outright — see below — so a LAN bind never exposes the destructive buttons; only
-the read-only data is on the wire.) Note: `ops/dashboard_ctl.py restart` reuses the last-started
+the read-only data is on the wire **unless you set an admin password** — see *Password auth*.) Note: `ops/dashboard_ctl.py restart` reuses the last-started
 host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
 
 **Defaulting to a LAN bind (e.g. to view the dashboard from a phone on the same Wi-Fi):** set the
@@ -100,9 +102,12 @@ The guards (the design was stress-tested to GO only with all of them):
 - **CSRF** — every mutation is POST-only and must carry the per-process `secrets.token_urlsafe`
   token (in a hidden field or `X-CSRF-Token`), checked with `hmac.compare_digest` *before* any
   side effect. GETs never mutate.
-- **Host / Origin allowlist** — every admin request must arrive on a localhost `Host` (and, if
-  present, the bound port); a cross-origin `Origin`/`Referer` is refused. `--admin` refuses to
-  start under `--debug` (the Werkzeug debugger is a remote console) or a `0.0.0.0` bind.
+- **Host / Origin allowlist** — *without a password* every admin request must arrive on a
+  localhost `Host` (and, if present, the bound port); a cross-origin `Origin`/`Referer` is refused.
+  *With a password* login is the gate, so a LAN `Host` is allowed (a `SameSite=Strict` session
+  cookie + CSRF cover what the host allowlist used to). `--admin` refuses to start under `--debug`
+  (the Werkzeug debugger is a remote console), and refuses a `0.0.0.0` bind **unless** an admin
+  password is configured.
 - **Server-enumerated targets** — the restore/verify target is chosen *by name* from a list this
   server produced (the snapshots / releases dirs); a client-supplied path is rejected. Subprocess
   calls are arg lists, never a shell string.
@@ -112,11 +117,40 @@ The guards (the design was stress-tested to GO only with all of them):
 - **Detached self-restart**, and **every action audited** to `.ops/ops.log` (subprocess errors
   surfaced, not swallowed).
 
-**Honest limit (documented on purpose):** admin mode **trusts every local process that can reach
-the bound port** — any such process can read the CSRF token from the served page. It is opt-in,
-default-off, localhost-only, and **not for shared machines**. The CSRF/Origin checks stop a
-cross-origin *browser* forging requests; they do **not** stop a local attacker already able to
-talk to the port. Try it offline (no port opened): `python examples/ops_web_admin_demo.py`.
+### Password auth — open `/admin` over a LAN (Phase A)
+
+By default `/admin` is **localhost-only with no login** (the host allowlist is the only gate). To
+reach it from another device (e.g. a phone on the same Wi-Fi) you must set an **admin password**;
+that is the only thing that lets `--admin` accept a `0.0.0.0` bind:
+
+```sh
+export AWB_ADMIN_PASSWORD='your-strong-passphrase'   # plaintext, hashed at startup
+python ui/web/app.py --admin --host 0.0.0.0          # now allowed; without the password it refuses
+```
+
+Prefer not to put the plaintext in your environment? Pre-compute the hash and pass it instead —
+the plaintext then never touches the env or the process list:
+
+```sh
+export AWB_ADMIN_PASSWORD_HASH="$(python -c 'import sys; sys.path.insert(0,"ui/web"); import admin; print(admin.hash_password("your-strong-passphrase"))')"
+```
+
+How it works: the password is stored only as a salted **pbkdf2-sha256** hash and compared with
+`hmac.compare_digest`; login mints a session cookie (`HttpOnly` + `SameSite=Strict`) that expires
+after an idle window; repeated wrong passwords **lock out** the source IP; every login / logout is
+audited to `.ops/ops.log`. The CSRF token and the guarded-restore flow still apply on top.
+
+**Honest limit (documented on purpose):**
+- *No-password (localhost) mode:* admin **trusts every local process that can reach the bound
+  port** — any such process can read the CSRF token from the served page. Opt-in, default-off, and
+  **not for shared machines**.
+- *Password (LAN) mode:* this is **plain HTTP** — the password and session cookie travel in
+  **cleartext** and can be sniffed by anyone on the network path. The password stops a casual
+  bystander, **not** a network attacker. Only enable it on a **trusted** LAN; **never** expose it to
+  the Internet. (TLS is deliberately out of scope for Phase A — a documented trade-off, not an
+  oversight.)
+
+Try it offline (no port opened): `python examples/ops_web_admin_demo.py`.
 
 ## Honesty (load-bearing)
 
