@@ -26,8 +26,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def build_demo_project(root: Path) -> Path:
+    # awb-tdd (non-guard, 0 fires) → "chưa ai gọi tên" (un-named, counted); awb-output-guard
+    # (guard, 0 fires) → "tự gọi" (auto-fired by design, NOT counted) — the tier-aware split.
     skills = {"awb-review": "guard", "awb-plan-then-code": "workflow",
-              "awb-debug": "guard", "awb-tdd": "workflow"}  # awb-tdd → dead candidate
+              "awb-debug": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"}
     sk = root / ".claude" / "skills"
     sk.mkdir(parents=True)
     rows = ["| name | tier | fires when | does NOT |", "|---|---|---|---|"]
@@ -95,7 +97,8 @@ def main() -> int:
     print(f"HTMX tier filter (guard):      "
           f"{'awb-review' in frag_tier and 'awb-tdd' not in frag_tier} "
           f"(only guard skills; workflow filtered out)")
-    print("Note: awb-tdd has 0 fires + telemetry wired -> shown as 'ứng viên chết'.")
+    print("Note: awb-tdd has 0 fires + telemetry wired -> shown as 'chưa ai gọi tên' "
+          "(no one typed its name), NOT 'dead'; guard-tier 0-fires show 'tự gọi'.")
     print("To view it live:  python ui/web/app.py  (then open http://127.0.0.1:5151)")
     return 0
 

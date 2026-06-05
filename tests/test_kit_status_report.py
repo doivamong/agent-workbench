@@ -77,19 +77,53 @@ def test_honest_when_telemetry_not_wired(tmp_path):
     assert "ứng viên chết" not in html             # NEVER call a skill dead when unmeasured
 
 
-def test_dead_candidate_only_when_wired_and_zero(tmp_path):
-    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"}, wired=True)
+def test_zero_fire_labeled_by_name_not_death(tmp_path):
+    # A wired + 0-fire skill is "chưa ai gọi tên" (no one typed its name), NEVER "chết".
+    # The metric only sees skill NAMES typed in a prompt; a 0 is un-named, not dead/broken.
+    # Guard-tier skills are model-auto-fired by design, so their 0 is structural: they get a
+    # distinct neutral "tự gọi" badge and are EXCLUDED from the count (no cry-wolf).
+    proj = _make_project(
+        tmp_path,
+        {"awb-review": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"},
+        wired=True)
     log = proj / ".claude" / ".logs"
     log.mkdir(parents=True)
     now = datetime.now().isoformat(timespec="seconds")
-    # awb-review fired; awb-tdd never did
+    # awb-review (guard) fired; awb-output-guard (guard) and awb-tdd (workflow) never did
     (log / "skill_usage.jsonl").write_text(
         json.dumps({"time": now, "skill": "awb-review", "signal": "invoke"}) + "\n",
         encoding="utf-8")
-    html = _render(proj)
-    assert "Telemetry chưa bật" not in html        # wired -> no banner
-    assert "ứng viên chết" in html                 # awb-tdd, wired + 0 fires
-    assert "sống" in html                          # awb-review fired
+    ctx = ksr.gather(proj, 14, None)
+    html = ksr.render(ctx)
+    assert "Telemetry chưa bật" not in html        # wired -> no not-wired banner
+    assert "ứng viên chết" not in html             # the old death verdict is gone kit-wide
+    assert "chưa ai gọi tên" in html               # awb-tdd: non-guard, 0 fires
+    assert "tự gọi" in html                        # awb-output-guard: guard 0-fire, neutral badge
+    assert "đã gọi tên" in html                    # awb-review fired (was named)
+    # the measured-state caveat must render (the one state that prints 0-fire labels)
+    assert "Đang đo theo tên trong prompt" in html
+    # guard 0-fire is NOT counted; only the non-guard awb-tdd is
+    assert ctx["dead_candidates"] == 1
+
+
+def test_caveat_shows_even_when_only_guard_is_zero(tmp_path):
+    # Edge: the only 0-fire skill is a guard, so dead_candidates==0 (guards are excluded
+    # from the count). The "tự gọi" badge still renders and NEEDS explaining, so the
+    # measured-state caveat must show on n_zero, NOT on dead. Guards against a regression
+    # where the caveat is gated on `dead` and silently vanishes here.
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-output-guard": "guard"},
+                         wired=True)
+    log = proj / ".claude" / ".logs"
+    log.mkdir(parents=True)
+    now = datetime.now().isoformat(timespec="seconds")
+    (log / "skill_usage.jsonl").write_text(
+        json.dumps({"time": now, "skill": "awb-review", "signal": "invoke"}) + "\n",
+        encoding="utf-8")
+    ctx = ksr.gather(proj, 14, None)
+    html = ksr.render(ctx)
+    assert ctx["dead_candidates"] == 0             # the only zero is a guard → not counted
+    assert "tự gọi" in html                        # but its neutral badge still renders
+    assert "Đang đo theo tên trong prompt" in html  # and the caveat explains it
 
 
 def test_wired_but_empty_log_is_not_dead(tmp_path):
@@ -99,6 +133,7 @@ def test_wired_but_empty_log_is_not_dead(tmp_path):
     # no .claude/.logs/skill_usage.jsonl created -> empty
     html = _render(proj)
     assert "ứng viên chết" not in html
+    assert "chưa ai gọi tên" not in html           # empty log is un-MEASURED, not un-named
     assert "chưa đo" in html
     assert "chưa có dữ liệu" in html               # the "wired but no data" banner
 
