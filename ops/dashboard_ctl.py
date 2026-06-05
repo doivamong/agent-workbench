@@ -47,6 +47,7 @@ APP = REPO_ROOT / "ui" / "web" / "app.py"
 OPS_DIR = REPO_ROOT / ".ops"
 PIDFILE = OPS_DIR / "dashboard.pid"
 LOGFILE = OPS_DIR / "dashboard.log"
+STATEFILE = OPS_DIR / "dashboard.json"  # records the last-started host:port (see write_state)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5151
@@ -83,6 +84,56 @@ def clear_pid(pidfile: Path | None = None) -> None:
         pidfile.unlink()
     except FileNotFoundError:
         pass
+
+
+# --------------------------------------------------------------------------- #
+# Start-state (host:port the dashboard was last launched on)
+# --------------------------------------------------------------------------- #
+def write_state(host: str, port: int, statefile: Path | None = None) -> None:
+    """Record the host:port the dashboard was last started on, so ``restart`` can reuse
+    it — a LAN bind (``--host 0.0.0.0``) then survives a no-arg ``restart`` (e.g. a
+    double-click of restart_all) instead of silently reverting to localhost."""
+    statefile = statefile or STATEFILE
+    statefile.parent.mkdir(parents=True, exist_ok=True)
+    statefile.write_text(json.dumps({"host": host, "port": port}), encoding="utf-8")
+
+
+def read_state(statefile: Path | None = None) -> dict | None:
+    """The recorded ``{host, port}``, or None if absent/garbage (fail soft)."""
+    statefile = statefile or STATEFILE
+    try:
+        data = json.loads(statefile.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and "host" in data and "port" in data:
+            return {"host": str(data["host"]), "port": int(data["port"])}
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
+def clear_state(statefile: Path | None = None) -> None:
+    statefile = statefile or STATEFILE
+    try:
+        statefile.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def resolve_restart_target(host: str | None, port: int | None) -> tuple[str, int]:
+    """Resolve the host:port a ``restart``/``status`` should use: an explicit value wins;
+    otherwise reuse what the dashboard was last started on (so a LAN bind survives a
+    no-arg restart); otherwise the defaults. This is the fix for 'restart silently
+    reverts a LAN bind to localhost'."""
+    saved = read_state() or {}
+    return (host if host is not None else saved.get("host", DEFAULT_HOST),
+            port if port is not None else saved.get("port", DEFAULT_PORT))
+
+
+def _url(host: str, port: int) -> str:
+    """A clickable URL: a wildcard bind (``0.0.0.0``/``::``) is shown on loopback, and an
+    IPv6 literal is bracketed — so the URL connects on Windows (see ``_connect_host``)."""
+    dial = _connect_host(host)
+    netloc = f"[{dial}]" if ":" in dial else dial
+    return f"http://{netloc}:{port}"
 
 
 # --------------------------------------------------------------------------- #
@@ -177,7 +228,8 @@ def status(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> dict:
         "pid_alive": pid_alive(pid),
         "listening": listening,
         "healthy": health_ok(host, port) if listening else False,
-        "url": f"http://{host}:{port}",
+        "bind_host": host,
+        "url": _url(host, port),  # clickable: a 0.0.0.0 bind is shown on loopback
     }
 
 
@@ -230,13 +282,14 @@ def start(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = APP
     already listening, report it rather than starting a second one."""
     if port_listening(host, port):
         return {"action": "start", "result": "already-running",
-                "healthy": health_ok(host, port), "url": f"http://{host}:{port}"}
+                "healthy": health_ok(host, port), "url": _url(host, port)}
     pid = _spawn_detached(build_start_cmd(host, port, app, extra), LOGFILE)
     write_pid(pid)
+    write_state(host, port)  # so a no-arg restart reuses this host:port (LAN bind survives)
     healthy = wait_healthy(host, port, timeout) if wait else False
     return {"action": "start", "result": "started" if healthy else "started-unverified",
-            "pid": pid, "healthy": healthy, "log": str(LOGFILE),
-            "url": f"http://{host}:{port}"}
+            "pid": pid, "healthy": healthy, "bind_host": host, "log": str(LOGFILE),
+            "url": _url(host, port)}
 
 
 def _reap(pid: int) -> None:
@@ -288,10 +341,12 @@ def stop(timeout: float = 10.0) -> dict:
     pid = read_pid()
     if not pid_alive(pid):
         clear_pid()
+        clear_state()
         return {"action": "stop", "result": "not-running"}
     gone = _terminate(pid, timeout)  # type: ignore[arg-type]
     if gone:
         clear_pid()
+        clear_state()
     return {"action": "stop", "result": "stopped" if gone else "stop-failed", "pid": pid}
 
 
@@ -313,20 +368,25 @@ def restart(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = A
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Start/stop/restart/status the ui/web dashboard.")
     ap.add_argument("command", choices=["status", "start", "stop", "restart"])
-    ap.add_argument("--host", default=DEFAULT_HOST, help=f"bind host (default: {DEFAULT_HOST})")
-    ap.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port (default: {DEFAULT_PORT})")
+    ap.add_argument("--host", default=None,
+                    help=f"bind host (default: {DEFAULT_HOST}; restart/status reuse the "
+                         "last-started host unless you pass this)")
+    ap.add_argument("--port", type=int, default=None, help=f"port (default: {DEFAULT_PORT})")
     ap.add_argument("--timeout", type=float, default=20.0, help="seconds to wait for healthy on start")
     ap.add_argument("--json", action="store_true", help="emit the result as JSON")
     args = ap.parse_args(argv)
 
-    if args.command == "status":
-        result = status(args.host, args.port)
-    elif args.command == "start":
-        result = start(args.host, args.port, timeout=args.timeout)
+    if args.command == "start":
+        # An explicit launch defaults to SAFE localhost — never auto-expose on a bare start.
+        result = start(args.host or DEFAULT_HOST, args.port or DEFAULT_PORT, timeout=args.timeout)
+    elif args.command == "status":
+        host, port = resolve_restart_target(args.host, args.port)
+        result = status(host, port)
     elif args.command == "stop":
         result = stop()
-    else:
-        result = restart(args.host, args.port, timeout=args.timeout)
+    else:  # restart — reuse the last-started host:port (so a LAN bind survives) unless overridden
+        host, port = resolve_restart_target(args.host, args.port)
+        result = restart(host, port, timeout=args.timeout)
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False))

@@ -256,6 +256,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--debug", action="store_true", help="Flask debug mode (dev only; incompatible with --admin)")
     args = ap.parse_args(argv)
 
+    # Headless safety: under pythonw.exe (a bare detached launch) sys.stdout/sys.stderr are
+    # None, and the status prints below would crash at startup before the server ever serves.
+    # Redirect None streams to devnull — the kit's headless-stdout-guard discipline (the same
+    # reason ops/dashboard_ctl.py guards its stdout). Via dashboard_ctl the child's streams are
+    # already a real logfile; this covers a bare ``pythonw ui/web/app.py``.
+    for _name in ("stdout", "stderr"):
+        if getattr(sys, _name) is None:
+            setattr(sys, _name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115
+
     # Fail fast and loud at the CLI boundary (create_app re-checks as defence in depth).
     if args.admin and args.debug:
         raise SystemExit("refusing: --admin is incompatible with --debug (RCE debugger).")

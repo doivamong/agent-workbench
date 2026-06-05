@@ -36,6 +36,18 @@ Flags: `--host`, `--port` (default **5151**; 5000 collides with common dev serve
 AirPlay), `--days` (telemetry window, default 14), `--project`, `--admin` (opt-in action
 surface — see below), `--debug`.
 
+## Exposing to a LAN (`--host 0.0.0.0`) — the firewall is the control, not the app
+
+The default bind is `127.0.0.1` (localhost only). Binding to `0.0.0.0` to reach the dashboard
+from another device **exposes the read-only page — your skills, telemetry, tools, and memory
+budget — to every host on the subnet, with no authentication.** The app does **not** protect
+that data; it is read-only by design, but it is not access-controlled. **The actual control is
+your OS firewall** — restrict the port to the local subnet (e.g. a `LocalSubnet`-scoped rule),
+or don't bind `0.0.0.0` at all. (The opt-in `/admin` *action* surface is separate: it refuses a
+`0.0.0.0` bind outright — see below — so a LAN bind never exposes the destructive buttons; only
+the read-only data is on the wire.) Note: `ops/dashboard_ctl.py restart` reuses the last-started
+host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
+
 ## Offline by design
 
 Chart.js and all CSS/JS are **vendored** under [`static/`](static/) — there is no CDN and

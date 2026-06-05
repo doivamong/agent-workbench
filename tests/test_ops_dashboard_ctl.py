@@ -119,6 +119,7 @@ def test_build_start_cmd():
 
 def test_stop_terminates_recorded_process(tmp_path, monkeypatch):
     monkeypatch.setattr(dc, "PIDFILE", tmp_path / "d.pid")
+    monkeypatch.setattr(dc, "STATEFILE", tmp_path / "d.json")  # don't touch the real state
     proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
     dc.write_pid(proc.pid)
     assert dc.pid_alive(proc.pid)
@@ -130,5 +131,41 @@ def test_stop_terminates_recorded_process(tmp_path, monkeypatch):
 
 def test_stop_not_running(tmp_path, monkeypatch):
     monkeypatch.setattr(dc, "PIDFILE", tmp_path / "none.pid")
+    monkeypatch.setattr(dc, "STATEFILE", tmp_path / "none.json")
     res = dc.stop()
     assert res["result"] == "not-running"
+
+
+def test_state_roundtrip(tmp_path):
+    sf = tmp_path / "dashboard.json"
+    assert dc.read_state(sf) is None
+    dc.write_state("0.0.0.0", 5151, sf)
+    assert dc.read_state(sf) == {"host": "0.0.0.0", "port": 5151}
+    dc.clear_state(sf)
+    assert dc.read_state(sf) is None
+
+
+def test_read_state_garbage(tmp_path):
+    sf = tmp_path / "dashboard.json"
+    sf.write_text("{not json", encoding="utf-8")
+    assert dc.read_state(sf) is None
+    sf.write_text('{"host": "x"}', encoding="utf-8")  # missing port
+    assert dc.read_state(sf) is None
+
+
+def test_resolve_restart_target_reuses_saved_host(tmp_path, monkeypatch):
+    monkeypatch.setattr(dc, "STATEFILE", tmp_path / "dashboard.json")
+    # No state yet → defaults.
+    assert dc.resolve_restart_target(None, None) == (dc.DEFAULT_HOST, dc.DEFAULT_PORT)
+    # A LAN bind was last started → a no-arg restart reuses it (the footgun fix).
+    dc.write_state("0.0.0.0", 5252, dc.STATEFILE)
+    assert dc.resolve_restart_target(None, None) == ("0.0.0.0", 5252)
+    # An explicit --host overrides the saved one.
+    assert dc.resolve_restart_target("127.0.0.1", None) == ("127.0.0.1", 5252)
+
+
+def test_status_url_is_clickable_for_wildcard_bind(server):
+    # A 0.0.0.0 bind must surface a clickable loopback URL, not http://0.0.0.0:port.
+    st = dc.status("0.0.0.0", server)
+    assert st["bind_host"] == "0.0.0.0"
+    assert st["url"] == f"http://127.0.0.1:{server}"
