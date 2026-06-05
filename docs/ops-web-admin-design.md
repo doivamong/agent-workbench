@@ -3,7 +3,20 @@
 > The design of record for the ops toolkit's optional web admin surface (Phase 2), distilled from
 > the research + stress-test that preceded it. The engine it drives — `ops/dashboard_ctl.py`,
 > `ops/release_pack.py`, `ops/tree_snapshot.py` — ships separately and is stdlib-only; this layer is
-> the **opt-in** Flask veneer on top, so one implementation backs both the terminal and the buttons.
+> the Flask veneer on top, so one implementation backs both the terminal and the buttons.
+
+> [!IMPORTANT]
+> **Superseded by full Approach A (always-mount, login is the gate).** Phase A added real auth
+> (pbkdf2 + lockout + CSRF + SameSite cookie), then the always-mount change made **login** the
+> security gate instead of the `--admin` flag. So the parts of this record below that describe the
+> *flag* gate are **history, not current behavior**: **D1** (opt-in, default OFF), **guard 1**
+> (blueprint only under `--admin`; else 404), **guard 3** (Host/Origin allowlist), and the
+> `0.0.0.0`-refusal half of **guard 4** are superseded. Current behavior: `/admin` is **always
+> mounted** but **inert without a password** (every action 403 on any host, login impossible); a
+> password enables it and login is the gate; `--admin` is a no-op; `--debug` is refused outright.
+> See [`ui/web/README.md`](../ui/web/README.md) for the live contract. The guard *mechanisms*
+> (CSRF, server-enumerated targets, TOCTOU-guarded restore, no-shell subprocess, audit) are
+> unchanged.
 
 ## What it is
 

@@ -1,17 +1,18 @@
-"""Tests for ui/web/ admin layer — the opt-in /admin action surface (Phase 2).
+"""Tests for ui/web/ admin layer — the /admin action surface (full Approach A: login is the gate).
 
 These mirror tests/test_ui_web.py's OPT-IN pattern exactly: a guarded import (never
 ``importorskip``) keeps every item COLLECTED so tools/readme_metrics.py sees a stable
 count dev (Flask present) vs CI (Flask absent); the tests are skipped at run time when
 Flask is missing, so the core suite still passes with zero third-party deps.
 
-The load-bearing properties under test are the 9 guards the design was stress-tested on.
-The four CRITICAL guards (called out below) are the ones that, if they regress, turn an
-opt-in dev convenience into a remote-code-execution surface:
+The four CRITICAL guards (called out below) are the ones that, if they regress, turn admin
+into a remote-code-execution surface:
 
-  C1  admin is OFF by default — no --admin → /admin* is 404 and no token is minted.
+  C1  /admin is ALWAYS mounted, but NO password ⇒ admin is INERT — every action is 403 on any
+      host (even with a valid CSRF token), login is impossible, GET /admin → the login page.
   C2  CSRF — POST mutations need the per-process token (hmac.compare_digest); GET never mutates.
-  C3  Host/Origin allowlist — a foreign Host/Origin is refused; --debug / 0.0.0.0 can't enable admin.
+  C3  --debug refused outright (admin always mounted); a LAN bind is allowed (inert without a
+      password) — login, not the host, is the gate once a password is set.
   C4  Restore TOCTOU — a stale plan-hash aborts the apply with NO write; the target is chosen
       from a server-enumerated allowlist, never a client-supplied path.
 """
