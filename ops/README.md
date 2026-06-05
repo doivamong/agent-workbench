@@ -86,12 +86,15 @@ python examples/ops_demo.py            # snapshot↔restore + pack→verify→ta
 python examples/ops_web_admin_demo.py  # the /admin guards (CSRF, TOCTOU restore) in-process, no port
 ```
 
-## The opt-in `/admin` web layer
+## The `/admin` web layer — always mounted, **login is the gate**
 
-The same three APIs back the opt-in web action surface at `/admin`
-(`python ui/web/app.py --admin`, default OFF → `/admin*` is 404). It adds CSRF (per-process
-token + `hmac.compare_digest`), a localhost Host/Origin allowlist, server-enumerated restore /
-verify targets, the plan-hash TOCTOU-guarded restore with an auto-backup, a detached
-self-restart, and an audit of every action to `.ops/ops.log`. **Honest limit:** it trusts every
-local process that can reach the port (it can read the token) — opt-in, localhost-only, **not for
-shared machines**. Details in [`ui/web/README.md`](../ui/web/README.md#opt-in-admin-action-surface---admin).
+The same three APIs back the web action surface at `/admin`. It is **always mounted**, but with
+**no password configured it is inert** — every action is 403 on any host (even with a valid CSRF
+token), login is impossible, and `GET /admin` redirects to a login page that names
+`AWB_ADMIN_PASSWORD` as the way to enable admin. Setting a password is what enables it; **login**
+(not the old `--admin` flag, which is now a no-op) is the gate. On top it adds CSRF (per-process
+token + `hmac.compare_digest`), server-enumerated restore / verify targets, the plan-hash
+TOCTOU-guarded restore with an auto-backup, a detached self-restart, and an audit of every action
+to `.ops/ops.log`. **Honest limit:** once a password is set this is plain HTTP — the password and
+session cookie travel in cleartext over a LAN; only enable it on a **trusted** network, never
+Internet-facing. Details in [`ui/web/README.md`](../ui/web/README.md).
