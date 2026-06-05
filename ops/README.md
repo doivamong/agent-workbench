@@ -48,6 +48,14 @@ python ops/lan_setup.py status      # env default · what restart will bind · L
 python ops/lan_setup.py enable       # default to a LAN bind (env + start-state)
 ```
 
+Start at logon (so the dashboard is there after a reboot): [`autostart.py`](autostart.py)
+(`status` / `enable` / `disable`). Windows registers an `ONLOGON` Scheduled Task that runs
+`dashboard_ctl start` hidden via `pythonw`; POSIX prints a systemd *user* service. Double-click
+[`win/autostart_on.bat`](win/autostart_on.bat) (self-elevates via UAC) / `win/autostart_off.bat`.
+It binds whatever `AWB_DASHBOARD_HOST` defaults to — so combine with `lan_setup enable` for a
+dashboard that comes up on the LAN every boot. **Honest limit:** that means it's reachable on your
+subnet at every logon — the firewall stays the control; `/admin` still refuses `0.0.0.0`.
+
 ### `tree_snapshot.py` — a dev safety net
 ```sh
 python ops/tree_snapshot.py snapshot              # zip the tree (respects .gitignore)
