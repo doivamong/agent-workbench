@@ -39,6 +39,11 @@ path-scoped rule files (see `.claude/rules/`).*
   check the load-bearing claim against the source. A framing you didn't author (a tool/skill's
   description, an external audit) is just an unchecked claim — right on the facts ≠ right on cause /
   severity / fix.
+- **In a linked worktree, sync before you build** — agent worktrees drift behind `origin/main`
+  while parallel sessions merge PRs. Before implementing a fix, `git fetch` and check
+  `git rev-list --left-right --count origin/main...HEAD` plus whether your target files already
+  changed upstream; fast-forward/rebase first, and if a merged PR already did the work, switch to
+  review instead of re-doing it. (Verify the work isn't already done — not just that a claim is true.)
 - **Match the surrounding code's style** rather than importing your own conventions.
 
 ## Project map
