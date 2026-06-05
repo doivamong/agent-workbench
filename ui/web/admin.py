@@ -280,7 +280,7 @@ def _tree_dirty(root: Path) -> bool:
 def record_own_pid() -> None:
     """Record THIS process's PID in ops/dashboard_ctl's pidfile, so ``dashboard_ctl
     restart/stop`` — and the detached restarter spawned below — can find and replace us
-    even when the dashboard was launched directly (``python ui/web/app.py --admin``)."""
+    even when the dashboard was launched directly (``python ui/web/app.py``)."""
     dctl.write_pid(os.getpid())
 
 

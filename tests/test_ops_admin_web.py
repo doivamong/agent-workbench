@@ -72,9 +72,8 @@ _ADMIN_PW = "test-admin-pw"  # leak-scan: ignore
 def _admin_app(ops_root: Path | None = None, *, host: str = "127.0.0.1", port: int = 5151,
                password: str = _ADMIN_PW):
     """An /admin app with a password CONFIGURED, so admin is enabled and login is required.
-    The action tests drive it through _authed_client() (a logged-in client). `admin=True` is
-    passed to prove the deprecated flag is an accepted no-op."""
-    app = webapp.create_app(admin=True, host=host, port=port,
+    The action tests drive it through _authed_client() (a logged-in client)."""
+    app = webapp.create_app(host=host, port=port,
                             admin_password_hash=webadmin.hash_password(password))
     app.config.update(TESTING=True)
     if ops_root is not None:
@@ -209,14 +208,6 @@ def test_C1_admin_always_mounted_token_minted(tmp_path):
     assert _token(a) != _token(b)  # per-process secret, not a shared constant
 
 
-def test_C1_admin_flag_is_an_accepted_no_op(tmp_path):
-    # Back-compat: old scripts / dashboard_ctl pass --admin / admin=True. It is now a no-op
-    # (admin is always mounted) and must not raise — the app builds the same either way.
-    with_flag = webapp.create_app(admin=True)
-    without = webapp.create_app(admin=False)
-    assert "ADMIN_TOKEN" in with_flag.config and "ADMIN_TOKEN" in without.config
-
-
 # --------------------------------------------------------------------------- #
 # C2 — CSRF
 # --------------------------------------------------------------------------- #
@@ -278,8 +269,6 @@ def test_C3_debug_refused_outright(tmp_path):
 def test_C3_cli_refuses_debug(tmp_path):
     with pytest.raises(SystemExit):
         webapp.main(["--debug"])
-    with pytest.raises(SystemExit):
-        webapp.main(["--admin", "--debug"])      # --admin is a no-op; --debug still refused
 
 
 # --------------------------------------------------------------------------- #
@@ -545,7 +534,7 @@ def test_verify_password_tolerates_garbage_stored_value():
 def _auth_app(ops_root: Path | None = None, *, password: str = "s3cret-pw",
               host: str = "127.0.0.1", port: int = 5151):
     """An /admin app with auth CONFIGURED (a password hash) — so login is required."""
-    app = webapp.create_app(admin=True, host=host, port=port,
+    app = webapp.create_app(host=host, port=port,
                             admin_password_hash=webadmin.hash_password(password))
     app.config.update(TESTING=True)
     if ops_root is not None:

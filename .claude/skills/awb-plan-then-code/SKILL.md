@@ -25,7 +25,7 @@ steps to your stack.
    it worked. Keep it to a screen.
 3. **HARD GATE: plan approved.** Do not write implementation code until the plan is agreed.
    If working solo, re-read your own plan and sanity-check it; if with a user, get a yes.
-   This is the gate that prevents 80% of wasted work.
+   This is the gate that catches most wasted work before it starts.
 4. **Implement** — make the change. Match the surrounding code's style. No placeholders, no
    "TODO: finish this" left behind.
 5. **Test** — add/extend tests. A change without a test that would have caught its absence is

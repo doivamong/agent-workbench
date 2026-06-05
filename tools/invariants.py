@@ -86,7 +86,8 @@ def config_nested_access(parent: str, nested_keys: set[str], accessor: str = "ge
     A key that lives under `parent` must be read two levels deep — ``cfg.get(parent, {}).get(key)``.
     Read flat — ``cfg.get(key)`` — it returns ``None`` silently, and the crash surfaces far away
     downstream as an ``AttributeError`` on ``None``. A bypassable skill can *remind* you of this;
-    only an always-run check can *guarantee* it never ships, which is why it lives here.
+    only an always-run check makes this class of same-line mistakes gateable, which is why it
+    lives here.
 
     Heuristic: flag a line that accesses one of `nested_keys` via ``.<accessor>("key")`` while the
     `parent` container is not named as a quoted key (``"parent"``) on that same line — the correct

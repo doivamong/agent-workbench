@@ -168,6 +168,33 @@ def test_memory_health_reads_real_index(tmp_path):
     assert mh["dangling"] == 1   # [[ghost]] has no file
 
 
+def test_memory_health_prefers_live_dir_over_template(tmp_path):
+    """Regression: memory_health must read the LIVE per-project dir (resolved via
+    autoMemoryDirectory), not the repo memory/ template. The old code called
+    resolve_live_dir(proj) with one arg and mishandled its (Path, str) return, so the
+    live branch always raised (swallowed) and silently fell back to the template — this
+    test bites that by giving the live dir contents that DIFFER from the template."""
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    # _make_project's template: 1 fact (fact-a), 1 dangling ([[ghost]]).
+    # Build a live dir that DIFFERS unmistakably: 2 facts, 0 dangling.
+    live = tmp_path / "live_mem"
+    live.mkdir()
+    (live / "MEMORY.md").write_text("# live\n- [[fact-x]] one\n- [[fact-y]] two\n",
+                                    encoding="utf-8")
+    (live / "fact-x.md").write_text("x", encoding="utf-8")
+    (live / "fact-y.md").write_text("y", encoding="utf-8")
+    # Point the harness's autoMemoryDirectory at the live dir.
+    settings_path = proj / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["autoMemoryDirectory"] = str(live)
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+
+    mh = ksr.memory_health(proj)
+    assert mh["present"] is True
+    assert mh["facts"] == 2      # the live dir's 2 facts, NOT the template's 1
+    assert mh["dangling"] == 0   # live has no [[ghost]] dangling link
+
+
 def test_run_gates_skips_absent_tools(tmp_path):
     proj = _make_project(tmp_path, {"awb-review": "guard"})
     res = ksr.run_readonly_gates(proj)

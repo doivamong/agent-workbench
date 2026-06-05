@@ -223,6 +223,10 @@ def scan_file(path: Path, patterns: list[tuple[str, re.Pattern[str]]],
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
+        # Fail CLOSED: a file we can't read could hide a leak. Surface it as a finding
+        # (path redacted) so --fail-on-find exits non-zero, rather than silently skipping
+        # it (which would let an unreadable in-scope file green-light a scan).
+        findings.append((0, "unreadable_file", _redact(str(path))))
         return findings
     if multiline:
         findings.extend(_multiline_findings(text))

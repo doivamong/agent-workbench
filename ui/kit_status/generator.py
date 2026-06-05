@@ -203,10 +203,10 @@ def memory_health(proj: Path) -> dict:
     mem_dir = None
     try:
         import memory_recall_doctor as mrd  # type: ignore
-        live = mrd.resolve_live_dir(proj) if hasattr(mrd, "resolve_live_dir") else None
-        if live and Path(live).is_dir():
-            mem_dir = Path(live)
-    except Exception:
+        live, _how = mrd.resolve_live_dir(proj, None)
+        if live.is_dir():
+            mem_dir = live
+    except (ImportError, OSError):
         mem_dir = None
     if mem_dir is None and (proj / "memory").is_dir():
         mem_dir = proj / "memory"

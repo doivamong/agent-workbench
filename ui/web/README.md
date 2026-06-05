@@ -35,9 +35,9 @@ python ui/web/app.py --project /path/to/another/project
 ```
 
 Flags: `--host`, `--port` (default **5151**; 5000 collides with common dev servers / macOS
-AirPlay), `--days` (telemetry window, default 14), `--project`. `--admin` is a **deprecated
-no-op** (`/admin` is always mounted now — set a password to enable it, see below); `--debug` is
-**refused outright** (admin is always mounted and the Werkzeug debugger is an RCE console).
+AirPlay), `--days` (telemetry window, default 14), `--project`. `/admin` is always mounted —
+set a password to enable it (see below); `--debug` is **refused outright** (admin is always
+mounted and the Werkzeug debugger is an RCE console).
 
 ## Exposing to a LAN (`--host 0.0.0.0`) — the firewall is the control, not the app
 
@@ -117,7 +117,7 @@ The guards (the design was stress-tested to GO only with all of them):
 - **No host restriction once logged in** — login is the gate, so a LAN `Host` is allowed (a
   `SameSite=Strict` session cookie + CSRF cover what a host allowlist would: a cross-site /
   DNS-rebind request carries no session cookie → 401). `--debug` is **refused outright** (the
-  Werkzeug debugger is a remote console); `--admin` is a **deprecated no-op**.
+  Werkzeug debugger is a remote console).
 - **Server-enumerated targets** — the restore/verify target is chosen *by name* from a list this
   server produced (the snapshots / releases dirs); a client-supplied path is rejected. Subprocess
   calls are arg lists, never a shell string.
