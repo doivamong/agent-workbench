@@ -18,6 +18,7 @@
   </p>
   {% endif %}
   <form hx-post="/admin/restore/apply" hx-target="#admin-result" hx-swap="innerHTML"
+        hx-confirm="Khôi phục sẽ ghi đè {{ plan.will_modify|length }} tệp (đã tự sao lưu trước). Tiếp tục?"
         class="admin-form">
     <input type="hidden" name="csrf" value="{{ token }}">
     <input type="hidden" name="snapshot" value="{{ snapshot }}">

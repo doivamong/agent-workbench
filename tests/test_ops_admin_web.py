@@ -265,7 +265,10 @@ def test_C4_restore_rejects_target_not_in_allowlist(tmp_path):
     _take_snapshot(repo)
     app = _admin_app(repo)
     c = app.test_client()
-    for bad in ("../../../etc/passwd", "nope.zip", "..\\..\\win.zip", "sub/dir.zip"):
+    # Critical #1: path traversal AND shell-metachar injection names are both refused — only a
+    # server-enumerated id is accepted (the metachars never reach a shell; subprocess is arg-list).
+    for bad in ("../../../etc/passwd", "nope.zip", "..\\..\\win.zip", "sub/dir.zip",
+                "a;rm -rf.zip", "a|b.zip", "$(whoami).zip"):
         r = c.post("/admin/restore/preview", data={"csrf": _token(app), "snapshot": bad})
         assert r.status_code == 400, bad
 
@@ -385,3 +388,38 @@ def test_readonly_root_has_no_admin_link_when_off(tmp_path):
     app.config.update(TESTING=True, PROJECT=proj)
     html = app.test_client().get("/").get_data(as_text=True)
     assert 'href="/admin"' not in html
+
+
+# --- admin.js (restart -> poll /health -> reload) + confirm dialogs ----------
+def test_admin_js_is_served_and_offline(tmp_path):
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().get("/static/admin.js")
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert "/health" in body                    # it polls the liveness probe
+    assert "location.reload" in body            # ...and reloads when healthy again
+    assert not re.search(r"https?://", body)    # offline, no external fetch
+
+
+def test_admin_page_loads_admin_js(tmp_path):
+    app = _admin_app(tmp_path / "r")
+    html = app.test_client().get("/admin").get_data(as_text=True)
+    assert "admin.js" in html
+
+
+def test_restart_result_carries_reconnect_marker(tmp_path, monkeypatch):
+    monkeypatch.setattr(webadmin, "_launch_restart", lambda host, port: 4242)
+    app = _admin_app(tmp_path / "r", host="127.0.0.1", port=5151)
+    r = app.test_client().post("/admin/action/restart", data={"csrf": _token(app)})
+    assert r.status_code in (200, 202)
+    assert 'data-restart="1"' in r.get_data(as_text=True)  # admin.js keys off this to poll/reload
+
+
+def test_destructive_restore_has_confirm_dialog(tmp_path):
+    repo = _git_repo(tmp_path)
+    z = _take_snapshot(repo)
+    app = _admin_app(repo)
+    preview = app.test_client().post(
+        "/admin/restore/preview",
+        data={"csrf": _token(app), "snapshot": z.name}).get_data(as_text=True)
+    assert "hx-confirm" in preview  # the apply button confirms before overwriting files

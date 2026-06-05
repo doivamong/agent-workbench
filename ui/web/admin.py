@@ -28,6 +28,23 @@ reach the bound port** — any such process can read the CSRF token from the ser
 It is opt-in, default-off, localhost-only, and **not for shared machines**. The CSRF/Origin
 checks stop a cross-origin *browser* from forging requests; they do NOT stop a local
 attacker who can already talk to the port.
+
+DESIGN NOTE — in-process vs. subprocess (re: handover decision D4). The handover's D4 asked
+for destructive ops to run via ``subprocess python ops/<tool>.py …`` (process isolation +
+kill-ability). This module instead reuses the engine's **callable API in-process**, a
+deliberate, documented deviation taken on ROI grounds:
+  * Every data-safety guard the restore needs — TOCTOU plan-hash re-validation, auto-backup,
+    dirty-tree refusal, zip-slip, the server-enumerated allowlist — lives IN that API and
+    holds identically in-process; subprocess would add process isolation, which a restore
+    (a *data* risk, not a stability one) does not need.
+  * The Phase-1 CLIs hard-code ``REPO_ROOT`` and expose no ``--root``, so a subprocess could
+    only ever target the real repo — untestable on a temp tree, where the in-process API
+    (``root=``/``snap_dir=`` params) lets the 4 Critical guards be tested as real round-trips.
+  * Subprocess would re-introduce the cross-platform reap/zombie surface the handover itself
+    flags as a CI-only trap (``dashboard_ctl._reap``).
+``threaded=True`` (set in app.main) recovers the one practical benefit subprocess offered —
+a slow action not blocking the page. Only the self-restart genuinely needs a *detached*
+subprocess (it must outlive the dying process); that one IS spawned, never in-process.
 """
 from __future__ import annotations
 
@@ -195,9 +212,12 @@ def _launch_restart(host: str, port: int) -> int:
 # Rendering helpers
 # --------------------------------------------------------------------------- #
 def _result(action: str, title: str, message: str, *, ok: bool = True,
-            detail: list[str] | None = None):
+            detail: list[str] | None = None, poll_health: bool = False):
+    # poll_health stamps a data-restart marker so admin.js knows to poll /health and reload
+    # once the freshly-spawned dashboard answers again.
     return render_template("_admin_result.html.jinja",
-                           action=action, title=title, message=message, ok=ok, detail=detail)
+                           action=action, title=title, message=message, ok=ok,
+                           detail=detail, poll_health=poll_health)
 
 
 def _token() -> str:
@@ -234,7 +254,8 @@ def action_restart():
     _audit("restart", "spawned", helper_pid=pid, host=host, port=port)
     return _result("restart", "Đang khởi động lại",
                    f"Đã sinh tiến trình khởi động lại tách rời (PID {pid}). "
-                   "Dashboard sẽ tải lại sau giây lát — làm mới trang.", ok=True), 202
+                   "Trang sẽ tự kết nối lại khi dashboard sống lại.",
+                   ok=True, poll_health=True), 202
 
 
 @admin_bp.route("/action/snapshot", methods=["POST"])

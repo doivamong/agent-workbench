@@ -10,6 +10,7 @@
   <title>Agent Workbench — /admin · điều khiển kit</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
   <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
 </head>
 <body>
 <a class="skip" href="#admin-actions">Bỏ qua tới các thao tác</a>
@@ -59,7 +60,8 @@
           <h2 id="a-restart">Khởi động lại</h2>
         </div></div>
         <p class="section-foot">Dừng tiến trình dashboard này (qua pidfile) và sinh một tiến trình mới — tách rời.</p>
-        <form hx-post="/admin/action/restart" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+        <form hx-post="/admin/action/restart" hx-target="#admin-result" hx-swap="innerHTML"
+              hx-confirm="Khởi động lại dashboard? Trang sẽ tự kết nối lại." class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
           <button type="submit" class="btn">Khởi động lại dashboard</button>
         </form>

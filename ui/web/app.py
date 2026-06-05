@@ -279,7 +279,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Agent Workbench dashboard → http://{args.host}:{args.port}  "
           f"(project: {built.config['PROJECT']}{', /admin ON' if args.admin else ''})",
           file=sys.stderr)
-    built.run(host=args.host, port=args.port, debug=args.debug)
+    # threaded so a slow admin action (snapshot/pack/restore) doesn't block the page — in
+    # particular the restart flow, where the page polls /health while a request is in flight.
+    built.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
     return 0
 
 

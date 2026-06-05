@@ -1,7 +1,7 @@
 {#- Result of one admin action — HTMX-swapped into #admin-result. Neutral/ok/err surface
     using the shared design tokens. role=status + aria-live so the outcome is announced. -#}
 <div class="admin-result {{ 'admin-result--ok' if ok else 'admin-result--err' }}"
-     role="status" aria-live="polite">
+     role="status" aria-live="polite"{% if poll_health %} data-restart="1"{% endif %}>
   <div class="admin-result__head">
     <span class="admin-result__dot" aria-hidden="true"></span>
     <strong>{{ title }}</strong>
