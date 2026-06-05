@@ -53,7 +53,20 @@ STATEFILE = OPS_DIR / "dashboard.json"  # records the last-started host:port (se
 # AWB_DASHBOARD_HOST=0.0.0.0 on your own machine to default to a LAN bind (e.g. to reach the
 # read-only dashboard from a phone on the same subnet). The firewall is the real control — see
 # ui/web/README.md. The /admin action surface still refuses a 0.0.0.0 bind regardless.
-DEFAULT_HOST = os.environ.get("AWB_DASHBOARD_HOST") or "127.0.0.1"
+HOST_ENV_VAR = "AWB_DASHBOARD_HOST"
+
+
+def env_default_host() -> str:
+    """The default bind host, resolved from the environment AT CALL TIME (not frozen at import).
+    Reading it lazily keeps ``resolve_restart_target``/``status`` deterministic w.r.t. the current
+    process env: a test that clears the var (or a shell that unsets it) sees localhost, even though
+    the machine had ``AWB_DASHBOARD_HOST=0.0.0.0`` set when this module was first imported."""
+    return os.environ.get(HOST_ENV_VAR) or "127.0.0.1"
+
+
+# Import-time snapshot, used only for function default-arg values and CLI help text. The live
+# resolution path (resolve_restart_target) calls env_default_host() so it is never frozen.
+DEFAULT_HOST = env_default_host()
 DEFAULT_PORT = 5151
 
 
@@ -128,7 +141,7 @@ def resolve_restart_target(host: str | None, port: int | None) -> tuple[str, int
     no-arg restart); otherwise the defaults. This is the fix for 'restart silently
     reverts a LAN bind to localhost'."""
     saved = read_state() or {}
-    return (host if host is not None else saved.get("host", DEFAULT_HOST),
+    return (host if host is not None else saved.get("host", env_default_host()),
             port if port is not None else saved.get("port", DEFAULT_PORT))
 
 
