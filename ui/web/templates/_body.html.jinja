@@ -8,7 +8,7 @@
 <div class="banner" role="status">
   <span class="banner__dot" aria-hidden="true"></span>
   <span class="banner__txt"><strong>Telemetry chưa bật.</strong>
-    Số lần kích hoạt skill là <strong>chưa đo</strong>, không phải “chết”.
+    Số lượt gọi tên skill là <strong>chưa đo</strong>, không phải “chết”.
     Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào
     <span class="mono">.claude/settings.json</span>.</span>
 </div>
@@ -19,7 +19,7 @@
     Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>,
     không phải “chết”. Dữ liệu tích lũy từ các phiên sau.</span>
 </div>
-{%- elif measured and dead %}
+{%- elif measured and n_zero %}
 {#- MEASURED state: the only state that prints the 0-fire labels, so it must carry the
     caveat that the metric only counts skills NAMED in a prompt. Neutral surface (override
     the amber .banner), NOT a warning — an un-named skill is information, not an error. -#}
@@ -28,7 +28,7 @@
   <span class="banner__dot" aria-hidden="true" style="background:var(--text-dim)"></span>
   <span class="banner__txt"><strong style="color:var(--text-strong)">Đang đo theo tên trong prompt.</strong>
     Chỉ số đếm lượt người dùng <strong style="color:var(--text-strong)">gõ tên</strong> skill
-    (<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là guard
+    (<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là skill bảo vệ/guard
     (output-guard, config-guard) — <strong style="color:var(--text-strong)">không tính</strong>
     ở đây; 0 nghĩa là chưa ai gõ tên trong cửa sổ này, không phải skill hỏng hay vô dụng.</span>
 </div>
@@ -40,13 +40,13 @@
     <span class="kpi__label">Skill</span>
     <span class="kpi__value"><span class="kit-num kit-num--xl">{{ n_skills }}</span></span>
     <span class="kpi__sub">
-      {%- if measured %}{{ dead }} chưa ai gọi tên{% else %}chưa đo lần kích hoạt{% endif -%}
+      {%- if measured %}{{ dead }} chưa ai gọi tên{% else %}chưa đo lượt gọi tên{% endif -%}
     </span>
   </div>
   <div class="kpi">
-    <span class="kpi__label">Lần kích hoạt · {{ days }} ngày</span>
+    <span class="kpi__label">Lượt gọi tên · {{ days }} ngày</span>
     <span class="kpi__value">
-      {%- if measured %}<span class="kit-num kit-num--xl kit-num--accent">{{ ctx.total }}</span><span class="kit-num__unit">lần</span>
+      {%- if measured %}<span class="kit-num kit-num--xl kit-num--accent">{{ ctx.total }}</span><span class="kit-num__unit">lượt</span>
       {%- else %}<span class="kit-num kit-num--lg muted">chưa đo</span>{% endif -%}
     </span>
     <span class="kpi__sub">{% if measured %}trung bình {{ (ctx.total / days)|round(1) }}/ngày{% else %}bật telemetry để đo{% endif %}</span>
@@ -78,7 +78,7 @@
     <div class="panel__head">
       <div>
         <div class="panel__eyebrow">Telemetry</div>
-        <h2 id="h-tele">Chuỗi kích hoạt skill</h2>
+        <h2 id="h-tele">Lượt gọi tên skill</h2>
       </div>
       {% if measured %}<span class="badge"><span class="kit-num">{{ ctx.total }}</span>&nbsp;tổng</span>
       {% else %}<span class="badge badge--warn">chưa đo</span>{% endif %}
@@ -86,7 +86,7 @@
     {% if measured %}
     <div class="chart-box">
       <canvas id="chart-timeseries" role="img"
-        aria-label="Biểu đồ đường: số lần kích hoạt skill mỗi ngày trong {{ days }} ngày"></canvas>
+        aria-label="Biểu đồ đường: số lượt gọi tên skill mỗi ngày trong {{ days }} ngày"></canvas>
     </div>
     <p class="section-foot">Dữ liệu thật từ <span class="mono">.claude/.logs/skill_usage.jsonl</span>, không nội suy.</p>
     {% else %}
@@ -150,8 +150,8 @@
   <section class="panel span-3" aria-labelledby="h-tools">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Cài đặt công cụ</div>
-        <h2 id="h-tools">Công cụ đã cài</h2>
+        <div class="panel__eyebrow">Bộ công cụ</div>
+        <h2 id="h-tools">Công cụ có mặt</h2>
       </div>
       <span class="badge {{ 'badge--warn' if ctx.tools_missing else 'badge--ok' }}">
         <span class="kit-num">{{ ctx.tools_present|length }}/{{ n_tools_full }}</span></span>
@@ -206,10 +206,10 @@
   <section class="panel span-6" aria-labelledby="h-hooks">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Móc an toàn</div>
+        <div class="panel__eyebrow">Hook an toàn</div>
         <h2 id="h-hooks">Hook đã nối</h2>
       </div>
-      <span class="badge badge--ok"><span class="kit-num">{{ ctx.n_hooks }}</span>&nbsp;móc</span>
+      <span class="badge badge--ok"><span class="kit-num">{{ ctx.n_hooks }}</span>&nbsp;hook</span>
     </div>
     <div class="chips">
       {% for e in ctx.events %}<span class="chip"><span class="chip__dot"></span>{{ e }}</span>

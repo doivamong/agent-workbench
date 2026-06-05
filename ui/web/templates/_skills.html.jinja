@@ -6,8 +6,8 @@
     <tr>
       <th scope="col">Skill</th>
       <th scope="col">Loại</th>
-      <th scope="col" class="num">Kích hoạt</th>
-      <th scope="col">Trạng thái</th>
+      <th scope="col" class="num">Lượt gọi tên</th>
+      <th scope="col">Tín hiệu</th>
     </tr>
   </thead>
   <tbody>
@@ -27,7 +27,7 @@
       {% endif %}
       {% else %}
       <td class="num">{{ s.fired }}</td>
-      <td><span class="badge badge--ok">sống</span></td>
+      <td><span class="badge badge--ok">đã gọi tên</span></td>
       {% endif %}
     </tr>
     {% else %}

@@ -59,7 +59,7 @@
         data: {
           labels: data.timeseries.labels,
           datasets: [{
-            label: "Lần kích hoạt/ngày",
+            label: "Lượt gọi tên/ngày",
             data: data.timeseries.values,
             borderColor: COL.accent,
             backgroundColor: "rgba(204,41,41,0.12)",

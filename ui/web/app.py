@@ -139,6 +139,9 @@ def build_view(ctx: dict, days: int, tier: str = "all") -> dict:
         "n_skills": len(ctx["skills"]),
         "skills_table": skills_table,
         "dead": ctx["dead_candidates"],
+        # Any 0-fire skill (guard or not) makes the measured-state caveat relevant — a guard's
+        # "tự gọi" badge needs explaining even when `dead` (non-guard zeros) is 0.
+        "n_zero": sum(1 for s in ctx["skills"] if s["fired"] == 0) if measured else 0,
         "n_tools_full": len(ctx["tools_present"]) + len(ctx["tools_missing"]),
         # Embedded as <script type="application/json">. Escape '<' so a skill name like
         # "</script>" can never break out of the tag (defence-in-depth; names are kit-local).

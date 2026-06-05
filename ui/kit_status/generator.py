@@ -277,6 +277,9 @@ def build(ctx: dict) -> dict[str, str]:
     wired = cfg_wired and total > 0
     n_skills = len(ctx["skills"])
     dead = ctx["dead_candidates"]
+    # Any 0-fire skill (guard OR non-guard) means the measured-state caveat is relevant —
+    # a guard's "tự gọi" badge needs explaining even when `dead` (non-guard zeros) is 0.
+    n_zero = sum(1 for s in ctx["skills"] if wired and s["fired"] == 0)
     tools_present, tools_missing = ctx["tools_present"], ctx["tools_missing"]
     n_tools_full = len(tools_present) + len(tools_missing)
     events, n_hooks = ctx["events"], ctx["n_hooks"]
@@ -299,7 +302,7 @@ def build(ctx: dict) -> dict[str, str]:
             f'<span class="overall__sub">{sub}</span></span></div>')
     if not cfg_wired:
         f["honesty_banner"] = _banner("Telemetry chưa bật",
-            'Số lần kích hoạt skill là <strong>chưa đo</strong>, không phải “chết”. '
+            'Số lượt gọi tên skill là <strong>chưa đo</strong>, không phải “chết”. '
             'Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào '
             '<span class="mono">.claude/settings.json</span>.')
     elif not wired:  # configured, but the log is still empty
@@ -312,16 +315,16 @@ def build(ctx: dict) -> dict[str, str]:
         # metric only counts skills NAMED in a prompt (model-auto-fired skills, esp. guards,
         # are invisible here). Neutral surface, NOT the amber warn banner: an un-named skill
         # is information, not an error. See .claude/rules/measurement-honesty.md (trap #2).
-        f["honesty_banner"] = ("" if not dead else
+        f["honesty_banner"] = ("" if not n_zero else
             '<div role="status" style="margin:0 0 var(--sp-5);padding:var(--sp-3) var(--sp-4);'
             'border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);'
             'color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5">'
             '<strong style="color:var(--text)">Đang đo theo tên trong prompt.</strong> '
             'Chỉ số đếm lượt người dùng <strong style="color:var(--text)">gõ tên</strong> skill '
-            '(<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là guard '
-            '(output-guard, config-guard) — không tính ở đây; 0 nghĩa là chưa ai gõ tên trong '
-            'cửa sổ này, <strong style="color:var(--text)">không phải skill hỏng hay vô dụng'
-            '</strong>.</div>')
+            '(<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là skill '
+            'bảo vệ/guard (output-guard, config-guard) — không tính ở đây; 0 nghĩa là chưa ai gõ '
+            'tên trong cửa sổ này, <strong style="color:var(--text)">không phải skill hỏng hay '
+            'vô dụng</strong>.</div>')
 
     # --- rail -------------------------------------------------------------- #
     ok = "kit-num--ok"
@@ -350,7 +353,7 @@ def build(ctx: dict) -> dict[str, str]:
     f["rail_nav"] = ('<nav class="railnav" aria-label="Mục lục"><span class="railnav__cap">Mục lục</span>'
         + nav("gates", "Cổng kiểm tra", gates_lbl)
         + nav("skills", "Skill &amp; loại", n_skills)
-        + nav("telemetry", "Chuỗi kích hoạt", total if wired else "—")
+        + nav("telemetry", "Lượt gọi tên", total if wired else "—")
         + nav("tools", "Công cụ", tools_lbl)
         + nav("memory", "Bộ nhớ", mem_pct_lbl)
         + nav("hooks", "Hook", n_hooks) + '</nav>')
@@ -366,7 +369,7 @@ def build(ctx: dict) -> dict[str, str]:
     gates_val = _kpi_display(gates_lbl, "PASS" if gates else "",
                              "kit-num--ok" if gates and all(gates.values()) else "")
     mem_hero = _kpi_display(mem_pct, "%") if mem.get("present") else _kpi_display("—")
-    tele_phrase = (f'{total} lần kích hoạt trong {ctx["days"]} ngày' if wired
+    tele_phrase = (f'{total} lượt gọi tên trong {ctx["days"]} ngày' if wired
                    else 'telemetry chưa có dữ liệu' if cfg_wired else 'telemetry chưa bật')
     mem_sub = (f'<strong>{_vn_num(mem["used"]/1024)}</strong>/{round(mem["budget"]/1024)} KB · {mem["facts"]} fact'
                if mem.get("present") else 'không tìm thấy MEMORY.md')
@@ -383,7 +386,7 @@ def build(ctx: dict) -> dict[str, str]:
         f'<span class="env-pill">Commit <span class="kit-num">{escape(commit)}</span></span>'
         '</div></div>'
         '<div class="row wrap" style="gap:var(--sp-6);border-top:1px solid var(--border-soft);padding-top:var(--sp-4)">'
-        f'<div class="kpi"><span class="kpi__label">Lần kích hoạt · {ctx["days"]} ngày</span>'
+        f'<div class="kpi"><span class="kpi__label">Lượt gọi tên · {ctx["days"]} ngày</span>'
         f'<span class="kpi__value">{tele_kpi}</span><span class="kpi__sub">{tele_sub}</span></div>'
         f'<div class="kpi"><span class="kpi__label">Cổng kiểm tra</span>'
         f'<span class="kpi__value">{gates_val}</span>'
@@ -444,7 +447,7 @@ def build(ctx: dict) -> dict[str, str]:
         else:
             h = max(2, round(s["fired"] / maxv * 18))
             spark = f'<span class="sparkbar" aria-hidden="true"><i class="hi" style="height:{h}px"></i></span>'
-            status = '<span class="badge badge--ok">sống</span>'
+            status = '<span class="badge badge--ok">đã gọi tên</span>'
             numcell = f'<td class="num">{s["fired"]}</td>'
         rows += (f'<tr><td><span class="cell-skill"><span class="dot {dotc}"></span>{escape(s["name"])}</span></td>'
                  f'<td class="muted">{escape(s["tier"])}</td>{numcell}'
@@ -455,10 +458,10 @@ def build(ctx: dict) -> dict[str, str]:
         '<div class="sec__eyebrow">Hệ skill</div><h2 id="h-skills">Skill &amp; phân bố loại</h2></div>'
         f'<div class="row" style="gap:var(--sp-2)">{head_badges}</div></div>'
         '<div class="surface panel"><div class="panel__head" style="margin-bottom:var(--sp-3)">'
-        '<h4>Lần kích hoạt theo skill</h4><span class="label">cao&nbsp;→&nbsp;thấp</span></div>'
+        '<h4>Lượt gọi tên theo skill</h4><span class="label">cao&nbsp;→&nbsp;thấp</span></div>'
         '<table class="tbl tbl--zebra"><thead><tr><th scope="col">Skill</th><th scope="col">Loại</th>'
-        '<th scope="col" class="num">Kích hoạt</th><th scope="col" class="num">Tỉ lệ</th>'
-        f'<th scope="col">Trạng thái</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+        '<th scope="col" class="num">Lượt gọi tên</th><th scope="col" class="num">Tỉ lệ</th>'
+        f'<th scope="col">Tín hiệu</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
 
     # --- telemetry --------------------------------------------------------- #
     if wired and total > 0:
@@ -478,7 +481,7 @@ def build(ctx: dict) -> dict[str, str]:
         xlabels = "".join(
             f'<text class="viz-axis-label" x="{xs[i]:.1f}" y="224" text-anchor="middle">{labels[i]}</text>'
             for i in range(0, n, max(1, n // 7)))
-        svg = (f'<svg class="viz" viewBox="0 0 720 240" role="img" aria-label="Chuỗi kích hoạt {n} ngày">'
+        svg = (f'<svg class="viz" viewBox="0 0 720 240" role="img" aria-label="Lượt gọi tên {n} ngày">'
             '<defs><linearGradient id="vizAreaGrad" x1="0" y1="0" x2="0" y2="1">'
             '<stop offset="0%" stop-color="#CC2929" stop-opacity="0.28"/>'
             '<stop offset="55%" stop-color="#CC2929" stop-opacity="0.07"/>'
@@ -506,7 +509,7 @@ def build(ctx: dict) -> dict[str, str]:
             '<span class="empty__msg">Wire <span class="mono">skill_usage_logger</span> vào '
             '<span class="mono">UserPromptSubmit</span> trong settings.json; biểu đồ sẽ hiện khi có dữ liệu.</span></div>')
     f["telemetry"] = ('<section class="sec" id="telemetry" aria-labelledby="h-telemetry"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Telemetry</div><h2 id="h-telemetry">Chuỗi kích hoạt</h2></div>'
+        '<div class="sec__eyebrow">Telemetry</div><h2 id="h-telemetry">Lượt gọi tên skill</h2></div>'
         f'{tbadge}</div><div class="surface panel">{inner}</div></section>')
 
     # --- tools ------------------------------------------------------------- #
@@ -527,7 +530,7 @@ def build(ctx: dict) -> dict[str, str]:
             '<span class="empty__msg">Tất cả công cụ kit có mặt trong <span class="mono">tools/</span>.</span></div>')
         tbadge2 = f'<span class="badge badge--ok"><span class="kit-num">{tools_lbl}</span>&nbsp;· đủ</span>'
     f["tools"] = ('<section class="sec" id="tools" aria-labelledby="h-tools"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Cài đặt công cụ</div><h2 id="h-tools">Công cụ đã cài</h2></div>'
+        '<div class="sec__eyebrow">Bộ công cụ</div><h2 id="h-tools">Công cụ có mặt</h2></div>'
         f'{tbadge2}</div><div class="surface panel"><div class="tools-grid"><div class="tools-donut">'
         '<svg viewBox="0 0 120 120" width="148" height="148" role="img" '
         f'aria-label="Đã cài {len(tools_present)} trên {n_tools_full} công cụ">'
@@ -575,8 +578,8 @@ def build(ctx: dict) -> dict[str, str]:
     chips = "".join(f'<span class="hook-chip"><span class="hook-chip__dot"></span>{escape(e)}</span>' for e in events) \
         or '<span class="muted">chưa nối hook nào</span>'
     f["hooks"] = ('<section class="sec" id="hooks" aria-labelledby="h-hooks"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Móc an toàn</div><h2 id="h-hooks">Hook đã nối</h2></div>'
-        f'<span class="badge badge--ok"><span class="kit-num">{n_hooks}</span>&nbsp;móc</span></div>'
+        '<div class="sec__eyebrow">Hook an toàn</div><h2 id="h-hooks">Hook đã nối</h2></div>'
+        f'<span class="badge badge--ok"><span class="kit-num">{n_hooks}</span>&nbsp;hook</span></div>'
         '<div class="surface panel"><div class="row wrap" style="gap:var(--sp-6)">'
         f'<div class="kpi"><span class="kpi__label">Tổng hook</span><span class="kpi__value">'
         f'<span class="kit-num kit-num--xl kit-num--ok">{n_hooks}</span></span>'

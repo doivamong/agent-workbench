@@ -7,7 +7,7 @@ suite still passes with zero third-party deps. The load-bearing properties under
   - it is OFFLINE — the served HTML has no external network refs (Chart.js vendored), and
   - it preserves the kit's HONESTY model: telemetry not-wired / wired-but-empty shows
     "chưa đo", never "ứng viên chết" (dead); a wired 0-fire skill shows "chưa ai gọi
-    tên" (un-named, not dead) — or "tự gọi" for a guard; a fired skill shows "sống".
+    tên" (un-named, not dead) — or "tự gọi" for a guard; a named skill shows "đã gọi tên".
 """
 from __future__ import annotations
 
@@ -148,12 +148,23 @@ def test_measured_shows_chart_and_named_signal(tmp_path):
     assert "chưa ai gọi tên" in html          # awb-tdd: non-guard, 0 fires
     assert "tự gọi" in html                   # awb-output-guard: guard 0-fire, neutral badge
     assert "Đang đo theo tên trong prompt" in html   # measured-state caveat present
-    assert "sống" in html                      # awb-review fired
+    assert "đã gọi tên" in html                # awb-review fired (was named)
     # the embedded payload says measured + carries the timeseries
     payload = json.loads(re.search(
         r'<script id="chart-data" type="application/json">(.*?)</script>', html, re.S).group(1))
     assert payload["measured"] is True
     assert payload["timeseries"]["values"]    # non-empty series
+
+
+def test_caveat_shows_when_only_guard_is_zero(tmp_path):
+    # Edge mirror of the static test: the only 0-fire is a guard → dead==0, but the
+    # "tự gọi" badge still renders, so the caveat must be gated on n_zero (any zero), not
+    # on dead. Catches a regression to `{% elif measured and dead %}` in _body.html.jinja.
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-output-guard": "guard"},
+                         wired=True, fired={"awb-review": 3})
+    html = _render(proj)
+    assert "tự gọi" in html
+    assert "Đang đo theo tên trong prompt" in html
 
 
 def test_tier_distribution_always_present(tmp_path):
