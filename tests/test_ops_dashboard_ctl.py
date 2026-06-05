@@ -84,6 +84,31 @@ def test_port_not_listening():
     assert dc.health_ok("127.0.0.1", p) is False
 
 
+def test_connect_host_normalises_wildcard():
+    # Wildcard bind addresses are not valid connect targets on every OS (Windows
+    # rejects 0.0.0.0) — they must be dialled on the matching loopback instead.
+    assert dc._connect_host("0.0.0.0") == "127.0.0.1"
+    assert dc._connect_host("::") == "::1"
+    assert dc._connect_host("0000:0000:0000:0000:0000:0000:0000:0000") == "::1"
+    assert dc._connect_host("[::]") == "::1"
+    # Concrete addresses and hostnames pass through untouched.
+    assert dc._connect_host("127.0.0.1") == "127.0.0.1"
+    assert dc._connect_host("192.168.1.10") == "192.168.1.10"
+    assert dc._connect_host("localhost") == "localhost"
+
+
+def test_health_check_dials_loopback_for_wildcard_bind(server):
+    # The server listens on 127.0.0.1, but the controller is told the bind host is
+    # 0.0.0.0 (as `start --host 0.0.0.0` would). The healthcheck must still succeed
+    # by normalising 0.0.0.0 → 127.0.0.1 before connecting (regression: Windows
+    # reported started-unverified/healthy:False for a dashboard that was serving).
+    port = server
+    assert dc.port_listening("0.0.0.0", port) is True
+    assert dc.health_ok("0.0.0.0", port) is True
+    st = dc.status("0.0.0.0", port)
+    assert st["listening"] and st["healthy"]
+
+
 def test_build_start_cmd():
     cmd = dc.build_start_cmd("127.0.0.1", 5151)
     assert cmd[0] == sys.executable

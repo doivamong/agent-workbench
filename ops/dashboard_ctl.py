@@ -25,6 +25,7 @@ localhost/single-developer tooling, not a service manager.
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import socket
@@ -87,6 +88,25 @@ def clear_pid(pidfile: Path | None = None) -> None:
 # --------------------------------------------------------------------------- #
 # Liveness — three independent signals
 # --------------------------------------------------------------------------- #
+def _connect_host(host: str) -> str:
+    """Map a wildcard *bind* address to a routable *connect* address.
+
+    Binding to ``0.0.0.0`` (or IPv6 ``::``) means "all interfaces", but those
+    unspecified addresses are not valid *connect* destinations on every OS:
+    Linux silently treats ``0.0.0.0`` as localhost, but Windows rejects the
+    connection, so a healthcheck that dials the bind host false-reports the
+    dashboard as down (see memory: dashboard-ctl-0000-healthcheck-false-negative).
+    Dial the matching loopback (``127.0.0.1`` / ``::1``) instead. A concrete
+    address or a hostname is returned unchanged."""
+    try:
+        addr = ipaddress.ip_address(host.strip().strip("[]"))
+    except ValueError:
+        return host  # hostname or non-literal — dial as given
+    if addr.is_unspecified:
+        return "::1" if addr.version == 6 else "127.0.0.1"
+    return host
+
+
 def pid_alive(pid: int | None) -> bool:
     """True if a process with this PID currently exists. Cross-platform: ctypes
     OpenProcess on Windows, signal-0 probe on POSIX. None → False."""
@@ -117,9 +137,11 @@ def pid_alive(pid: int | None) -> bool:
 
 
 def port_listening(host: str, port: int, timeout: float = 0.5) -> bool:
-    """True if a TCP connection to host:port succeeds (something is accepting)."""
+    """True if a TCP connection to host:port succeeds (something is accepting).
+    A wildcard bind host (``0.0.0.0``/``::``) is dialled on loopback — see
+    ``_connect_host``."""
     try:
-        with socket.create_connection((host, port), timeout=timeout):
+        with socket.create_connection((_connect_host(host), port), timeout=timeout):
             return True
     except OSError:
         return False
@@ -127,10 +149,14 @@ def port_listening(host: str, port: int, timeout: float = 0.5) -> bool:
 
 def health_ok(host: str, port: int, timeout: float = 1.0) -> bool:
     """True if the dashboard answers a 2xx. Tries /health first (cheap, added for
-    exactly this), falls back to / so it still works against an older dashboard."""
+    exactly this), falls back to / so it still works against an older dashboard.
+    A wildcard bind host (``0.0.0.0``/``::``) is dialled on loopback — see
+    ``_connect_host``."""
+    dial = _connect_host(host)
+    netloc = f"[{dial}]" if ":" in dial else dial  # bracket IPv6 literals for the URL
     for path in ("/health", "/"):
         try:
-            req = urllib.request.Request(f"http://{host}:{port}{path}", method="GET")
+            req = urllib.request.Request(f"http://{netloc}:{port}{path}", method="GET")
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 if 200 <= resp.status < 300:
                     return True
