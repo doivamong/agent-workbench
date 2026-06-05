@@ -111,6 +111,7 @@ tiết kỹ thuật được dời sang các đường dẫn liên kết và cá
 | **Hoàn tác một lần sửa memory tệ** | Một CLI snapshot/restore thủ công cho kho memory (vốn nằm ngoài git nên `git checkout` không cứu được) — snapshot trước một thao tác rủi ro, restore *cộng dồn* nếu hỏng; chỉ thủ công, không bao giờ là hook/cron | [`tools/memory_snapshot.py`](../tools/memory_snapshot.py) |
 | **Công bố một lát memory an toàn công khai** | Một sync được leak scan canh, **fail-closed** (mặc định dừng khi không chắc an toàn) — chỉ chép fact đánh dấu `visibility: public` (hoặc đã publish) mà qua được `leak_scan`, vào `memory/` của repo công khai; gỡ frontmatter per-session, để index do người tự sửa, chỉ chạy thủ công | [`tools/memory_sync.py`](../tools/memory_sync.py) |
 | **Kiểm memory có thực sự tới agent** | Một tripwire wiring chỉ-đọc — harness tự nạp `MEMORY.md` từ một đường dẫn per-project, không phải `memory/` của repo này, nên một fact bạn đã curate ở sai thư mục sẽ âm thầm không bao giờ được recall. Gắn cờ sự lệch đó và một index live quá ngân sách; stat-verify mọi đường dẫn và không ghi gì | [`tools/memory_recall_doctor.py`](../tools/memory_recall_doctor.py) |
+| **Đo *chất lượng* recall của memory** | Một benchmark retrieval nhỏ (stdlib) trên một bộ gold dán nhãn tay — recall_doctor kiểm *wiring*, cái này hỏi câu kế tiếp: dòng index một-câu có xếp đúng file fact lên gần đầu khi recall không? Chấm recall@k / precision@k / MRR (arm INDEX vs baseline BODY) để *đo* kỷ luật index-gating thay vì khẳng định suông. Giới hạn trung thực: đo *retrieval*, không phải đúng/sai câu trả lời; Jaccard bag-of-words là proxy cố ý đơn giản → coi là *sàn*, không phải trần; gold tự dán nhãn ở n nhỏ là tín hiệu định hướng, không phải điểm bảng xếp hạng; chỉ tư vấn, không phải gate | [`tools/memory_eval.py`](../tools/memory_eval.py) |
 | **Giữ ngân sách tải memory một chỗ** | Nguồn chân lý duy nhất cho ngân sách tải của `MEMORY.md` (≤ 200 dòng / ~25 KB, vượt qua là các mục âm thầm bị cắt khỏi recall) — được audit + recall-doctor import để con số không lệch nhau (đã từng lệch `24576`→`25600`). Một module hằng số dùng chung, không phải CLI chạy được | [`tools/memory_budget.py`](../tools/memory_budget.py) |
 | **Giữ skills đồng bộ** | Một linter bắt sự lệch giữa `skill-registry.md` và các file `SKILL.md` (thư mục không có dòng, dòng không có thư mục, thiếu frontmatter, thiếu trigger marker) | [`tools/skill_lint.py`](../tools/skill_lint.py) |
 | **Bắt lệch file-set** | Một gate manifest trên các thư mục nguồn chuẩn (skills, hooks, rules, tools, scripts): thêm hay bớt một file mà không cập nhật doc/wiring phụ thuộc sẽ fail CI. Đi kèm một hook `PostToolUse` nhắc bạn ngay khi một file mới rơi vào | [`tools/sync_manifest.py`](../tools/sync_manifest.py) |
@@ -252,10 +253,10 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **457**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **19** (`examples/`) |
+| Tests | **620**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **22** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Tool độc lập | **16** (15 trong `tools/` + `secrets_guard` ở `scripts/`) |
+| Tool độc lập | **17** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
 ## Quickstart (5 phút)
 
@@ -279,14 +280,14 @@ python examples/affected_tests_demo.py   # chỉ chọn test mà thay đổi ả
 python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt file)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 457 tests
+python -m pytest -q                 # 620 tests
 ```
 
 ## Cài vào dự án của bạn
 
 Đây là phần biến bộ kit thành thứ dùng được thật, chứ không chỉ để tra cứu. Trỏ installer vào dự án bất kỳ và nó chép
-hooks, skills, rules, các tool phục vụ dự án (8 trong số 15 ở `tools/` — 7 cái còn lại là tool
-bảo trì repo ở lại trong kit), `secrets_guard` (cái tool độc lập thứ 16 đếm ở "At a glance" — nó
+hooks, skills, rules, các tool phục vụ dự án (8 trong số 16 ở `tools/` — 8 cái còn lại là tool
+bảo trì repo ở lại trong kit), `secrets_guard` (cái tool độc lập thứ 17 đếm ở "At a glance" — nó
 nằm ở `scripts/`, không phải `tools/`), và scaffold memory vào, rồi wire hooks cho bạn:
 
 ```bash
@@ -381,7 +382,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 457 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 620 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 
