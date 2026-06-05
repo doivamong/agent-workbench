@@ -188,8 +188,14 @@ strong { color: var(--text-strong); font-weight: var(--weight-strong); }
   border: 1px solid var(--border); background: var(--surface-2);
   font-size: var(--fs-xs); letter-spacing: var(--ls-label); text-transform: uppercase;
   color: var(--text-dim); font-weight: var(--weight-strong); box-shadow: var(--inset-hi);
+  max-width: 100%;
 }
-.env-pill .kit-num { font-size: var(--fs-xs); letter-spacing: 0; }
+/* A long git branch (an unbroken run with no hyphen/space break points) must wrap, not widen
+   the topbar or get clipped by its overflow:hidden. Scope the breaking to the value (.kit-num),
+   never the static "Nhánh"/"Commit" label, which must stay on one line. `anywhere` (not
+   break-word) also lowers the flex item's min-content so it can shrink to fit — same intent as
+   .section-foot / .panel__note. */
+.env-pill .kit-num { font-size: var(--fs-xs); letter-spacing: 0; min-width: 0; overflow-wrap: anywhere; }
 .env-pill__live {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--ok); box-shadow: 0 0 0 3px var(--ok-dim);
