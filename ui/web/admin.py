@@ -180,8 +180,29 @@ def _host_allowed(value: str, *, match_port: bool) -> bool:
     return True
 
 
+def _pw_store_path() -> Path:
+    """Where a web-changed password hash persists. Under .ops/ (gitignored, never committed)."""
+    return _ops_root() / ".ops" / "admin.hash"
+
+
+def _read_pw_store() -> str:
+    """The persisted password hash, or '' if none. A web change-password writes here; this read
+    is at REQUEST time so a change takes effect immediately, no restart needed."""
+    p = _pw_store_path()
+    try:
+        return p.read_text(encoding="utf-8").strip() if p.is_file() else ""
+    except OSError:
+        return ""
+
+
+def _effective_password_hash() -> str:
+    """The hash login checks against: the persisted (web-set) hash wins; otherwise the
+    bootstrap hash from the env (config['ADMIN_PASSWORD_HASH'])."""
+    return _read_pw_store() or current_app.config.get("ADMIN_PASSWORD_HASH", "")
+
+
 def _auth_enabled() -> bool:
-    return bool(current_app.config.get("ADMIN_PASSWORD_HASH"))
+    return bool(_effective_password_hash())
 
 
 # An authenticated session is only valid for _IDLE_SECONDS after login; past that it must
@@ -377,7 +398,7 @@ def login():
             _audit("login", "locked-out")
             return render_template("admin_login.html.jinja", token=_token(),
                                    error="Tạm khoá do nhập sai quá nhiều lần. Thử lại sau."), 429
-        stored = current_app.config.get("ADMIN_PASSWORD_HASH", "")
+        stored = _effective_password_hash()
         if stored and verify_password(request.form.get("password", ""), stored):
             _login_failures().pop(ip, None)  # clear the counter on success
             session.clear()
@@ -397,6 +418,33 @@ def logout():
     session.clear()
     _audit("logout", "ok")
     return redirect("/admin/login")
+
+
+_MIN_PASSWORD_LEN = 8
+
+
+@admin_bp.route("/password", methods=["POST"])
+def change_password():
+    """Change the admin password from the web. Requires an authenticated session (enforced by
+    before_request), a correct OLD password (constant-time), and a NEW password of at least
+    _MIN_PASSWORD_LEN chars. On success the new pbkdf2 hash is persisted to .ops/admin.hash,
+    which then takes precedence over the env password — no restart needed. The plaintext is
+    never stored; on HTTP/LAN it still travels in cleartext (documented honest limit)."""
+    old = request.form.get("old", "")
+    new = request.form.get("new", "")
+    if not verify_password(old, _effective_password_hash()):
+        _audit("password-change", "wrong-old")
+        return _result("password", "Bị từ chối", "Mật khẩu cũ không đúng.", ok=False), 400
+    if len(new) < _MIN_PASSWORD_LEN:
+        _audit("password-change", "too-short")
+        return _result("password", "Bị từ chối",
+                       f"Mật khẩu mới phải tối thiểu {_MIN_PASSWORD_LEN} ký tự.", ok=False), 400
+    store = _pw_store_path()
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_text(hash_password(new), encoding="utf-8")
+    _audit("password-change", "ok")
+    return _result("password", "Đã đổi mật khẩu",
+                   "Mật khẩu admin đã đổi. Các đăng nhập mới dùng mật khẩu này.", ok=True), 200
 
 
 @admin_bp.route("/", methods=["GET"], strict_slashes=False)

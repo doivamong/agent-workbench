@@ -142,6 +142,15 @@ How it works: the password is stored only as a salted **pbkdf2-sha256** hash and
 after an idle window; repeated wrong passwords **lock out** the source IP; every login / logout is
 audited to `.ops/ops.log`. The CSRF token and the guarded-restore flow still apply on top.
 
+**Changing the password from the web:** once logged in, the **Đổi mật khẩu admin** panel on
+`/admin` (POST `/admin/password`, needs the correct old password + a new one ≥8 chars) persists
+the new hash to `.ops/admin.hash` (gitignored, never committed). That stored hash **takes
+precedence over the env password** and takes effect immediately — no restart. The env var stays
+the *bootstrap* secret (its value is simply ignored once a web password is set), so **keep
+`AWB_ADMIN_PASSWORD` set** — if you delete it and restart with a `0.0.0.0` bind, startup refuses
+the LAN bind because it checks the env at boot. The new password is still **cleartext on HTTP/LAN**
+in transit (same honest limit below).
+
 **Honest limit (documented on purpose):**
 - *No-password (localhost) mode:* admin **trusts every local process that can reach the bound
   port** — any such process can read the CSRF token from the served page. Opt-in, default-off, and

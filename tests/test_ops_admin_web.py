@@ -742,3 +742,78 @@ def test_autostart_disable_runs_engine(tmp_path, monkeypatch):
     r = app.test_client().post("/admin/action/autostart-disable", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert calls[0][0].name == "autostart.py" and "disable" in calls[0][1]
+
+
+# --------------------------------------------------------------------------- #
+# Phase A.1 — change the admin password from the web (persistent hash store)
+# --------------------------------------------------------------------------- #
+def _pw_store(ops_root: Path) -> Path:
+    return ops_root / ".ops" / "admin.hash"
+
+
+# CB1 — the persistent store overrides the env password (a web-set password survives restart
+# and takes precedence over the bootstrap env password).
+def test_pw_store_overrides_env_password(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="env-pw")
+    store = _pw_store(repo)
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_text(webadmin.hash_password("the-web-password"), encoding="utf-8")
+    assert app.test_client().post(
+        "/admin/login", data={"csrf": _token(app), "password": "the-web-password"}).status_code == 302
+    assert app.test_client().post(
+        "/admin/login", data={"csrf": _token(app), "password": "env-pw"}).status_code == 401
+
+
+# CB2 — /admin/password: logged in + correct old → writes the store; new password then works.
+def test_change_password_updates_store_and_takes_effect(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="old-pass")          # leak-scan: ignore
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "old-pass"})
+    r = c.post("/admin/password",
+               data={"csrf": _token(app), "old": "old-pass", "new": "fresh-passphrase"})
+    assert r.status_code in (200, 302)
+    assert _pw_store(repo).exists()
+    assert app.test_client().post(
+        "/admin/login", data={"csrf": _token(app), "password": "fresh-passphrase"}).status_code == 302
+    assert app.test_client().post(
+        "/admin/login", data={"csrf": _token(app), "password": "old-pass"}).status_code == 401
+
+
+def test_change_password_wrong_old_is_refused_no_write(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="old-pass")          # leak-scan: ignore
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "old-pass"})
+    r = c.post("/admin/password",
+               data={"csrf": _token(app), "old": "WRONG", "new": "fresh-passphrase"})
+    assert r.status_code == 400
+    assert not _pw_store(repo).exists()
+
+
+def test_change_password_requires_login(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="old-pass")          # leak-scan: ignore
+    r = app.test_client().post(
+        "/admin/password", data={"csrf": _token(app), "old": "old-pass", "new": "fresh-passphrase"})
+    assert r.status_code == 401
+    assert not _pw_store(repo).exists()
+
+
+def test_change_password_rejects_too_short_new(tmp_path):
+    repo = tmp_path / "r"
+    app = _auth_app(repo, password="old-pass")          # leak-scan: ignore
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "old-pass"})
+    r = c.post("/admin/password", data={"csrf": _token(app), "old": "old-pass", "new": "short"})
+    assert r.status_code == 400
+    assert not _pw_store(repo).exists()
+
+
+# CB3 — the change-password form is on the /admin page when auth is enabled.
+def test_admin_page_has_change_password_form_when_auth_on(tmp_path):
+    app = _auth_app(tmp_path / "r", password="pw")
+    c = app.test_client()
+    c.post("/admin/login", data={"csrf": _token(app), "password": "pw"})
+    assert "/admin/password" in c.get("/admin").get_data(as_text=True)

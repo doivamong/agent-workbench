@@ -187,6 +187,27 @@
         </div>
       </section>
 
+      {#- Change admin password (only when auth is enabled) -#}
+      {% if auth_enabled %}
+      <section class="panel span-3" aria-labelledby="a-passwd">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Bảo mật</div>
+          <h2 id="a-passwd">Đổi mật khẩu admin</h2>
+        </div></div>
+        <p class="section-foot">Mật khẩu mới lưu bền vào <span class="mono">.ops/admin.hash</span>
+          (không commit) và thay mật khẩu env ngay — không cần khởi động lại. Tối thiểu 8 ký tự.
+          Lưu ý: trên HTTP/LAN mật khẩu đi cleartext — chỉ đổi trong mạng tin cậy.</p>
+        <form hx-post="/admin/password" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <label class="control"><span class="control__label">Mật khẩu cũ</span>
+            <input name="old" type="password" autocomplete="current-password" required class="control__input"></label>
+          <label class="control"><span class="control__label">Mật khẩu mới (≥8 ký tự)</span>
+            <input name="new" type="password" autocomplete="new-password" minlength="8" required class="control__input"></label>
+          <button type="submit" class="btn">Đổi mật khẩu</button>
+        </form>
+      </section>
+      {% endif %}
+
     </div>
   </main>
 
