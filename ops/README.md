@@ -36,6 +36,14 @@ way is invisible to it (it never hunts-and-kills by port). Localhost/single-dev 
 default stays localhost; the firewall is the control; `/admin` still refuses `0.0.0.0`. See the
 "Exposing to a LAN" section of [`ui/web/README.md`](../ui/web/README.md).
 
+One-step helper: [`lan_setup.py`](lan_setup.py) (`status` / `enable` / `disable`) sets that env
+var and prints your LAN URL(s) + the exact firewall command to run once as admin (it never opens
+the firewall for you). Windows double-click: [`win/lan_on.bat`](win/lan_on.bat) / `win/lan_off.bat`.
+```sh
+python ops/lan_setup.py status      # current bind, LAN URL(s), the firewall command
+python ops/lan_setup.py enable       # default to a LAN bind (then re-open the terminal)
+```
+
 ### `tree_snapshot.py` — a dev safety net
 ```sh
 python ops/tree_snapshot.py snapshot              # zip the tree (respects .gitignore)
