@@ -13,6 +13,27 @@
 <div class="shell">
   <main class="panel" style="max-width:24rem;margin:4rem auto">
     <div class="panel__eyebrow">Agent Workbench · /admin</div>
+    {% if no_password %}
+    {#- INERT: no password configured. /admin is mounted but every action is refused and login
+        is impossible. Show how to enable admin — NOT an in-page setup form (that would let any
+        local actor seize admin before the owner does). -#}
+    <h1>Chưa bật admin</h1>
+    <p class="panel__note">Khu vực điều khiển kit hiện <strong>chưa kích hoạt</strong>: chưa đặt
+      mật khẩu quản trị, nên mọi thao tác đều bị từ chối và không thể đăng nhập.</p>
+
+    <div class="banner" role="note" style="background:var(--danger-dim);border-color:var(--accent-deep)">
+      <span class="banner__txt">Để bật admin, đặt biến môi trường <span class="mono">AWB_ADMIN_PASSWORD</span>
+        rồi <strong>khởi động lại</strong> dashboard. Sau lần đặt đầu tiên, có thể đổi mật khẩu
+        ngay trong giao diện <span class="mono">/admin</span> (không cần khởi động lại).</span>
+    </div>
+
+    <p class="panel__note" style="margin-top:1rem">Ví dụ (PowerShell):</p>
+    <p class="mono" style="word-break:break-all;font-size:.9em">$env:AWB_ADMIN_PASSWORD = 'mật-khẩu-mạnh'; python ui/web/app.py</p>
+
+    <p class="panel__note" style="margin-top:1.5rem">
+      <a class="btn" href="/">← Về bảng điều khiển (chỉ đọc)</a>
+    </p>
+    {% else %}
     <h1>Đăng nhập</h1>
     <p class="panel__note">Khu vực điều khiển kit. Nhập mật khẩu quản trị để tiếp tục.</p>
 
@@ -34,6 +55,7 @@
       ⚠️ Đây là cổng HTTP trên LAN — mật khẩu có thể bị nghe lén trong mạng. Chỉ bật trong
       mạng tin cậy, không hướng ra Internet.
     </p>
+    {% endif %}
   </main>
 </div>
 </body>

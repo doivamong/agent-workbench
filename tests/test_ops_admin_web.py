@@ -62,8 +62,19 @@ def _clean_git_env(monkeypatch):
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-def _admin_app(ops_root: Path | None = None, *, host: str = "127.0.0.1", port: int = 5151):
-    app = webapp.create_app(admin=True, host=host, port=port)
+# A password the migrated action tests configure so /admin is ENABLED — under full Approach A
+# login is the gate, and no-password admin is inert (that contract is the C1 tests above). ≥8
+# chars so it passes the change-password floor too.
+_ADMIN_PW = "test-admin-pw"  # leak-scan: ignore
+
+
+def _admin_app(ops_root: Path | None = None, *, host: str = "127.0.0.1", port: int = 5151,
+               password: str = _ADMIN_PW):
+    """An /admin app with a password CONFIGURED, so admin is enabled and login is required.
+    The action tests drive it through _authed_client() (a logged-in client). `admin=True` is
+    passed to prove the deprecated flag is an accepted no-op."""
+    app = webapp.create_app(admin=True, host=host, port=port,
+                            admin_password_hash=webadmin.hash_password(password))
     app.config.update(TESTING=True)
     if ops_root is not None:
         ops_root.mkdir(parents=True, exist_ok=True)
@@ -73,6 +84,14 @@ def _admin_app(ops_root: Path | None = None, *, host: str = "127.0.0.1", port: i
 
 def _token(app) -> str:
     return app.config["ADMIN_TOKEN"]
+
+
+def _authed_client(app, *, password: str = _ADMIN_PW):
+    """A test client that has logged in, so it can reach the (now login-gated) admin actions."""
+    c = app.test_client()
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": password})
+    assert r.status_code in (200, 302), "login failed in _authed_client"
+    return c
 
 
 def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
@@ -123,56 +142,107 @@ def _make_project(tmp: Path) -> Path:
 
 
 # --------------------------------------------------------------------------- #
-# C1 — admin is OFF by default
+# C1 (full Approach A) — /admin is ALWAYS mounted; NO PASSWORD ⇒ admin is INERT.
+#
+# The load-bearing security contract this whole change exists to provide: login (not a flag,
+# not the host) is the gate. With no password configured you cannot authenticate against an
+# empty hash, so every admin mutation is refused on ANY host — even with a valid CSRF token.
 # --------------------------------------------------------------------------- #
-def test_C1_admin_disabled_by_default_is_404(tmp_path):
-    app = webapp.create_app()  # no admin=True
+def _no_password_app(ops_root: Path | None = None, *, host: str = "127.0.0.1", port: int = 5151):
+    """An /admin app with NO password configured — admin is mounted but inert."""
+    app = webapp.create_app(host=host, port=port)  # no admin_password_hash → inert admin
     app.config.update(TESTING=True)
+    if ops_root is not None:
+        ops_root.mkdir(parents=True, exist_ok=True)
+        app.config["OPS_ROOT"] = str(ops_root)
+    return app
+
+
+def test_C1_no_password_admin_action_is_403_on_any_host_even_with_valid_csrf(tmp_path):
+    """THE load-bearing test. No password + a VALID CSRF token + a POST action → 403 on BOTH
+    localhost and a LAN Host. The 403 is the INERT gate (no login possible), not the CSRF
+    check — which is why the token is valid and it still fails. No snapshot is written."""
+    repo = tmp_path / "r"
+    app = _no_password_app(repo, host="0.0.0.0")
+    token = _token(app)  # the token IS minted (admin is always mounted) — yet useless here
+    for host in ("127.0.0.1:5151", "192.168.1.50:5151"):
+        r = app.test_client().post("/admin/action/snapshot",
+                                   data={"csrf": token}, headers={"Host": host})
+        assert r.status_code == 403, host
+    snaps = repo / ".ops" / "snapshots"
+    assert not (snaps.exists() and list(snaps.glob("*.zip")))  # no mutation reached the engine
+
+
+def test_C1_no_password_get_admin_redirects_to_login(tmp_path):
+    app = _no_password_app(tmp_path / "r")
+    r = app.test_client().get("/admin")
+    assert r.status_code == 302
+    assert "/admin/login" in r.headers["Location"]
+
+
+def test_C1_no_password_login_is_impossible(tmp_path):
+    """POST /admin/login with any password cannot create a session (nothing to verify against)."""
+    app = _no_password_app(tmp_path / "r")
     c = app.test_client()
-    for path in ("/admin", "/admin/action/snapshot", "/admin/action/restart",
-                 "/admin/restore/preview", "/admin/restore/apply"):
-        assert c.get(path).status_code == 404, path
-        assert c.post(path).status_code == 404, path
+    r = c.post("/admin/login", data={"csrf": _token(app), "password": "anything-at-all"})
+    assert r.status_code in (401, 403)               # refused — no session minted
+    assert c.get("/admin").status_code == 302        # ...still bounced to login
+    with c.session_transaction() as sess:
+        assert sess.get("authed") is not True
 
 
-def test_C1_no_token_minted_when_admin_off(tmp_path):
-    app = webapp.create_app()
-    assert "ADMIN_TOKEN" not in app.config
-    assert app.config.get("ADMIN") is not True
+def test_C1_no_password_login_page_shows_bootstrap_notice_not_a_setup_form(tmp_path):
+    """GET /admin/login renders (the only thing that does when inert) and names the bootstrap
+    path — set AWB_ADMIN_PASSWORD and restart — NOT an in-page password-setting form."""
+    app = _no_password_app(tmp_path / "r")
+    html = app.test_client().get("/admin/login").get_data(as_text=True)
+    assert "AWB_ADMIN_PASSWORD" in html              # the bootstrap env var is named
+    assert 'name="password"' not in html             # no setup/login field while inert
 
 
-def test_C1_token_minted_and_per_process_when_admin_on(tmp_path):
-    a = _admin_app(tmp_path / "a")
-    b = _admin_app(tmp_path / "b")
+def test_C1_admin_always_mounted_token_minted(tmp_path):
+    # /admin is mounted with no flag and no password; a per-process CSRF token is always minted.
+    a = _no_password_app(tmp_path / "a")
+    b = _no_password_app(tmp_path / "b")
     assert _token(a) and len(_token(a)) >= 32
     assert _token(a) != _token(b)  # per-process secret, not a shared constant
+
+
+def test_C1_admin_flag_is_an_accepted_no_op(tmp_path):
+    # Back-compat: old scripts / dashboard_ctl pass --admin / admin=True. It is now a no-op
+    # (admin is always mounted) and must not raise — the app builds the same either way.
+    with_flag = webapp.create_app(admin=True)
+    without = webapp.create_app(admin=False)
+    assert "ADMIN_TOKEN" in with_flag.config and "ADMIN_TOKEN" in without.config
 
 
 # --------------------------------------------------------------------------- #
 # C2 — CSRF
 # --------------------------------------------------------------------------- #
+# CSRF is checked in PASSWORD mode (login is the gate, then CSRF on each mutation). A
+# logged-in client without a valid token is still refused — a session is NOT a CSRF substitute.
 def test_C2_post_without_token_is_403(tmp_path):
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot")
+    r = _authed_client(app).post("/admin/action/snapshot")
     assert r.status_code == 403
 
 
 def test_C2_post_with_wrong_token_is_403(tmp_path):
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot", data={"csrf": "not-the-token"})
+    r = _authed_client(app).post("/admin/action/snapshot", data={"csrf": "not-the-token"})
     assert r.status_code == 403
 
 
 def test_C2_post_with_correct_token_succeeds(tmp_path):
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/snapshot", data={"csrf": _token(app)})
     assert r.status_code == 200
 
 
 def test_C2_token_also_accepted_via_header(tmp_path):
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot",
-                               headers={"X-CSRF-Token": _token(app)})
+    r = _authed_client(app).post("/admin/action/snapshot",
+                                 headers={"X-CSRF-Token": _token(app)})
     assert r.status_code == 200
 
 
@@ -181,50 +251,34 @@ def test_C2_get_on_action_route_never_mutates(tmp_path):
     app = _admin_app(repo)
     snaps = _snap_dir(repo)
     before = sorted(snaps.glob("*.zip")) if snaps.exists() else []
-    r = app.test_client().get("/admin/action/snapshot")
+    r = _authed_client(app).get("/admin/action/snapshot")
     assert r.status_code in (404, 405)  # POST-only — GET is not even routed to the action
     after = sorted(snaps.glob("*.zip")) if snaps.exists() else []
     assert before == after  # no snapshot written by a GET
 
 
 # --------------------------------------------------------------------------- #
-# C3 — Host / Origin allowlist + refuse debug / 0.0.0.0
+# C3 — --debug refused outright; a LAN bind is allowed (admin is inert without a password)
+#
+# Under full Approach A login is the gate, not the host: SameSite=Strict + the session cookie
+# + CSRF cover what the old host-allowlist did, and a wildcard bind serves LAN hosts we can't
+# enumerate. So a foreign Host with a logged-in session is served (covered by the B-series LAN
+# test). What MUST stay refused is --debug (the Werkzeug debugger is an RCE console), which now
+# applies unconditionally since admin is always mounted.
 # --------------------------------------------------------------------------- #
-def test_C3_foreign_host_is_403(tmp_path):
-    app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot",
-                               data={"csrf": _token(app)}, headers={"Host": "evil.example"})
-    assert r.status_code == 403
-
-
-def test_C3_foreign_origin_is_403(tmp_path):
-    app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot",
-                               data={"csrf": _token(app)},
-                               headers={"Origin": "http://evil.example"})
-    assert r.status_code == 403
-
-
-def test_C3_localhost_origin_allowed(tmp_path):
-    app = _admin_app(tmp_path / "r", port=5151)
-    r = app.test_client().post("/admin/action/snapshot",
-                               data={"csrf": _token(app)},
-                               headers={"Origin": "http://127.0.0.1:5151"})
-    assert r.status_code == 200
-
-
-def test_C3_debug_and_bind_all_refused_under_admin(tmp_path):
+def test_C3_debug_refused_outright(tmp_path):
     with pytest.raises(ValueError):
-        webapp.create_app(admin=True, host="0.0.0.0")
-    with pytest.raises(ValueError):
-        webapp.create_app(admin=True, debug=True)
+        webapp.create_app(debug=True)            # admin is always mounted → debugger refused
+    # A LAN bind is NO LONGER refused — admin is inert without a password; login is the gate.
+    app = webapp.create_app(host="0.0.0.0")
+    assert "ADMIN_TOKEN" in app.config           # built without raising
 
 
-def test_C3_cli_refuses_admin_with_debug(tmp_path):
+def test_C3_cli_refuses_debug(tmp_path):
     with pytest.raises(SystemExit):
-        webapp.main(["--admin", "--debug"])
+        webapp.main(["--debug"])
     with pytest.raises(SystemExit):
-        webapp.main(["--admin", "--host", "0.0.0.0"])
+        webapp.main(["--admin", "--debug"])      # --admin is a no-op; --debug still refused
 
 
 # --------------------------------------------------------------------------- #
@@ -234,8 +288,8 @@ def test_C4_restore_preview_returns_plan_hash(tmp_path):
     repo = _git_repo(tmp_path)
     z = _take_snapshot(repo)
     app = _admin_app(repo)
-    r = app.test_client().post("/admin/restore/preview",
-                               data={"csrf": _token(app), "snapshot": z.name})
+    r = _authed_client(app).post("/admin/restore/preview",
+                                 data={"csrf": _token(app), "snapshot": z.name})
     assert r.status_code == 200
     assert _plan_hash_from(r.get_data(as_text=True)) is not None
 
@@ -244,7 +298,7 @@ def test_C4_restore_apply_with_stale_hash_aborts_no_write(tmp_path):
     repo = _git_repo(tmp_path)
     z = _take_snapshot(repo)
     app = _admin_app(repo)
-    c = app.test_client()
+    c = _authed_client(app)
     preview = c.post("/admin/restore/preview",
                      data={"csrf": _token(app), "snapshot": z.name}).get_data(as_text=True)
     stale_hash = _plan_hash_from(preview)
@@ -264,7 +318,7 @@ def test_C4_restore_rejects_target_not_in_allowlist(tmp_path):
     repo = _git_repo(tmp_path)
     _take_snapshot(repo)
     app = _admin_app(repo)
-    c = app.test_client()
+    c = _authed_client(app)
     # Critical #1: path traversal AND shell-metachar injection names are both refused — only a
     # server-enumerated id is accepted (the metachars never reach a shell; subprocess is arg-list).
     for bad in ("../../../etc/passwd", "nope.zip", "..\\..\\win.zip", "sub/dir.zip",
@@ -277,7 +331,7 @@ def test_C4_restore_apply_happy_path_round_trips(tmp_path):
     repo = _git_repo(tmp_path)
     z = _take_snapshot(repo)
     app = _admin_app(repo)
-    c = app.test_client()
+    c = _authed_client(app)
     # break the file, then restore it
     (repo / "src" / "a.py").write_text("print('BROKEN')\n", encoding="utf-8")
     preview = c.post("/admin/restore/preview",
@@ -310,7 +364,7 @@ def test_engine_actions_run_via_subprocess_arglist(tmp_path, monkeypatch):
 
     monkeypatch.setattr(webadmin, "_run_engine", spy)
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/snapshot", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/snapshot", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert len(calls) == 1
     script, cli_args = calls[0]
@@ -324,7 +378,7 @@ def test_engine_subprocess_error_is_surfaced_not_swallowed(tmp_path, monkeypatch
     monkeypatch.setattr(webadmin, "_run_engine",
                         lambda s, a: (1, None, "boom: engine failed"))
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/pack", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/pack", data={"csrf": _token(app)})
     assert r.status_code == 500
     assert "boom: engine failed" in r.get_data(as_text=True)
 
@@ -338,7 +392,7 @@ def test_restart_is_a_detached_spawn(tmp_path, monkeypatch):
 
     monkeypatch.setattr(webadmin, "_launch_restart", fake_launch)
     app = _admin_app(tmp_path / "r", host="127.0.0.1", port=5151)
-    r = app.test_client().post("/admin/action/restart", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/restart", data={"csrf": _token(app)})
     assert r.status_code in (200, 202)
     assert seen == {"host": "127.0.0.1", "port": 5151}
 
@@ -346,7 +400,7 @@ def test_restart_is_a_detached_spawn(tmp_path, monkeypatch):
 def test_every_action_is_audited(tmp_path):
     repo = tmp_path / "r"
     app = _admin_app(repo)
-    app.test_client().post("/admin/action/snapshot", data={"csrf": _token(app)})
+    _authed_client(app).post("/admin/action/snapshot", data={"csrf": _token(app)})
     log = repo / ".ops" / "ops.log"
     assert log.exists()
     rec = json.loads(log.read_text(encoding="utf-8").strip().splitlines()[-1])
@@ -357,7 +411,7 @@ def test_restore_refuses_dirty_tree_without_allow_dirty(tmp_path):
     repo = _git_repo(tmp_path)
     z = _take_snapshot(repo)
     app = _admin_app(repo)
-    c = app.test_client()
+    c = _authed_client(app)
     h = _plan_hash_from(c.post("/admin/restore/preview",
                                data={"csrf": _token(app), "snapshot": z.name}).get_data(as_text=True))
     # Make the tree dirty WITHOUT touching a snapshot member (an untracked file) so the
@@ -375,7 +429,7 @@ def test_pack_then_verify_through_admin(tmp_path):
     # then verify reports it clean. Exercises the server-enumerated release allowlist.
     repo = tmp_path / "r"
     app = _admin_app(repo)
-    c = app.test_client()
+    c = _authed_client(app)
     rp = c.post("/admin/action/pack", data={"csrf": _token(app)})
     assert rp.status_code == 200
     rels = sorted((repo / ".ops" / "releases").glob("*.zip"))
@@ -389,14 +443,14 @@ def test_pack_then_verify_through_admin(tmp_path):
 def test_verify_rejects_release_not_in_allowlist(tmp_path):
     repo = tmp_path / "r"
     app = _admin_app(repo)
-    r = app.test_client().post("/admin/action/verify",
-                               data={"csrf": _token(app), "release": "../escape.zip"})
+    r = _authed_client(app).post("/admin/action/verify",
+                                 data={"csrf": _token(app), "release": "../escape.zip"})
     assert r.status_code == 400
 
 
 def test_admin_page_renders_and_is_offline(tmp_path):
     app = _admin_app(tmp_path / "r")
-    html = app.test_client().get("/admin").get_data(as_text=True)
+    html = _authed_client(app).get("/admin").get_data(as_text=True)
     assert "<form" in html
     assert 'class="btn' in html                      # buttons reuse the >=44px .btn
     assert _token(app) in html                        # CSRF token embedded for the forms
@@ -404,21 +458,28 @@ def test_admin_page_renders_and_is_offline(tmp_path):
     assert "cdn" not in html.lower()
 
 
-def test_readonly_root_still_works_with_admin_enabled(tmp_path):
+def test_readonly_root_always_shows_login_link_with_password(tmp_path):
+    # Friction removed: the read-only / ALWAYS offers a way into admin (the login link),
+    # whether or not a password is configured. Here a password IS set.
     proj = _make_project(tmp_path)
     app = _admin_app(tmp_path / "r")
     app.config["PROJECT"] = proj
     r = app.test_client().get("/")
     assert r.status_code == 200
-    assert 'href="/admin"' in r.get_data(as_text=True)  # admin link surfaced only when on
+    html = r.get_data(as_text=True)
+    assert 'href="/admin/login"' in html
+    assert "Đăng nhập admin" in html
 
 
-def test_readonly_root_has_no_admin_link_when_off(tmp_path):
+def test_readonly_root_shows_login_link_even_without_password(tmp_path):
+    # The link is present even with NO password (admin inert) — clicking it lands on the
+    # bootstrap notice, so there is always a discoverable path to enabling admin.
     proj = _make_project(tmp_path)
     app = webapp.create_app()
     app.config.update(TESTING=True, PROJECT=proj)
     html = app.test_client().get("/").get_data(as_text=True)
-    assert 'href="/admin"' not in html
+    assert 'href="/admin/login"' in html
+    assert "Đăng nhập admin" in html
 
 
 # --- admin.js (restart -> poll /health -> reload) + confirm dialogs ----------
@@ -434,14 +495,14 @@ def test_admin_js_is_served_and_offline(tmp_path):
 
 def test_admin_page_loads_admin_js(tmp_path):
     app = _admin_app(tmp_path / "r")
-    html = app.test_client().get("/admin").get_data(as_text=True)
+    html = _authed_client(app).get("/admin").get_data(as_text=True)
     assert "admin.js" in html
 
 
 def test_restart_result_carries_reconnect_marker(tmp_path, monkeypatch):
     monkeypatch.setattr(webadmin, "_launch_restart", lambda host, port: 4242)
     app = _admin_app(tmp_path / "r", host="127.0.0.1", port=5151)
-    r = app.test_client().post("/admin/action/restart", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/restart", data={"csrf": _token(app)})
     assert r.status_code in (200, 202)
     assert 'data-restart="1"' in r.get_data(as_text=True)  # admin.js keys off this to poll/reload
 
@@ -450,7 +511,7 @@ def test_destructive_restore_has_confirm_dialog(tmp_path):
     repo = _git_repo(tmp_path)
     z = _take_snapshot(repo)
     app = _admin_app(repo)
-    preview = app.test_client().post(
+    preview = _authed_client(app).post(
         "/admin/restore/preview",
         data={"csrf": _token(app), "snapshot": z.name}).get_data(as_text=True)
     assert "hx-confirm" in preview  # the apply button confirms before overwriting files
@@ -575,14 +636,15 @@ def test_auth_idle_session_expires_and_requires_relogin(tmp_path):
     assert c.get("/admin").status_code == 302            # idle past timeout → back to login
 
 
-# B6 — a LAN (wildcard) bind under --admin is refused WITHOUT auth but allowed WITH it; once
-# auth is on, a request arriving with a LAN Host passes the host gate (login is the real gate).
-def test_auth_lan_bind_refused_without_password_allowed_with(tmp_path):
-    with pytest.raises(ValueError):
-        webapp.create_app(admin=True, host="0.0.0.0")            # no auth → refused
-    app = webapp.create_app(admin=True, host="0.0.0.0",
-                            admin_password_hash=webadmin.hash_password("pw"))
-    assert app.config["ADMIN"] is True                          # built without raising
+# B6 — a LAN (wildcard) bind always builds (full Approach A): with no password admin is inert,
+# with a password login is the gate. Once auth is on, a request arriving with a LAN Host passes
+# the (now relaxed) host gate — login, not the host, is the real gate.
+def test_lan_bind_builds_with_and_without_password(tmp_path):
+    inert = webapp.create_app(host="0.0.0.0")                    # no password → inert, not refused
+    assert "ADMIN_TOKEN" in inert.config
+    enabled = webapp.create_app(host="0.0.0.0",
+                                admin_password_hash=webadmin.hash_password("lan-bind-pw"))
+    assert "ADMIN_TOKEN" in enabled.config                       # both build without raising
 
 
 def test_auth_lan_host_passes_host_gate_when_auth_enabled(tmp_path):
@@ -597,20 +659,16 @@ def test_auth_lan_host_passes_host_gate_when_auth_enabled(tmp_path):
     assert c.get("/admin", headers=lan).status_code == 200
 
 
-def test_no_auth_admin_still_blocks_foreign_host(tmp_path):
-    # Back-compat: without a password, the localhost host-allowlist is still the gate.
-    app = _admin_app(tmp_path / "r")
-    r = app.test_client().get("/admin", headers={"Host": "192.168.1.50:5151"})
-    assert r.status_code == 403
-
-
-# B7 — back-compat: localhost admin WITHOUT a password needs no login at all.
-def test_no_auth_admin_needs_no_login(tmp_path):
-    app = _admin_app(tmp_path / "r")
+# B7 — full Approach A replaces the old no-password back-compat: with NO password admin is
+# inert on EVERY host (there is no localhost convenience mode any more). A GET bounces to the
+# login page; an action POST is refused even with a valid CSRF token. (The localhost and LAN
+# cases of the load-bearing contract are the C1 tests above; this pins the no-action guarantee.)
+def test_no_password_admin_is_inert_no_localhost_convenience(tmp_path):
+    app = _no_password_app(tmp_path / "r")           # localhost bind, no password
     c = app.test_client()
-    assert c.get("/admin").status_code == 200                          # no login redirect
+    assert c.get("/admin").status_code == 302         # bounced to login (not a 200 page)
     assert c.post("/admin/action/snapshot",
-                  data={"csrf": _token(app)}).status_code == 200
+                  data={"csrf": _token(app)}).status_code == 403   # action refused (inert)
 
 
 # Wiring — main()/env resolves the admin password; a LAN bind needs it.
@@ -622,13 +680,6 @@ def test_resolve_admin_password_hash_from_env(monkeypatch):
     assert webadmin.verify_password("from-plain", webapp._resolve_admin_password_hash())
     monkeypatch.setenv("AWB_ADMIN_PASSWORD_HASH", "pre-computed-wins")
     assert webapp._resolve_admin_password_hash() == "pre-computed-wins"  # explicit hash wins
-
-
-def test_cli_admin_lan_refused_without_password(monkeypatch):
-    monkeypatch.delenv("AWB_ADMIN_PASSWORD", raising=False)
-    monkeypatch.delenv("AWB_ADMIN_PASSWORD_HASH", raising=False)
-    with pytest.raises(SystemExit):
-        webapp.main(["--admin", "--host", "0.0.0.0"])
 
 
 def test_auth_logout_clears_session(tmp_path):
@@ -651,7 +702,7 @@ def test_admin_page_shows_system_panel(tmp_path, monkeypatch):
         "lan_urls": ["http://192.168.1.50:5151"],
         "firewall_command": "powershell -Command New-NetFirewallRule-AWB"})
     monkeypatch.setattr(webadmin.autos, "status", lambda: {"registered": True, "runs": "x"})
-    html = _admin_app(tmp_path / "r").test_client().get("/admin").get_data(as_text=True)
+    html = _authed_client(_admin_app(tmp_path / "r")).get("/admin").get_data(as_text=True)
     assert "192.168.1.50:5151" in html                 # phone URL surfaced
     assert "New-NetFirewallRule-AWB" in html           # firewall command shown (run elevated)
     assert "đã bật" in html                             # autostart registered state shown
@@ -680,7 +731,7 @@ def test_lan_enable_runs_lan_setup_enable(tmp_path, monkeypatch):
 
     monkeypatch.setattr(webadmin, "_run_engine", spy)
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/lan-enable", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/lan-enable", data={"csrf": _token(app)})
     assert r.status_code == 200
     script, cli_args = calls[-1]
     assert script.name == "lan_setup.py"
@@ -692,14 +743,15 @@ def test_lan_disable_runs_lan_setup_disable(tmp_path, monkeypatch):
     monkeypatch.setattr(webadmin, "_run_engine",
                         lambda s, a: (calls.append((s, a)) or (0, {"action": "disable"}, "")))
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/lan-disable", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/lan-disable", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert calls[0][0].name == "lan_setup.py" and "disable" in calls[0][1]
 
 
 def test_lan_action_requires_csrf(tmp_path):
     app = _admin_app(tmp_path / "r")
-    assert app.test_client().post("/admin/action/lan-enable").status_code == 403
+    # Logged in but no CSRF token → still 403 (a session is not a CSRF substitute).
+    assert _authed_client(app).post("/admin/action/lan-enable").status_code == 403
 
 
 # BB3 — firewall + autostart actions run the engines; an elevation failure is surfaced
@@ -709,7 +761,7 @@ def test_firewall_open_runs_engine(tmp_path, monkeypatch):
     monkeypatch.setattr(webadmin, "_run_engine",
                         lambda s, a: (calls.append((s, a)) or (0, {"result": "opened"}, "")))
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/firewall-open", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/firewall-open", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert calls[0][0].name == "lan_setup.py" and "firewall" in calls[0][1]
 
@@ -719,8 +771,8 @@ def test_firewall_needs_admin_is_surfaced_not_swallowed(tmp_path, monkeypatch):
                         lambda s, a: (0, {"result": "failed", "detail": "needs administrator",
                                           "command": "powershell New-NetFirewallRule"}, ""))
     app = _admin_app(tmp_path / "r")
-    body = app.test_client().post("/admin/action/firewall-open",
-                                  data={"csrf": _token(app)}).get_data(as_text=True)
+    body = _authed_client(app).post("/admin/action/firewall-open",
+                                    data={"csrf": _token(app)}).get_data(as_text=True)
     assert "lan_on.bat" in body or "admin" in body.lower()      # tells the user how to elevate
 
 
@@ -729,7 +781,7 @@ def test_autostart_enable_runs_engine(tmp_path, monkeypatch):
     monkeypatch.setattr(webadmin, "_run_engine",
                         lambda s, a: (calls.append((s, a)) or (0, {"result": "enabled"}, "")))
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/autostart-enable", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/autostart-enable", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert calls[0][0].name == "autostart.py" and "enable" in calls[0][1]
 
@@ -739,7 +791,7 @@ def test_autostart_disable_runs_engine(tmp_path, monkeypatch):
     monkeypatch.setattr(webadmin, "_run_engine",
                         lambda s, a: (calls.append((s, a)) or (0, {"result": "removed"}, "")))
     app = _admin_app(tmp_path / "r")
-    r = app.test_client().post("/admin/action/autostart-disable", data={"csrf": _token(app)})
+    r = _authed_client(app).post("/admin/action/autostart-disable", data={"csrf": _token(app)})
     assert r.status_code == 200
     assert calls[0][0].name == "autostart.py" and "disable" in calls[0][1]
 

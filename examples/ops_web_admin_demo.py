@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Runnable demo for the opt-in ui/web /admin action surface (ops Phase 2).
+"""Runnable demo for the ui/web /admin action surface (full Approach A — login is the gate).
 
 Drives the admin layer entirely through Flask's in-process test client — **no port is
 opened, no server is detached, the live tree is never touched**. It demonstrates the load-
 bearing guards on throwaway data in a temp git repo:
 
-  1. default-off    : a plain app has no /admin (404), and mints no CSRF token.
-  2. CSRF           : a POST without the per-process token is refused (403); with it, 200.
-  3. snapshot       : an authorised POST snapshots the temp tree → .ops/snapshots/.
-  4. guarded restore: break a file → preview (dry-run plan-hash) → apply (auto-backup +
+  1. inert (no password): /admin is ALWAYS mounted but with no password it is inert — a POST
+     action with a VALID CSRF token is 403 on any host, GET /admin redirects to a login page
+     you cannot pass (it names AWB_ADMIN_PASSWORD as the way to enable admin).
+  2. login          : set a password → GET /admin/login is a form → POST the password → session.
+  3. CSRF           : a POST without the per-process token is refused (403); with it, 200.
+  4. snapshot       : an authorised POST snapshots the temp tree → .ops/snapshots/.
+  5. guarded restore: break a file → preview (dry-run plan-hash) → apply (auto-backup +
      TOCTOU re-validate) → file restored. Then a STALE plan-hash is shown to abort with no write.
 
     python examples/ops_web_admin_demo.py
@@ -35,8 +38,11 @@ except ModuleNotFoundError:
           "  pip install -r ui/web/requirements.txt")
     raise SystemExit(0)
 
+import admin as webadmin  # noqa: E402
 import app as webapp  # noqa: E402
 import ops.tree_snapshot as ts  # noqa: E402
+
+_DEMO_PW = "demo-admin-pw"  # leak-scan: ignore — throwaway demo password (≥8 chars)
 
 
 def _git(args: list[str], cwd: Path) -> None:
@@ -62,19 +68,34 @@ def main() -> int:
     for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
         os.environ.pop(k, None)  # avoid a leaked worktree GIT_DIR redirecting our git calls
 
-    print("== default-off: no --admin → /admin is 404, no token minted ==")
-    ro = webapp.create_app()
+    print("== inert: /admin always mounted, but with NO password it is inert ==")
+    ro = webapp.create_app(host="0.0.0.0")  # even a LAN bind: still inert without a password
     ro.config.update(TESTING=True)
-    print(f"  GET /admin → {ro.test_client().get('/admin').status_code}   "
-          f"ADMIN_TOKEN minted: {'ADMIN_TOKEN' in ro.config}")
+    roc = ro.test_client()
+    valid_token = ro.config["ADMIN_TOKEN"]  # a real token IS minted (admin always mounted) …
+    blocked = roc.post("/admin/action/snapshot",
+                       data={"csrf": valid_token}, headers={"Host": "192.168.1.50:5151"})
+    print(f"  POST action w/ VALID token on a LAN host → {blocked.status_code} (inert; not the CSRF check)")
+    print(f"  GET /admin → {roc.get('/admin').status_code} (redirect to login)")
+    login_html = roc.get("/admin/login").get_data(as_text=True)
+    names_env = "AWB_ADMIN_PASSWORD" in login_html
+    no_setup_form = 'name="password"' not in login_html
+    print(f"  login page names AWB_ADMIN_PASSWORD: {names_env}  (no setup form: {no_setup_form})")
 
     with tempfile.TemporaryDirectory() as d:
         tmp = Path(d)
         repo = _make_repo(tmp)
-        app = webapp.create_app(admin=True, host="127.0.0.1", port=5151)
+        # Set a password → /admin is ENABLED; login is the gate.
+        app = webapp.create_app(host="127.0.0.1", port=5151,
+                                admin_password_hash=webadmin.hash_password(_DEMO_PW))
         app.config.update(TESTING=True, OPS_ROOT=str(repo))
         c = app.test_client()
         token = app.config["ADMIN_TOKEN"]
+
+        print("\n== login: the password opens a session that unlocks /admin ==")
+        print(f"  POST /admin/login (right password) → "
+              f"{c.post('/admin/login', data={'csrf': token, 'password': _DEMO_PW}).status_code}")
+        print(f"  GET /admin (now logged in) → {c.get('/admin').status_code}")
 
         print("\n== CSRF: POST needs the per-process token ==")
         print(f"  POST /admin/action/snapshot (no token)   → {c.post('/admin/action/snapshot').status_code}")

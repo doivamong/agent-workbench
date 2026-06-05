@@ -42,13 +42,14 @@
       </div>
     </div>
 
-    {#- Honest-limit banner — load-bearing, not decoration. -#}
+    {#- Honest-limit banner — load-bearing, not decoration. The page is only reachable after
+        login (password mode), so the relevant limit is cleartext-over-HTTP, not local trust. -#}
     <div class="banner" role="alert" style="background:var(--danger-dim);border-color:var(--accent-deep)">
       <span class="banner__dot" aria-hidden="true" style="background:var(--accent)"></span>
-      <span class="banner__txt"><strong style="color:var(--accent-fg)">/admin đang BẬT.</strong>
-        Lớp này <strong>tin mọi tiến trình cục bộ</strong> chạm được cổng (đọc được token CSRF).
-        Chỉ dùng máy cá nhân — <strong>không</strong> dùng trên máy dùng chung. CSRF/Origin chặn
-        giả mạo từ trình duyệt khác nguồn, không chặn kẻ tấn công đã ở cùng máy.</span>
+      <span class="banner__txt"><strong style="color:var(--accent-fg)">/admin đã đăng nhập.</strong>
+        Đây là cổng <strong>HTTP</strong> — mật khẩu và cookie phiên đi <strong>cleartext</strong>
+        trên LAN, có thể bị nghe lén. Chỉ bật trong <strong>mạng tin cậy</strong>, không hướng ra
+        Internet. CSRF chặn giả mạo từ trình duyệt khác nguồn.</span>
     </div>
   </header>
 

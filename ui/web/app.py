@@ -9,17 +9,19 @@ so there is exactly one place that collects kit state.
 
 Run it (after ``pip install -r ui/web/requirements.txt``):
 
-    python ui/web/app.py                 # serves http://127.0.0.1:5151 (read-only)
+    python ui/web/app.py                 # serves http://127.0.0.1:5151 (read-only + inert /admin)
     python -m ui.web.app                 # same, as a module (from the repo root)
     python ui/web/app.py --project /path/to/another/awb/project
-    python ui/web/app.py --admin         # ALSO mount the opt-in /admin action surface
+    AWB_ADMIN_PASSWORD=… python ui/web/app.py   # set a password → /admin is enabled (login gate)
 
 Offline by design: Chart.js and all CSS/JS are vendored under ``ui/web/static/``;
 the served page makes no external network request, so it renders with the network off.
 
 ``/`` is **always read-only**. The action surface (restart / snapshot / pack / verify /
-guarded tree-restore) lives under ``/admin`` and is mounted ONLY with ``--admin`` (default
-OFF → ``/admin*`` is 404). See ``ui/web/admin.py`` for the guards and the honest limit.
+guarded tree-restore) lives under ``/admin`` and is **always mounted** — but with **no
+password configured it is inert** (every action 403, login impossible). Setting a password
+(``AWB_ADMIN_PASSWORD``) enables it; **login is the gate**. The old ``--admin`` flag is a
+deprecated no-op. See ``ui/web/admin.py`` for the guards and the honest limit.
 
 Honesty (load-bearing — see ``.claude/rules/measurement-honesty.md``): telemetry has
 three states — *not-wired* / *wired-but-empty* / *measured*. A skill is shown as
@@ -44,8 +46,8 @@ from pathlib import Path
 # ui/kit_status/ package; put it on the path and import gather(). We do NOT
 # re-implement collection here (handover dead-end: "reuse generator.gather()").
 HERE = Path(__file__).resolve().parent
-# Put this dir on the path too, so the lazy ``import admin`` in create_app() resolves even
-# under ``python -m ui.web.app --admin`` (where only cwd, not this dir, is on sys.path).
+# Put this dir on the path too, so the (always-run) ``import admin`` in create_app() resolves
+# even under ``python -m ui.web.app`` (where only cwd, not this dir, is on sys.path).
 sys.path.insert(0, str(HERE))
 _KIT_STATUS = HERE.parent / "kit_status"
 sys.path.insert(0, str(_KIT_STATUS))
@@ -196,31 +198,27 @@ def _resolve_admin_password_hash() -> str:
 
 def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151,
                debug: bool = False, admin_password_hash: str | None = None) -> "Flask":
-    """Build the Flask app. ``/`` and the read-only fragments are always present; the
-    ``/admin`` action surface is mounted ONLY when ``admin=True``.
+    """Build the Flask app. ``/`` and the read-only fragments are always present, and so is
+    the ``/admin`` action surface — but **login is the gate** (full Approach A).
 
-    Refuses to mount admin under ``--debug`` (Werkzeug's debugger is an RCE console). A
-    wildcard bind (``0.0.0.0``) is refused UNLESS ``admin_password_hash`` is configured —
-    without a login the token-readable surface would be exposed to the whole network; with
-    a password, login (not the host) is the gate, so LAN access is allowed (Phase A). On a
-    localhost bind admin stays a single-developer convenience: a password makes login
-    required; without one the host-allowlist remains the only gate (back-compat)."""
-    if admin and host in ("0.0.0.0", "::") and not admin_password_hash:
-        raise ValueError("--admin refuses a wildcard (LAN) bind without auth; set an admin "
-                         f"password (AWB_ADMIN_PASSWORD) to open /admin over LAN (got --host {host}).")
-    if admin and debug:
-        raise ValueError("--admin refuses --debug: the Werkzeug debugger is a remote code "
-                         "console. Run admin without --debug.")
+    ``/admin`` is **always mounted**, yet with **no password configured it is inert**: every
+    action is 403 on any host, ``GET /admin`` redirects to a login page that cannot create a
+    session (there is nothing to verify against). Setting a password — the env
+    ``AWB_ADMIN_PASSWORD``/``_HASH`` at startup, or a web change-password later — is what
+    *enables* admin; login then unlocks it (no host restriction: a ``SameSite=Strict`` session
+    cookie + CSRF cover what the old host-allowlist used to). This supersedes the old
+    ``--admin`` flag gate: a flag authenticates nobody, a login does.
+
+    ``--debug`` is **refused outright** — admin is always mounted and the Werkzeug debugger is
+    a remote-code console the dashboard never needs. The ``admin`` parameter is a deprecated
+    **no-op** kept only so old ``--admin`` callers don't break."""
+    if debug:
+        raise ValueError("the web dashboard refuses --debug: admin is always mounted and the "
+                         "Werkzeug debugger is a remote code console. Run without --debug.")
 
     app = Flask(__name__)
     app.config["DAYS"] = 14
     app.config["PROJECT"] = _project_dir()
-    app.config["ADMIN"] = bool(admin)
-
-    @app.context_processor
-    def _inject_admin_flag() -> dict:
-        # Templates show the /admin nav link only when the surface is actually mounted.
-        return {"admin_enabled": bool(current_app.config.get("ADMIN"))}
 
     @app.route("/health")
     def health():
@@ -243,33 +241,34 @@ def create_app(admin: bool = False, *, host: str = "127.0.0.1", port: int = 5151
         return render_template("_skills.html.jinja",
                                **_view(request.args.get("days"), request.args.get("tier")))
 
-    if admin:
-        # Mint a per-process CSRF secret and record the bound host/port for the allowlist.
-        # Imported lazily so the read-only app never pulls in the ops engine.
-        import admin as _admin  # noqa: PLC0415 — local import keeps read-only path dep-free
-        app.config["ADMIN_TOKEN"] = secrets.token_urlsafe(32)
-        app.config["HOST"] = host
-        app.config["PORT"] = int(port)
-        app.config["OPS_ROOT"] = str(_REPO_ROOT)
-        # Phase A auth: a configured password hash enables login; empty string = no login
-        # (localhost-only back-compat). secret_key signs the session cookie (per-process, so
-        # a restart invalidates old sessions). Cookie hardening: HttpOnly + SameSite=Strict.
-        # Secure stays off — this is an HTTP-over-LAN surface by design (documented honest limit).
-        app.config["ADMIN_PASSWORD_HASH"] = admin_password_hash or ""
-        app.secret_key = secrets.token_hex(32)
-        app.config.update(
-            SESSION_COOKIE_HTTPONLY=True,
-            SESSION_COOKIE_SAMESITE="Strict",
-            SESSION_COOKIE_SECURE=False,
-        )
-        app.register_blueprint(_admin.admin_bp, url_prefix="/admin")
+    # /admin is ALWAYS mounted (full Approach A). Mint a per-process CSRF secret and record the
+    # bound host/port. Imported lazily so importing this module stays cheap; the engine is only
+    # touched when an admin action actually runs. With no password the blueprint's before_request
+    # makes every action inert — login is the gate, and there is no login without a password.
+    import admin as _admin  # noqa: PLC0415 — local import keeps module import lightweight
+    app.config["ADMIN_TOKEN"] = secrets.token_urlsafe(32)
+    app.config["HOST"] = host
+    app.config["PORT"] = int(port)
+    app.config["OPS_ROOT"] = str(_REPO_ROOT)
+    # Phase A auth: a configured password hash enables login; empty string = inert admin.
+    # secret_key signs the session cookie (per-process, so a restart invalidates old sessions).
+    # Cookie hardening: HttpOnly + SameSite=Strict. Secure stays off — this is an HTTP-over-LAN
+    # surface by design (documented honest limit).
+    app.config["ADMIN_PASSWORD_HASH"] = admin_password_hash or ""
+    app.secret_key = secrets.token_hex(32)
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Strict",
+        SESSION_COOKIE_SECURE=False,
+    )
+    app.register_blueprint(_admin.admin_bp, url_prefix="/admin")
 
     return app
 
 
-# Module-level read-only app — what `python ui/web/app.py` (no --admin) and the existing
-# tests use. The admin app is a SEPARATE instance built in main(), so the default-off app
-# can never accidentally carry admin routes.
+# Module-level app — what `python ui/web/app.py` and the tests import. /admin is mounted but
+# inert (no password configured here); main() rebuilds the app with the resolved password so a
+# bootstrap AWB_ADMIN_PASSWORD enables admin. Read-only `/` works identically either way.
 app = create_app()
 
 
@@ -283,8 +282,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
     ap.add_argument("--project", help="project root to inspect (default: $CLAUDE_PROJECT_DIR or the kit repo)")
     ap.add_argument("--admin", action="store_true",
-                    help="mount the opt-in /admin action surface (localhost-only; default OFF)")
-    ap.add_argument("--debug", action="store_true", help="Flask debug mode (dev only; incompatible with --admin)")
+                    help="DEPRECATED no-op: /admin is always mounted; set AWB_ADMIN_PASSWORD to enable it")
+    ap.add_argument("--debug", action="store_true", help="(refused) Flask debug mode — admin is always mounted; the debugger is an RCE console")
     args = ap.parse_args(argv)
 
     # Headless safety: under pythonw.exe (a bare detached launch) sys.stdout/sys.stderr are
@@ -296,37 +295,36 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(sys, _name) is None:
             setattr(sys, _name, open(os.devnull, "w", encoding="utf-8"))  # noqa: SIM115
 
-    # Resolve auth once so both the CLI guard and create_app see the same decision.
-    pw_hash = _resolve_admin_password_hash() if args.admin else ""
+    # Resolve auth once. /admin is always mounted; a configured password is what *enables* it.
+    # (--admin is a deprecated no-op kept so old scripts don't break.)
+    pw_hash = _resolve_admin_password_hash()
 
     # Fail fast and loud at the CLI boundary (create_app re-checks as defence in depth).
-    if args.admin and args.debug:
-        raise SystemExit("refusing: --admin is incompatible with --debug (RCE debugger).")
-    if args.admin and args.host in ("0.0.0.0", "::") and not pw_hash:
-        raise SystemExit("refusing: --admin over a LAN bind needs an admin password — set "
-                         "AWB_ADMIN_PASSWORD (or AWB_ADMIN_PASSWORD_HASH), or bind 127.0.0.1.")
+    if args.debug:
+        raise SystemExit("refusing: --debug is no longer supported — admin is always mounted "
+                         "and the Werkzeug debugger is an RCE console. Run without --debug.")
 
-    built = create_app(admin=args.admin, host=args.host, port=args.port, debug=args.debug,
+    built = create_app(host=args.host, port=args.port,
                        admin_password_hash=pw_hash or None)
     built.config["DAYS"] = args.days
     built.config["PROJECT"] = (Path(args.project).resolve() if args.project else _project_dir())
 
-    if args.admin:
-        # Record our own PID so ops/dashboard_ctl.py (and the /admin restart button, which
-        # spawns it) can find and restart THIS process even if launched directly.
-        import admin as _admin  # noqa: PLC0415
-        _admin.record_own_pid()
-        if pw_hash:
-            print("⚠  /admin is MOUNTED with password auth over HTTP. On a LAN the password is "
-                  "sniffable in cleartext — only enable on a trusted network, never Internet-facing.",
-                  file=sys.stderr)
-        else:
-            print("⚠  /admin is MOUNTED (localhost-only, NO password). It trusts every local "
-                  "process that can reach the port (it can read the CSRF token). Not for shared machines.",
-                  file=sys.stderr)
+    # Record our own PID so ops/dashboard_ctl.py (and the /admin restart button, which spawns it)
+    # can find and restart THIS process even when launched directly. Admin is always mounted, so
+    # this always applies.
+    import admin as _admin  # noqa: PLC0415
+    _admin.record_own_pid()
+    if pw_hash:
+        print("⚠  /admin is enabled with password auth over HTTP. On a LAN the password is "
+              "sniffable in cleartext — only enable on a trusted network, never Internet-facing.",
+              file=sys.stderr)
+    else:
+        print("⚠  /admin is mounted but INERT (no password). Set AWB_ADMIN_PASSWORD (or "
+              "AWB_ADMIN_PASSWORD_HASH) and restart to enable it; until then every admin action "
+              "is refused and login is impossible.", file=sys.stderr)
 
     print(f"Agent Workbench dashboard → http://{args.host}:{args.port}  "
-          f"(project: {built.config['PROJECT']}{', /admin ON' if args.admin else ''})",
+          f"(project: {built.config['PROJECT']}, /admin {'enabled' if pw_hash else 'inert'})",
           file=sys.stderr)
     # threaded so a slow admin action (snapshot/pack/restore) doesn't block the page — in
     # particular the restart flow, where the page polls /health while a request is in flight.
