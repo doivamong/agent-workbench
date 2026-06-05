@@ -49,5 +49,5 @@ Replace the placeholder rows with your real skills. The non-placeholder rows cor
 runnable skills in this folder (the README metrics block carries the live count).
 
 > **Naming convention:** the kit's skills use the `awb-` prefix. `prompt-refiner` deliberately keeps
-> its bare name because the `prompt-refiner-inject.py` SessionStart-paired hook references the skill by
+> its bare name because the `prompt-refiner-inject.py` UserPromptSubmit hook references the skill by
 > that name — don't "fix" it to `awb-prompt-refiner` without also updating that hook.

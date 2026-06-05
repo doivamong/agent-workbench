@@ -148,6 +148,30 @@ The reason a thing is *not* here is part of the map. (Full debate: roadmap [sect
 
 ---
 
+## 7. Operational & analysis tooling — LIVE (the layer that runs *this* repo)
+
+Distinct from the installable skill core above: these are the **repo-operation** and **opt-in**
+capabilities — the tools that operate the workbench itself and the dashboards that visualise its
+state. They are **not** part of `install.py`'s payload (the `ops/` tools are repo-maintenance; the
+`ui/` layer is opt-in and is the only place a runtime dependency lives). The authoritative detail
+lives in [`ops/README.md`](ops/README.md), [`ui/web/README.md`](ui/web/README.md), and
+[`docs/SECURITY.md`](docs/SECURITY.md); this is the status map.
+
+| Capability | Tier | Status | Lands as / Caveat |
+|---|---|---|---|
+| Process control for the opt-in dashboard (start / stop / restart / status) | ops | LIVE | [`ops/dashboard_ctl.py`](ops/dashboard_ctl.py) + [`ops/win/restart_all.bat`](ops/win/restart_all.bat) · localhost/single-dev; only manages the process in its own pidfile, never hunts-and-kills by port |
+| Working-tree snapshot / restore as a dev safety net | ops | LIVE | [`ops/tree_snapshot.py`](ops/tree_snapshot.py) · gitignore-respecting; restore is an *overlay*, dry-run by default, plan-hash + auto-backup guarded |
+| Verifiable release zip of the installable kit | ops | LIVE | [`ops/release_pack.py`](ops/release_pack.py) · packs exactly `install.py`'s `COPY_MAP`; the sha256 manifest proves **integrity, not authenticity** (unsigned) |
+| Default-to-LAN bind + firewall helper | ops | LIVE | [`ops/lan_setup.py`](ops/lan_setup.py) (`status`/`enable`/`disable`/`firewall`) · **the OS firewall is the control, not the app** |
+| Start the dashboard at logon | ops | LIVE | [`ops/autostart.py`](ops/autostart.py) · Windows `ONLOGON` Scheduled Task / POSIX systemd *user* service; reachable on the subnet every logon — firewall stays the control |
+| Offline, zero-dependency status report | ui | LIVE | [`ui/kit_status/`](ui/kit_status/) · self-contained HTML rendered from the single data source; stdlib-only |
+| Interactive dashboard (charts + in-place controls) | ui | LIVE | [`ui/web/`](ui/web/) (Flask + Jinja + vendored Chart.js/htmx) · the kit's **only** runtime dependency, isolated from the stdlib core; manual refresh, not a daemon |
+| `/admin` web action surface — always-mounted, **login is the gate** | ui | LIVE | [`ui/web/admin.py`](ui/web/admin.py) + [`ui/web/set_password.py`](ui/web/set_password.py) · pbkdf2-sha256 password + lockout + CSRF + `SameSite` cookie; **inert without a password** (every action 403s); plain HTTP — **cleartext on a LAN, trusted-network only**; the old `--admin` flag is a deprecated no-op, `--debug` is refused |
+| Memory **recall-quality** benchmark | tool | LIVE | [`tools/memory_eval.py`](tools/memory_eval.py) · a stdlib retrieval benchmark over a hand-labeled gold set (recall@k / precision@k / MRR) — measures *retrieval*, not answer correctness; a **floor**, not a leaderboard; advisory, not a gate. Pairs with `memory_recall_doctor` (wiring) |
+| Redacted secret/identifier-shape leak detection | tool | LIVE | [`tools/leak_scan.py`](tools/leak_scan.py) · flags common secret/token shapes (private key, AWS, Slack/Telegram, `api_key=`/`password=`) with the matched value **redacted**; high-confidence secrets need a *named* opt-out. A line-based **seatbelt, not a dedicated scanner** (`docs/SECURITY.md`) |
+
+---
+
 ## Honest limits of this catalog
 
 - **It is a map, not a guarantee.** A row says a capability *exists and where it landed* — not that

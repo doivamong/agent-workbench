@@ -54,6 +54,10 @@ for working on this repo itself**, modelled on that private ops layer. That beca
 | Package a verifiable release of the installable kit | `ops/release_pack.py` |
 | Snapshot / restore the working tree as a dev safety net | `ops/tree_snapshot.py` |
 
+A later wave grew the toolkit to its current five tools — `ops/lan_setup.py` (default-to-LAN
+bind + firewall helper) and `ops/autostart.py` (start-at-logon) were added alongside the opt-in
+`ui/web` dashboard's `/admin` surface. See [`ops/README.md`](../ops/README.md) for the live list.
+
 ## The takeaway (methodology)
 
 - A green automated leak/scan is **not** proof a body of text is shareable: the full survey passed
