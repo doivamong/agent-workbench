@@ -21,6 +21,11 @@
     surface: "#15161A",
   };
 
+  // Below this width the tier doughnut drops its in-chart legend (the .chips list
+  // already labels every tier). 599.98px is the strict complement of the CSS
+  // `min-width: 600px` layout breakpoint, so the two never disagree at exactly 600px.
+  var NARROW_MQ = "(max-width: 599.98px)";
+
   function reduceMotion() {
     return window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -91,7 +96,7 @@
       // sliver; the .chips list under the canvas already labels every tier, so we
       // drop the in-chart legend there and keep it only where there's room.
       var narrow = window.matchMedia &&
-        window.matchMedia("(max-width: 600px)").matches;
+        window.matchMedia(NARROW_MQ).matches;
       var tierLegend = narrow
         ? { display: false }
         : { position: "right", labels: { color: COL.text, boxWidth: 12, padding: 12 } };
@@ -127,5 +132,18 @@
   // #skills-region doesn't touch the charts, so we skip it to avoid needless redraws.
   document.body.addEventListener("htmx:afterSwap", function (evt) {
     if (evt.target && evt.target.id === "dyn") initCharts();
+  });
+
+  // Re-evaluate the doughnut legend when the viewport crosses the narrow boundary by a
+  // bare resize / tablet rotation (no #dyn swap) — otherwise the legend config computed at
+  // first paint goes stale (a right-side legend crushing the doughnut after widen→narrow).
+  // matchMedia('change') is the natural fit, but some embedded webviews never emit it, so we
+  // use window resize and re-init ONLY when the narrow state actually flips (cheap: no churn
+  // on every pixel). initCharts destroys the prior chart first, so this never leaks an instance.
+  function narrowNow() { return !!(window.matchMedia && window.matchMedia(NARROW_MQ).matches); }
+  var wasNarrow = narrowNow();
+  window.addEventListener("resize", function () {
+    var isNarrow = narrowNow();
+    if (isNarrow !== wasNarrow) { wasNarrow = isNarrow; initCharts(); }
   });
 })();
