@@ -1,0 +1,150 @@
+{#- Agent Workbench — /admin action surface (opt-in, mounted only with --admin).
+    Same design language / tokens as the read-only dashboard. Fully offline (vendored htmx +
+    css, no external refs). Every action is a POST form carrying the per-process CSRF token;
+    results are HTMX-swapped into #admin-result. All copy is Vietnamese with diacritics. -#}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Workbench — /admin · điều khiển kit</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+</head>
+<body>
+<a class="skip" href="#admin-actions">Bỏ qua tới các thao tác</a>
+
+<div class="shell">
+
+  <header class="topbar">
+    <div class="topbar__row">
+      <div class="topbar__mark">
+        <svg class="topbar__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="panel__eyebrow">Agent Workbench · /admin</div>
+          <h1>Điều khiển kit</h1>
+        </div>
+      </div>
+      <div class="topbar__meta">
+        <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
+        <span class="env-pill kit-num">{{ host }}:{{ port }}</span>
+        <a class="btn" href="/">← Bảng điều khiển (chỉ đọc)</a>
+      </div>
+    </div>
+
+    {#- Honest-limit banner — load-bearing, not decoration. -#}
+    <div class="banner" role="alert" style="background:var(--danger-dim);border-color:var(--accent-deep)">
+      <span class="banner__dot" aria-hidden="true" style="background:var(--accent)"></span>
+      <span class="banner__txt"><strong style="color:var(--accent-fg)">/admin đang BẬT.</strong>
+        Lớp này <strong>tin mọi tiến trình cục bộ</strong> chạm được cổng (đọc được token CSRF).
+        Chỉ dùng máy cá nhân — <strong>không</strong> dùng trên máy dùng chung. CSRF/Origin chặn
+        giả mạo từ trình duyệt khác nguồn, không chặn kẻ tấn công đã ở cùng máy.</span>
+    </div>
+  </header>
+
+  <main id="admin-actions">
+
+    {#- Live result region (HTMX target) ===================================== -#}
+    <div id="admin-result" class="admin-result-region" aria-live="polite"></div>
+
+    <div class="grid">
+
+      {#- Restart -#}
+      <section class="panel span-2" aria-labelledby="a-restart">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Tiến trình</div>
+          <h2 id="a-restart">Khởi động lại</h2>
+        </div></div>
+        <p class="section-foot">Dừng tiến trình dashboard này (qua pidfile) và sinh một tiến trình mới — tách rời.</p>
+        <form hx-post="/admin/action/restart" hx-target="#admin-result" hx-swap="innerHTML"
+              hx-confirm="Khởi động lại dashboard? Trang sẽ tự kết nối lại." class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <button type="submit" class="btn">Khởi động lại dashboard</button>
+        </form>
+      </section>
+
+      {#- Snapshot -#}
+      <section class="panel span-2" aria-labelledby="a-snap">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">An toàn</div>
+          <h2 id="a-snap">Chụp ảnh cây</h2>
+        </div></div>
+        <p class="section-foot">Lưu ảnh chụp cây làm việc (tôn trọng .gitignore) vào <span class="mono">.ops/snapshots/</span>.</p>
+        <form hx-post="/admin/action/snapshot" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <button type="submit" class="btn">Chụp ảnh ngay</button>
+        </form>
+      </section>
+
+      {#- Pack -#}
+      <section class="panel span-2" aria-labelledby="a-pack">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Phát hành</div>
+          <h2 id="a-pack">Đóng gói</h2>
+        </div></div>
+        <p class="section-foot">Đóng gói đúng payload <span class="mono">install.py</span> thành zip có manifest sha256.</p>
+        <form hx-post="/admin/action/pack" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <button type="submit" class="btn">Đóng gói bản phát hành</button>
+        </form>
+      </section>
+
+      {#- Verify -#}
+      <section class="panel span-3" aria-labelledby="a-verify">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Toàn vẹn</div>
+          <h2 id="a-verify">Kiểm tra bản phát hành</h2>
+        </div></div>
+        {% if releases %}
+        <form hx-post="/admin/action/verify" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <label class="control">
+            <span class="control__label">Chọn bản phát hành (do máy chủ liệt kê)</span>
+            <select name="release" class="control__input" required>
+              {% for r in releases %}<option value="{{ r.name }}">{{ r.name }} · {{ r.mtime }}</option>{% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="btn">Kiểm tra sha256 vs manifest</button>
+        </form>
+        {% else %}
+        <p class="section-foot muted">Chưa có bản phát hành nào trong <span class="mono">.ops/releases/</span> — đóng gói một bản trước.</p>
+        {% endif %}
+      </section>
+
+      {#- Restore (guarded) -#}
+      <section class="panel span-3" aria-labelledby="a-restore">
+        <div class="panel__head"><div>
+          <div class="panel__eyebrow">Khôi phục (có bảo vệ)</div>
+          <h2 id="a-restore">Khôi phục cây từ ảnh chụp</h2>
+        </div>
+        {% if dirty %}<span class="badge badge--warn">cây chưa commit</span>{% endif %}</div>
+        {% if snapshots %}
+        <p class="section-foot">Bước 1 — xem trước (dry-run) sinh plan-hash; bước 2 — khôi phục re-kiểm hash (chống TOCTOU), tự sao lưu trước, từ chối cây bẩn trừ khi cho phép.</p>
+        <form hx-post="/admin/restore/preview" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
+          <input type="hidden" name="csrf" value="{{ token }}">
+          <label class="control">
+            <span class="control__label">Chọn ảnh chụp (do máy chủ liệt kê)</span>
+            <select name="snapshot" class="control__input" required>
+              {% for s in snapshots %}<option value="{{ s.name }}">{{ s.name }} · {{ s.mtime }}</option>{% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="btn">Xem trước khôi phục →</button>
+        </form>
+        {% else %}
+        <p class="section-foot muted">Chưa có ảnh chụp nào trong <span class="mono">.ops/snapshots/</span> — chụp một ảnh trước.</p>
+        {% endif %}
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="foot">
+    Agent Workbench · /admin · điều khiển cục bộ · mọi thao tác ghi nhật ký vào <span class="mono">.ops/ops.log</span>
+  </footer>
+</div>
+</body>
+</html>

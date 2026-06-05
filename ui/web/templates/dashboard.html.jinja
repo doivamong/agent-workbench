@@ -33,6 +33,7 @@
         <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
         <span class="env-pill">Nhánh <span class="kit-num">{{ ctx.branch }}</span></span>
         <span class="env-pill">Commit <span class="kit-num">{{ ctx.commit }}</span></span>
+        {% if admin_enabled %}<a class="btn" href="/admin">/admin →</a>{% endif %}
       </div>
     </div>
     <p class="topbar__sub">

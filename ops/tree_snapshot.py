@@ -225,16 +225,24 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("--confirm", help="plan hash from the dry-run (required to apply)")
     rp.add_argument("--yes", action="store_true", help="apply (with --confirm)")
     rp.add_argument("--no-backup", action="store_true", help="skip the pre-restore auto-backup")
+    # --root / --snap-dir let a caller (e.g. the ui/web /admin subprocess) point the snapshot &
+    # restore at a tree other than this repo — pass them BEFORE the subcommand. Default: this repo.
+    ap.add_argument("--root", type=Path, default=REPO_ROOT,
+                    help="tree to snapshot / restore into (default: this repo)")
+    ap.add_argument("--snap-dir", type=Path, default=None,
+                    help="snapshot store (default: <root>/.ops/snapshots)")
     ap.add_argument("--json", action="store_true", help="emit JSON")
     args, _ = ap.parse_known_args(argv)
     as_json = "--json" in (argv if argv is not None else sys.argv[1:])
+    root = args.root
+    snap_dir = args.snap_dir or (root / ".ops" / "snapshots")
 
     if args.command == "snapshot":
-        out = snapshot(REPO_ROOT, args.label)
+        out = snapshot(root, args.label, snap_dir=snap_dir)
         _emit({"action": "snapshot", "result": "created", "path": str(out)}, as_json)
         return 0
     if args.command == "list":
-        snaps = list_snapshots()
+        snaps = list_snapshots(snap_dir)
         _emit({"snapshots": snaps, "count": len(snaps)}, as_json)
         return 0
     # restore
@@ -242,12 +250,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"no such snapshot: {args.zip}", file=sys.stderr)
         return 2
     if not (args.confirm and args.yes):
-        plan = plan_restore(args.zip, REPO_ROOT)
+        plan = plan_restore(args.zip, root)
         _emit({**plan, "note": "DRY-RUN. To apply: "
                f"--confirm {plan['plan_hash']} --yes"}, as_json)
         return 0
-    result = apply_restore(args.zip, args.confirm, REPO_ROOT,
-                           auto_backup=not args.no_backup)
+    result = apply_restore(args.zip, args.confirm, root,
+                           auto_backup=not args.no_backup, snap_dir=snap_dir)
     _emit(result, as_json)
     return 0 if result.get("result") == "restored" else 1
 

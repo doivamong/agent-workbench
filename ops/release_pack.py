@@ -180,17 +180,21 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("zip", type=Path)
     rp.add_argument("target", type=Path)
     rp.add_argument("--yes", action="store_true", help="actually write (default: dry-run)")
+    # --rel-dir lets a caller (e.g. the ui/web /admin subprocess) choose where pack writes /
+    # list reads — pass it BEFORE the subcommand. Default: this repo's .ops/releases.
+    ap.add_argument("--rel-dir", type=Path, default=REL_DIR,
+                    help="release store (default: <repo>/.ops/releases)")
     ap.add_argument("--json", action="store_true", help="emit JSON")
     args, _ = ap.parse_known_args(argv)
     as_json = "--json" in (argv if argv is not None else sys.argv[1:])
 
     if args.command == "pack":
-        out = pack()
+        out = pack(rel_dir=args.rel_dir)
         _emit({"action": "pack", "result": "created", "path": str(out),
                "files": len(payload_files())}, as_json)
         return 0
     if args.command == "list":
-        rels = list_releases()
+        rels = list_releases(args.rel_dir)
         _emit({"releases": rels, "count": len(rels)}, as_json)
         return 0
     if args.command == "verify":

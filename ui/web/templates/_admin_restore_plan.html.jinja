@@ -1,0 +1,38 @@
+{#- Restore PREVIEW — the dry-run plan + the confirm form that carries the plan-hash back.
+    The hash is the TOCTOU guard: /admin/restore/apply recomputes the plan and refuses if it
+    no longer matches (the tree moved since this preview). Server takes an auto-backup first. -#}
+<div class="admin-result" role="status" aria-live="polite">
+  <div class="admin-result__head">
+    <span class="admin-result__dot" aria-hidden="true"></span>
+    <strong>Xem trước khôi phục · <span class="mono">{{ snapshot }}</span></strong>
+  </div>
+  <p class="admin-result__msg">
+    Sẽ <strong>tạo {{ plan.will_create|length }}</strong> ·
+    <strong>sửa {{ plan.will_modify|length }}</strong> ·
+    giữ nguyên {{ plan.unchanged|length }} (tổng {{ plan.files_total }} tệp trong ảnh chụp).
+    Khôi phục là <em>lớp phủ</em>: chỉ ghi tệp trong ảnh chụp, không xoá tệp mới.
+  </p>
+  {% if dirty %}
+  <p class="admin-result__msg admin-result--err">
+    ⚠ Cây làm việc đang có thay đổi <strong>chưa commit</strong> — phải tick “allow_dirty” để ghi đè.
+  </p>
+  {% endif %}
+  <form hx-post="/admin/restore/apply" hx-target="#admin-result" hx-swap="innerHTML"
+        hx-confirm="Khôi phục sẽ ghi đè {{ plan.will_modify|length }} tệp (đã tự sao lưu trước). Tiếp tục?"
+        class="admin-form">
+    <input type="hidden" name="csrf" value="{{ token }}">
+    <input type="hidden" name="snapshot" value="{{ snapshot }}">
+    <input type="hidden" name="plan_hash" value="{{ plan.plan_hash }}">
+    <label class="admin-check">
+      <input type="checkbox" name="allow_dirty">
+      Ghi đè ngay cả khi cây chưa commit <span class="mono">(allow_dirty)</span>
+    </label>
+    <button type="submit" class="btn btn--danger">
+      Khôi phục {{ plan.will_modify|length }} tệp · tự sao lưu trước
+    </button>
+    <p class="admin-form__hint muted">
+      plan-hash <span class="mono">{{ plan.plan_hash[:16] }}…</span> —
+      nếu cây đổi trước khi bấm, thao tác sẽ bị huỷ (không ghi gì).
+    </p>
+  </form>
+</div>

@@ -33,7 +33,8 @@ python ui/web/app.py --project /path/to/another/project
 ```
 
 Flags: `--host`, `--port` (default **5151**; 5000 collides with common dev servers / macOS
-AirPlay), `--days` (telemetry window, default 14), `--project`, `--debug`.
+AirPlay), `--days` (telemetry window, default 14), `--project`, `--admin` (opt-in action
+surface — see below), `--debug`.
 
 ## Offline by design
 
@@ -62,6 +63,40 @@ the honesty model lives in exactly one place — Jinja templates fed by `build_v
 
 The day window is whitelisted to `{7, 14, 30}`; a garbage `?days=` falls back to the default
 rather than reaching `gather()`. Fragments are partials (no `<html>`), same-origin, offline.
+
+## Opt-in `/admin` action surface (`--admin`)
+
+`/` is **always read-only**. With `--admin`, the dashboard *also* mounts an action surface at
+`/admin` ([`admin.py`](admin.py)) that turns the Phase-1 [`ops/`](../../ops/) engine into web
+buttons — **restart**, **snapshot the tree**, **pack a release**, **verify** a release, and a
+**guarded tree-restore**. Every *action* runs the Phase-1 CLI as a **subprocess** (an arg list,
+never a shell string — process isolation; the exit code + stderr are surfaced); only read-only
+enumeration for the dropdowns imports the APIs directly. Without the flag the blueprint is never
+registered, so every `/admin*` path is a plain **404**.
+
+The guards (the design was stress-tested to GO only with all of them):
+
+- **Opt-in, default-off** — no `--admin` → `/admin*` is 404 and no CSRF token is minted.
+- **CSRF** — every mutation is POST-only and must carry the per-process `secrets.token_urlsafe`
+  token (in a hidden field or `X-CSRF-Token`), checked with `hmac.compare_digest` *before* any
+  side effect. GETs never mutate.
+- **Host / Origin allowlist** — every admin request must arrive on a localhost `Host` (and, if
+  present, the bound port); a cross-origin `Origin`/`Referer` is refused. `--admin` refuses to
+  start under `--debug` (the Werkzeug debugger is a remote console) or a `0.0.0.0` bind.
+- **Server-enumerated targets** — the restore/verify target is chosen *by name* from a list this
+  server produced (the snapshots / releases dirs); a client-supplied path is rejected. Subprocess
+  calls are arg lists, never a shell string.
+- **Guarded restore** — dry-run preview → `plan-hash` → apply re-validates that hash (**TOCTOU**:
+  aborts with no write if the tree moved), takes an **auto-backup** first, and refuses a dirty
+  tree unless `allow_dirty`.
+- **Detached self-restart**, and **every action audited** to `.ops/ops.log` (subprocess errors
+  surfaced, not swallowed).
+
+**Honest limit (documented on purpose):** admin mode **trusts every local process that can reach
+the bound port** — any such process can read the CSRF token from the served page. It is opt-in,
+default-off, localhost-only, and **not for shared machines**. The CSRF/Origin checks stop a
+cross-origin *browser* forging requests; they do **not** stop a local attacker already able to
+talk to the port. Try it offline (no port opened): `python examples/ops_web_admin_demo.py`.
 
 ## Honesty (load-bearing)
 

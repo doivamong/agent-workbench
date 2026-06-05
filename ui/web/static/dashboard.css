@@ -360,6 +360,30 @@ strong { color: var(--text-strong); font-weight: var(--weight-strong); }
 }
 .btn:hover { background: var(--surface-3); border-color: #34353C; }
 .btn svg { stroke: currentColor; }
+a.btn { text-decoration: none; }
+/* Danger variant — the guarded restore confirm. AA-contrast text on a deep-accent surface. */
+.btn--danger { color: var(--accent-fg); background: var(--accent-deep); border-color: var(--accent); }
+.btn--danger:hover { background: var(--accent); border-color: var(--accent); }
+
+/* ---- /admin action surface -------------------------------------------- */
+.admin-result-region:empty { display: none; }
+.admin-result {
+  margin-bottom: var(--sp-5); padding: var(--sp-4) var(--sp-5);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--text-dim); border-radius: var(--r-md);
+}
+.admin-result--ok  { border-left-color: var(--ok); }
+.admin-result--err { border-left-color: var(--accent); }
+.admin-result__head { display: flex; align-items: center; gap: var(--sp-2); }
+.admin-result__dot { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--text-dim); }
+.admin-result--ok  .admin-result__dot { background: var(--ok); }
+.admin-result--err .admin-result__dot { background: var(--accent); }
+.admin-result__msg { margin: var(--sp-2) 0 0; color: var(--text); line-height: var(--lh-normal); }
+.admin-result__detail { margin: var(--sp-3) 0 0; padding-left: var(--sp-5); color: var(--text-dim); font-size: var(--fs-sm); }
+.admin-form { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); align-items: flex-start; }
+.admin-form__hint { font-size: var(--fs-xs); margin: 0; }
+.admin-check { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text); cursor: pointer; min-height: 44px; }
+.admin-check input { width: 18px; height: 18px; accent-color: var(--accent); }
 /* HTMX in-flight cue — opacity only (no layout shift); disabled under reduced-motion. */
 .htmx-request#dyn, #dyn.htmx-request { opacity: .55; transition: opacity .15s ease; }
 
