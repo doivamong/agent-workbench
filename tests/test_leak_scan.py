@@ -214,3 +214,71 @@ def test_filter_gitignored_fails_open_outside_work_tree(tmp_path):
     else:
         assert warning is not None and "no effect" in warning
     assert kept == [f]  # fail open: nothing dropped
+
+
+# --- modern token shapes (sk-/gh*/AIza/glpat-/JWT/Bearer) --------------------
+# Tokens are assembled at runtime from split parts so this test's own source is not
+# flagged by the --entropy self-scan that CI/pre-commit run (precedent: _AWS_KEY above).
+_NEW_TOKENS = {
+    "ai_provider_key": "sk-" + "ant-" + "A" * 40,
+    "github_token": "ghp_" + "B" * 36,
+    "github_pat": "github_" + "pat_" + "C" * 30,
+    "google_api_key": "AIza" + "D" * 35,
+    "gitlab_pat": "glpat-" + "E" * 24,
+    "jwt": "eyJ" + "a" * 12 + "." + "b" * 12 + "." + "c" * 12,
+    "bearer_token": "Bearer " + "F" * 30,
+}
+
+
+@pytest.mark.parametrize("name,token", list(_NEW_TOKENS.items()))
+def test_modern_token_shape_is_detected(tmp_path, name, token):
+    f = tmp_path / "x.py"
+    f.write_text(f'v = "{token}"\n', encoding="utf-8")
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
+    assert any(n == name for _, n, _ in found), f"{name} not detected in {token!r}"
+
+
+@pytest.mark.parametrize("name", ["github_token", "github_pat", "google_api_key"])
+def test_new_hard_token_not_silenced_by_bare_ignore(tmp_path, name):
+    """The hyphen-free credential shapes are HARD: a bare opt-out must not hide them."""
+    f = tmp_path / "x.py"
+    f.write_text(f'v = "{_NEW_TOKENS[name]}"  # leak-scan: ignore\n', encoding="utf-8")
+    assert any(n == name for _, n, _ in leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS))
+
+
+@pytest.mark.parametrize("name", ["ai_provider_key", "gitlab_pat"])
+def test_hyphen_bodied_token_is_soft_and_bare_ignore_silences_it(tmp_path, name):
+    """sk-/glpat- bodies can still collide with an unusual kebab identifier, so they are SOFT: a
+    bare opt-out clears a rare false positive without needing a named one."""
+    f = tmp_path / "x.py"
+    f.write_text(f'v = "{_NEW_TOKENS[name]}"  # leak-scan: ignore\n', encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
+
+
+def test_new_hard_token_silenced_by_named_ignore(tmp_path):
+    f = tmp_path / "x.py"
+    f.write_text(f'v = "{_NEW_TOKENS["github_token"]}"  # leak-scan: ignore[github_token]\n',
+                 encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
+
+
+def test_jwt_is_soft_and_bare_ignore_silences_it(tmp_path):
+    """JWTs appear in docs/examples, so jwt is SOFT - a bare opt-out silences it."""
+    f = tmp_path / "x.py"
+    f.write_text(f'token = "{_NEW_TOKENS["jwt"]}"  # leak-scan: ignore\n', encoding="utf-8")
+    assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
+
+
+@pytest.mark.parametrize("prose", [
+    "send a Bearer token in the Authorization header",  # 'token' is short -> below the bound
+    "use risk-assessment and a sklearn model",          # 'sk-' inside a word, no boundary
+    "the AIza prefix marks a Google key",               # 'AIza' without the 35-char body
+    "a sk-fading-circle-spinner-bounce CSS spinner class from SpinKit",  # all-lowercase kebab -> no [A-Z0-9] floor
+    "the glpat-this-is-a-long-placeholder-value config slug",           # all-lowercase kebab after glpat-
+])
+def test_modern_shapes_do_not_false_positive_on_prose(tmp_path, prose):
+    f = tmp_path / "x.py"
+    f.write_text(prose + "\n", encoding="utf-8")
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
+    assert not any(n in {"bearer_token", "ai_provider_key", "google_api_key", "gitlab_pat"}
+                   for _, n, _ in found), f"false positive on prose: {found}"

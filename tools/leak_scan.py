@@ -53,6 +53,24 @@ GENERIC_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("generic_api_key_assign", re.compile(r"(?i)\b(?:api[_-]?key|secret[_-]?key|access[_-]?token|password|passwd|pwd)\b\s*[:=]\s*['\"][^'\"]{8,}['\"]")),
     ("telegram_bot_token", re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b")),
     ("slack_token", re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b")),
+    # Modern token shapes: free-floating credentials the keyword-assignment scan misses (only the
+    # opt-in --entropy pass would otherwise catch them). Length + charset are bounded so prose
+    # ("risk-assessment", "Bearer header") cannot trip them. Like the entropy charsets below, no
+    # real token literal is embedded here, so leak_scan never flags its own pattern definitions.
+    # The sk-/glpat- bodies keep `-`/`_` so real STRUCTURED keys still match (Anthropic's
+    # `sk-ant-api03-...`, OpenAI project keys), but a `(?=...[A-Z0-9])` floor requires at least one
+    # uppercase letter or digit in the body - a real high-entropy key always has one, while an
+    # all-lowercase kebab identifier (a SpinKit `sk-fading-circle...` CSS class, a `glpat-`-prefixed
+    # slug) does not, so those no longer false-positive. These two are SOFT (not HARD) precisely
+    # because their hyphenated body can still collide with an unusual kebab name; a bare opt-out can
+    # clear that rare FP, where the hyphen-free github_*/google shapes below are tight enough for HARD.
+    ("ai_provider_key", re.compile(r"\bsk-(?:ant-|proj-)?(?=[A-Za-z0-9_-]*[A-Z0-9])[A-Za-z0-9_-]{20,}\b")),
+    ("github_token", re.compile(r"\bgh[opsur]_[A-Za-z0-9]{36,}\b")),
+    ("github_pat", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}\b")),
+    ("google_api_key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
+    ("gitlab_pat", re.compile(r"\bglpat-(?=[A-Za-z0-9_-]*[A-Z0-9])[A-Za-z0-9_-]{20,}\b")),
+    ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,}\b")),
+    ("bearer_token", re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{20,}")),
     ("windows_user_path", re.compile(r"[A-Za-z]:\\Users\\[^\\\s'\"]+")),
     ("unix_home_path", re.compile(r"/home/[A-Za-z0-9._-]+|/Users/[A-Za-z0-9._-]+")),
     ("email_address", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
@@ -69,6 +87,11 @@ EMAIL_ALLOW = re.compile(r"@(?:example\.(?:com|org|net)|test\.|localhost|noreply
 # could hide an AWS key / private key behind a trailing comment.
 HARD_PATTERNS = frozenset({
     "private_key_block", "aws_access_key", "telegram_bot_token", "slack_token",
+    # The github_*/google shapes have a hyphen-free body + a tight prefix/length, so a false
+    # positive is implausible -> safe to make un-silenceable. ai_provider_key and gitlab_pat are
+    # deliberately NOT here: their `-`/`_` body can still collide with a rare kebab identifier, so
+    # they stay SOFT (a bare opt-out can clear an FP) rather than become an un-silenceable blocker.
+    "github_token", "github_pat", "google_api_key",
 })
 
 # Inline opt-out: "leak-scan: ignore" (bare) or "leak-scan: ignore[name1,name2]" (scoped).
