@@ -86,3 +86,23 @@ def test_list_snapshots(repo, tmp_path):
     ts.snapshot(repo, label="one", snap_dir=snaps)
     listed = ts.list_snapshots(snaps)
     assert len(listed) == 1 and listed[0]["name"].endswith(".zip")
+
+
+def test_cli_root_and_snap_dir_target_a_foreign_tree(repo, tmp_path, capsys):
+    # The --root / --snap-dir flags (added for the ui/web /admin subprocess) must snapshot &
+    # restore a tree OTHER than this repo, so the snapshot lands in the chosen store.
+    snaps = tmp_path / "store"
+    rc = ts.main(["--root", str(repo), "--snap-dir", str(snaps), "--json", "snapshot", "--label", "x"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    z = Path(out["path"])
+    assert z.parent == snaps and z.is_file()  # written into the chosen store, not this repo
+
+    # dry-run restore via the CLI surfaces a plan hash, and apply round-trips into --root.
+    (repo / "a.txt").write_text("MUTATED", encoding="utf-8")
+    ts.main(["--root", str(repo), "--snap-dir", str(snaps), "--json", "restore", str(z)])
+    plan = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    rc2 = ts.main(["--root", str(repo), "--snap-dir", str(snaps), "--json",
+                   "restore", str(z), "--confirm", plan["plan_hash"], "--yes"])
+    assert rc2 == 0
+    assert (repo / "a.txt").read_text(encoding="utf-8") == "alpha"  # restored from the foreign-tree snapshot

@@ -298,6 +298,37 @@ def test_admin_source_never_uses_shell_true():
     assert "shell=True" not in src  # subprocess arg lists only, never a shell string
 
 
+def test_engine_actions_run_via_subprocess_arglist(tmp_path, monkeypatch):
+    # D4: every engine ACTION runs through _run_engine as an arg-list subprocess (process
+    # isolation; exit/stderr surfaced), never in-process and never a shell string. Spy on the
+    # seam and assert snapshot drives the tree_snapshot CLI with --root, as a list of strings.
+    calls = []
+
+    def spy(script, cli_args):
+        calls.append((script, cli_args))
+        return 0, {"path": str(tmp_path / "fake.zip")}, ""
+
+    monkeypatch.setattr(webadmin, "_run_engine", spy)
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/snapshot", data={"csrf": _token(app)})
+    assert r.status_code == 200
+    assert len(calls) == 1
+    script, cli_args = calls[0]
+    assert script.name == "tree_snapshot.py"
+    assert isinstance(cli_args, list) and all(isinstance(a, str) for a in cli_args)
+    assert "--root" in cli_args and "snapshot" in cli_args
+
+
+def test_engine_subprocess_error_is_surfaced_not_swallowed(tmp_path, monkeypatch):
+    # guard #9: a non-zero engine exit + stderr is shown, not silently swallowed.
+    monkeypatch.setattr(webadmin, "_run_engine",
+                        lambda s, a: (1, None, "boom: engine failed"))
+    app = _admin_app(tmp_path / "r")
+    r = app.test_client().post("/admin/action/pack", data={"csrf": _token(app)})
+    assert r.status_code == 500
+    assert "boom: engine failed" in r.get_data(as_text=True)
+
+
 def test_restart_is_a_detached_spawn(tmp_path, monkeypatch):
     seen = {}
 

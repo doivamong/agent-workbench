@@ -6,9 +6,12 @@
 > counted among the kit's "standalone tools" (those are the reusable analysis tools in
 > [`tools/`](../tools/)).
 
-Each tool is a CLI **and** a callable API — the opt-in [`ui/web`](../ui/web/) admin layer
-(`python ui/web/app.py --admin`) reuses the same functions, so there is exactly one
-implementation behind both the terminal and the web buttons.
+Each tool is a CLI **and** a callable API. The opt-in [`ui/web`](../ui/web/) admin layer
+(`python ui/web/app.py --admin`) runs the **CLIs as subprocesses** for every action (process
+isolation; arg lists, never a shell) and imports the APIs only for read-only enumeration — so
+there is exactly one implementation behind both the terminal and the web buttons. The
+`tree_snapshot` / `release_pack` CLIs take `--root` / `--snap-dir` / `--rel-dir` so a caller can
+point them at a tree other than this repo.
 
 Runtime artifacts live under the git-ignored `.ops/` (pidfile, logs, snapshots, release zips,
 and the `/admin` action audit `ops.log`).

@@ -69,8 +69,10 @@ rather than reaching `gather()`. Fragments are partials (no `<html>`), same-orig
 `/` is **always read-only**. With `--admin`, the dashboard *also* mounts an action surface at
 `/admin` ([`admin.py`](admin.py)) that turns the Phase-1 [`ops/`](../../ops/) engine into web
 buttons — **restart**, **snapshot the tree**, **pack a release**, **verify** a release, and a
-**guarded tree-restore** — reusing those callable APIs (no second implementation). Without the
-flag the blueprint is never registered, so every `/admin*` path is a plain **404**.
+**guarded tree-restore**. Every *action* runs the Phase-1 CLI as a **subprocess** (an arg list,
+never a shell string — process isolation; the exit code + stderr are surfaced); only read-only
+enumeration for the dropdowns imports the APIs directly. Without the flag the blueprint is never
+registered, so every `/admin*` path is a plain **404**.
 
 The guards (the design was stress-tested to GO only with all of them):
 

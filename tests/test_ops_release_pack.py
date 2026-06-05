@@ -1,5 +1,6 @@
 """Tests for ops/release_pack.py — stdlib only. Packs the real kit payload into a
 temp zip (fast) and round-trips verify/restore; no network, no write to the live kit."""
+import json
 import sys
 import zipfile
 from pathlib import Path
@@ -7,6 +8,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import ops.release_pack as rp  # noqa: E402
+
+
+def test_cli_rel_dir_writes_to_chosen_store(tmp_path, capsys):
+    # The --rel-dir flag (added for the ui/web /admin subprocess) must place the release zip
+    # in the chosen store, not this repo's default .ops/releases.
+    store = tmp_path / "rels"
+    rc = rp.main(["--rel-dir", str(store), "--json", "pack"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    z = Path(out["path"])
+    assert z.parent == store and z.is_file()
+    assert not rp.verify(z)  # the freshly packed release verifies clean
 
 
 def test_payload_matches_install_copymap():

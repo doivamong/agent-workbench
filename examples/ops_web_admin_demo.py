@@ -108,7 +108,8 @@ def main() -> int:
         log = repo / ".ops" / "ops.log"
         print(f"\n  every action audited → {log.name}: {len(log.read_text(encoding='utf-8').splitlines())} lines")
 
-    print("\nAdmin surface exercised in-process — no port opened, no live writes.")
+    print("\nAdmin surface driven via the in-process test client (actions run as engine "
+          "subprocesses) — no port opened, no live writes.")
     return 0
 
 
