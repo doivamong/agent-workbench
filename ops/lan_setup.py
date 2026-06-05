@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """lan_setup.py — one-step setup to reach the read-only dashboard from another device.
 
-Sets the ``AWB_DASHBOARD_HOST`` environment variable so the dashboard defaults to a LAN bind
-(``0.0.0.0``) — then a bare ``python ui/web/app.py`` or a no-arg ``restart_all`` binds the LAN
-with no extra flag, e.g. to view it from a phone on the same Wi-Fi. It also prints your LAN
-URL(s) and the exact firewall command to open the port.
+Makes the dashboard default to a LAN bind (``0.0.0.0``) — then a bare ``python ui/web/app.py``
+or a no-arg ``restart_all`` binds the LAN with no extra flag, e.g. to view it from a phone on
+the same Wi-Fi. It sets things on two levels so it works immediately AND permanently:
 
-    python ops/lan_setup.py status      # current env value, resolved bind, LAN URL(s)
-    python ops/lan_setup.py enable       # default to a LAN bind (sets the env var)
+  * the ``AWB_DASHBOARD_HOST`` env var (the *default*, for new shells / a fresh ``start``), and
+  * the persisted ``.ops/dashboard.json`` start-state that ``restart`` reuses (so the very next
+    restart binds the LAN even before the env var has propagated to a logged-in shell).
+
+    python ops/lan_setup.py status      # current default, what restart will bind, LAN URL(s)
+    python ops/lan_setup.py enable       # default to a LAN bind (env + start-state)
     python ops/lan_setup.py disable      # back to localhost-only
+    python ops/lan_setup.py firewall      # create the inbound rule (Windows; needs admin)
     python ops/lan_setup.py enable --dry-run   # show what it would do, change nothing
 
-Stdlib only. **It does NOT open your firewall** — opening an inbound port is a deliberate
-security action, so this PRINTS the exact command for you to run once as administrator instead
-of doing it silently. The shipped default stays ``127.0.0.1``; only your machine, with the env
-var set, defaults to a LAN bind. The ``/admin`` action surface still refuses a ``0.0.0.0`` bind
-regardless — only the read-only data is ever on the wire. The firewall (scoped to your local
-subnet) is the real access control, not the app.
+Stdlib only. The shipped default stays ``127.0.0.1``; only your machine, configured here, defaults
+to a LAN bind. The ``/admin`` action surface still refuses a ``0.0.0.0`` bind regardless — only the
+read-only data is ever on the wire. The firewall (scoped to your LOCAL SUBNET) is the real access
+control, not the app.
 """
 from __future__ import annotations
 
@@ -33,6 +35,11 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     except Exception:
         pass
+
+# The engine that owns the pidfile/start-state. Import via the repo root so it is the SAME
+# module object whether this runs as a script or is imported as ops.lan_setup (one state file).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import ops.dashboard_ctl as dctl  # noqa: E402
 
 ENV_VAR = "AWB_DASHBOARD_HOST"
 LAN_VALUE = "0.0.0.0"
@@ -65,8 +72,8 @@ def phone_urls(port: int = DEFAULT_PORT) -> list[str]:
 
 
 def firewall_command(port: int = DEFAULT_PORT) -> str:
-    """The exact (admin) command to allow inbound TCP ``port`` from the LOCAL SUBNET only —
-    printed for you to run once, never run automatically."""
+    """The exact (admin) command to allow inbound TCP ``port`` from the LOCAL SUBNET only.
+    Printed for the manual path; ``firewall`` / lan_on.bat run it for you (elevated)."""
     if sys.platform == "win32":
         return ('powershell -Command "New-NetFirewallRule -DisplayName '
                 f"'AWB dashboard {port} LAN' -Direction Inbound -Protocol TCP -LocalPort {port} "
@@ -75,44 +82,77 @@ def firewall_command(port: int = DEFAULT_PORT) -> str:
 
 
 def _set_env(value: str, dry: bool) -> str:
-    """Persist the env var for future processes. Windows: ``setx`` (new shells only — re-open
-    the terminal / log out-in for a double-click to pick it up). POSIX: not auto-edited (shell
-    profiles vary) — the caller prints the export line to add yourself."""
+    """Persist the env var for FUTURE processes. Windows: ``setx`` (new shells only — re-open the
+    terminal / log out-in). POSIX: not auto-edited (profiles vary) — the caller prints the line."""
     if dry:
         return f"would set {ENV_VAR}={value}"
     if sys.platform == "win32":
         r = subprocess.run(["setx", ENV_VAR, value], capture_output=True, text=True)
         return (f"set {ENV_VAR}={value} (new shells only — re-open the terminal / log out-in)"
                 if r.returncode == 0 else f"setx failed: {r.stderr.strip() or r.stdout.strip()}")
-    return (f"add to your shell profile (not auto-edited):  export {ENV_VAR}={value}")
+    return f"add to your shell profile (not auto-edited):  export {ENV_VAR}={value}"
+
+
+def _apply_state(host: str, port: int, dry: bool) -> str:
+    """Update the persisted start-state so the *next* ``restart`` binds ``host`` immediately —
+    this is what fixes 'set the env var but restart still binds localhost', because ``restart``
+    reuses the saved host and a stale one would otherwise win over the new default."""
+    if dry:
+        return f"would set start-state host={host} port={port}"
+    dctl.write_state(host, port)
+    return f"start-state host={host} port={port} (next restart binds it)"
 
 
 def status(port: int = DEFAULT_PORT) -> dict:
-    current = os.environ.get(ENV_VAR)
-    resolved = current or LOCAL_VALUE
+    env_current = os.environ.get(ENV_VAR)
+    effective_host, _ = dctl.resolve_restart_target(None, None)  # what a no-arg restart will bind
+    lan = effective_host == LAN_VALUE
     return {
         "env_var": ENV_VAR,
-        "current": current,  # None if unset (→ ships localhost)
-        "resolved_bind": resolved,
-        "lan_default": resolved == LAN_VALUE,
-        "lan_urls": phone_urls(port) if resolved == LAN_VALUE else [],
+        "env_default": env_current,            # persisted default (None → ships localhost)
+        "effective_bind": effective_host,      # what `restart` will actually use (start-state wins)
+        "lan_default": lan,
+        "lan_urls": phone_urls(port) if lan else [],
         "firewall_command": firewall_command(port),
     }
 
 
 def enable(port: int = DEFAULT_PORT, dry: bool = False) -> dict:
-    return {"action": "enable", "env": _set_env(LAN_VALUE, dry),
+    return {"action": "enable",
+            "env": _set_env(LAN_VALUE, dry),
+            "state": _apply_state(LAN_VALUE, port, dry),
             "lan_urls": phone_urls(port),
             "firewall_command": firewall_command(port),
-            "note": "Run the firewall command ONCE as administrator, then re-open your terminal "
-                    "(or log out/in) so a double-click picks up the env var. /admin stays localhost-only."}
+            "note": "Next restart binds the LAN immediately. Open the firewall (run `firewall`, or "
+                    "lan_on.bat does it via UAC). Re-open the terminal / log out-in so new shells "
+                    "also default to LAN. /admin stays localhost-only."}
 
 
-def disable(dry: bool = False) -> dict:
-    return {"action": "disable", "env": _set_env(LOCAL_VALUE, dry),
+def disable(port: int = DEFAULT_PORT, dry: bool = False) -> dict:
+    return {"action": "disable",
+            "env": _set_env(LOCAL_VALUE, dry),
+            "state": _apply_state(LOCAL_VALUE, port, dry),
             "note": "Back to localhost-only. You may also remove the firewall rule: "
                     + (f"powershell -Command \"Remove-NetFirewallRule -DisplayName 'AWB dashboard "
-                       f"{DEFAULT_PORT} LAN'\"" if sys.platform == "win32" else "via your firewall tool")}
+                       f"{port} LAN'\"" if sys.platform == "win32" else "via your firewall tool")}
+
+
+def open_firewall(port: int = DEFAULT_PORT, dry: bool = False) -> dict:
+    """Create the inbound LOCAL-SUBNET rule. Windows: needs admin (lan_on.bat elevates this via
+    UAC); idempotent (skips if the rule already exists). POSIX: prints the command."""
+    if dry or sys.platform != "win32":
+        return {"action": "firewall", "result": "dry-run" if dry else "manual",
+                "command": firewall_command(port)}
+    rule = (f"if (-not (Get-NetFirewallRule -DisplayName 'AWB dashboard {port} LAN' "
+            "-ErrorAction SilentlyContinue)) { New-NetFirewallRule -DisplayName "
+            f"'AWB dashboard {port} LAN' -Direction Inbound -Protocol TCP -LocalPort {port} "
+            "-Action Allow -Profile Private -RemoteAddress LocalSubnet | Out-Null }")
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", rule],
+                       capture_output=True, text=True)
+    ok = r.returncode == 0
+    return {"action": "firewall", "result": "opened" if ok else "failed",
+            "detail": (r.stderr or r.stdout).strip() or ("ok" if ok else "needs administrator"),
+            "command": firewall_command(port)}
 
 
 def _emit(obj: dict, as_json: bool) -> None:
@@ -129,8 +169,8 @@ def _emit(obj: dict, as_json: bool) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Default the dashboard to a LAN bind (env + firewall hint).")
-    ap.add_argument("command", choices=["status", "enable", "disable"])
+    ap = argparse.ArgumentParser(description="Default the dashboard to a LAN bind (env + state + firewall).")
+    ap.add_argument("command", choices=["status", "enable", "disable", "firewall"])
     ap.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"dashboard port (default: {DEFAULT_PORT})")
     ap.add_argument("--dry-run", action="store_true", help="show what would change, change nothing")
     ap.add_argument("--json", action="store_true", help="emit the result as JSON")
@@ -140,10 +180,12 @@ def main(argv: list[str] | None = None) -> int:
         result = status(args.port)
     elif args.command == "enable":
         result = enable(args.port, dry=args.dry_run)
+    elif args.command == "disable":
+        result = disable(args.port, dry=args.dry_run)
     else:
-        result = disable(dry=args.dry_run)
+        result = open_firewall(args.port, dry=args.dry_run)
     _emit(result, args.json)
-    return 0
+    return 0 if result.get("result") != "failed" else 1
 
 
 if __name__ == "__main__":
