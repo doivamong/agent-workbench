@@ -282,3 +282,33 @@ def test_modern_shapes_do_not_false_positive_on_prose(tmp_path, prose):
     found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
     assert not any(n in {"bearer_token", "ai_provider_key", "google_api_key", "gitlab_pat"}
                    for _, n, _ in found), f"false positive on prose: {found}"
+
+
+# --- fail CLOSED on an unreadable in-scope file ------------------------------
+# A leak scanner that silently skips a file it can't read can green-light a leak. The old
+# code did `except OSError: return []`; these prove it now surfaces an unreadable_file finding.
+
+def test_unreadable_file_surfaces_finding(tmp_path):
+    """scan_file must not silently return [] when a path can't be read. Passing a directory
+    triggers the OSError read path portably (PermissionError on Windows, IsADirectoryError on
+    POSIX — both OSError subclasses)."""
+    d = tmp_path / "subdir"
+    d.mkdir()
+    found = leak_scan.scan_file(d, leak_scan.GENERIC_PATTERNS)
+    assert any(name == "unreadable_file" for _, name, _ in found)
+
+
+def test_unreadable_file_fails_closed_under_fail_on_find(tmp_path, monkeypatch):
+    """End-to-end: an unreadable in-scope file makes --fail-on-find exit non-zero instead of
+    greening the scan. The old `return []` fail-open exited 0 — this bites that."""
+    target = tmp_path / "secret.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+    real_read_text = leak_scan.Path.read_text
+
+    def boom(self, *a, **k):
+        if self.name == "secret.py":
+            raise PermissionError("locked")
+        return real_read_text(self, *a, **k)
+
+    monkeypatch.setattr(leak_scan.Path, "read_text", boom)
+    assert leak_scan.main([str(tmp_path), "--fail-on-find"]) == 1
