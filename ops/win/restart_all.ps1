@@ -10,4 +10,7 @@ if ($rc -ne 0) {
   Write-Host ""
   Write-Host "  [!] restart reported a problem (exit $rc). See .ops\dashboard.log"
 }
+# Keep the window open so the result/error stays readable on double-click (the proven
+# approach: just wait for a keypress). Programmatic callers use ops/dashboard_ctl.py directly.
+Read-Host "Press Enter to close" | Out-Null
 exit $rc
