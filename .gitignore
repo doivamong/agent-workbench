@@ -41,6 +41,7 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+*.lnk
 
 # generated kit-status report (snapshot artifact, not source)
 kit-status.html

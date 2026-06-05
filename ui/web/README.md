@@ -48,6 +48,14 @@ or don't bind `0.0.0.0` at all. (The opt-in `/admin` *action* surface is separat
 the read-only data is on the wire.) Note: `ops/dashboard_ctl.py restart` reuses the last-started
 host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
 
+**Defaulting to a LAN bind (e.g. to view the dashboard from a phone on the same Wi-Fi):** set the
+environment variable `AWB_DASHBOARD_HOST=0.0.0.0` on your machine. The shipped default stays
+`127.0.0.1` (safe for everyone) — only your machine, with the env var set, defaults to a LAN bind,
+so a bare `python ui/web/app.py` or a double-click of `restart_all.bat` binds the LAN with no extra
+flag. `/admin` still refuses `0.0.0.0` (run it with `--host 127.0.0.1`), and the firewall is still
+the real control. On Windows set it once with `setx AWB_DASHBOARD_HOST 0.0.0.0` (re-open the shell
+after), or per-session `set AWB_DASHBOARD_HOST=0.0.0.0`.
+
 ## Offline by design
 
 Chart.js and all CSS/JS are **vendored** under [`static/`](static/) — there is no CDN and

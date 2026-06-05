@@ -169,3 +169,17 @@ def test_status_url_is_clickable_for_wildcard_bind(server):
     st = dc.status("0.0.0.0", server)
     assert st["bind_host"] == "0.0.0.0"
     assert st["url"] == f"http://127.0.0.1:{server}"
+
+
+def test_default_host_env_override():
+    # AWB_DASHBOARD_HOST lets an operator default to a LAN bind on their own machine without
+    # changing the shipped default. Checked in a subprocess so the env is isolated (no reload).
+    probe = (f"import sys; sys.path.insert(0, r'{ROOT}'); "
+             "import ops.dashboard_ctl as d; print(d.DEFAULT_HOST)")
+    on = subprocess.run([sys.executable, "-c", probe],
+                        env={**os.environ, "AWB_DASHBOARD_HOST": "0.0.0.0"},
+                        capture_output=True, text=True)
+    assert on.stdout.strip() == "0.0.0.0"
+    off = {k: v for k, v in os.environ.items() if k != "AWB_DASHBOARD_HOST"}
+    default = subprocess.run([sys.executable, "-c", probe], env=off, capture_output=True, text=True)
+    assert default.stdout.strip() == "127.0.0.1"  # ships localhost-only
