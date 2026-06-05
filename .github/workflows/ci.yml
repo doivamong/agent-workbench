@@ -80,3 +80,38 @@ jobs:
       # higher than the floor.
       - name: Tests
         run: python -m pytest -q --cov --cov-fail-under=65
+
+  # SEPARATE job on purpose: the 'test' matrix above installs ONLY requirements.txt to prove the
+  # reusable core (tools/, scripts/, .claude/hooks/, ui/kit_status/) stays stdlib-only. This job
+  # installs ui/web's opt-in Flask layer so the Flask-gated ui/web security tests — the admin
+  # C1–C4 suite (CSRF, restore TOCTOU, lockout, RCE-surface) — actually RUN in CI instead of
+  # skipping. Without it ~84 tests on the highest-risk surface never run in any CI job.
+  ui-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            ui/web/requirements.txt
+
+      - name: Install core + ui/web (Flask) dependencies
+        run: pip install -r requirements.txt -r ui/web/requirements.txt
+
+      # Fail closed if the opt-in layer didn't actually install: the ui/web tests skip when Flask
+      # is absent, so without this guard a broken install would go green having run nothing.
+      - name: Verify Flask present (else the tests below would silently skip)
+        run: python -c "import flask, jinja2; print('flask', flask.__version__)"
+
+      # -rs prints skip reasons so the log proves these RAN. With Flask installed the skipif is
+      # False, so the ui/web admin security suite executes instead of skipping.
+      - name: ui/web tests (Flask-gated admin security suite)
+        run: python -m pytest tests/test_ops_admin_web.py tests/test_ui_web.py tests/test_ui_web_set_password.py -q -rs
