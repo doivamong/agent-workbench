@@ -5,6 +5,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -169,6 +170,165 @@ def test_status_url_is_clickable_for_wildcard_bind(server):
     st = dc.status("0.0.0.0", server)
     assert st["bind_host"] == "0.0.0.0"
     assert st["url"] == f"http://127.0.0.1:{server}"
+
+
+def test_restart_reports_not_restarted_when_port_held_by_foreign_process(monkeypatch):
+    # The bug behind "restart_all.bat doesn't work": stop() no-ops on a stale/dead pidfile (or
+    # is denied against an elevated server), so the port stays held and start() returns
+    # "already-running". The old restart() had no top-level "result" → main() exited 0 on a
+    # silent no-op. It must now report "not-restarted" (a failure) with an actionable hint.
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "not-running"})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: True)
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "already-running", "healthy": True})
+    res = dc.restart("127.0.0.1", 5151)
+    assert res["result"] == "not-restarted"
+    assert res.get("hint")  # the caller is told WHY (stale pidfile / elevated server), not left guessing
+
+
+def test_restart_reports_restarted_on_fresh_start(monkeypatch):
+    # The happy path: stop succeeds, the port frees, start launches a fresh process → "restarted".
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "stopped", "pid": 1})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: False)
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "started", "healthy": True, "pid": 2})
+    res = dc.restart("127.0.0.1", 5151)
+    assert res["result"] == "restarted"
+    assert "hint" not in res
+
+
+def test_restart_propagates_started_unverified(monkeypatch):
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "stopped", "pid": 1})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: False)
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "started-unverified", "healthy": False})
+    assert dc.restart("127.0.0.1", 5151)["result"] == "started-unverified"
+
+
+def test_terminate_surfaces_access_denied_reason(monkeypatch):
+    # A taskkill denied because the target runs elevated must come back as an actionable reason,
+    # not be swallowed (the root cause of restart_all.bat silently failing on an elevated server).
+    monkeypatch.setattr(dc.sys, "platform", "win32")
+
+    class _CP:  # a fake taskkill that was denied
+        returncode = 1
+        stdout = ""
+        stderr = ("ERROR: The process with PID 1 (child process of PID 2) could not be "
+                  "terminated.\nReason: Access is denied.")
+
+    monkeypatch.setattr(dc.subprocess, "run", lambda *a, **k: _CP())
+    monkeypatch.setattr(dc, "pid_alive", lambda pid: True)  # elevated → never dies for us
+    gone, reason = dc._terminate(1234, timeout=0.3)
+    assert gone is False
+    assert reason and "administrator" in reason.lower()
+
+
+def test_stop_threads_terminate_hint(tmp_path, monkeypatch):
+    monkeypatch.setattr(dc, "PIDFILE", tmp_path / "d.pid")
+    monkeypatch.setattr(dc, "STATEFILE", tmp_path / "d.json")
+    dc.write_pid(999_999)
+    monkeypatch.setattr(dc, "pid_alive", lambda pid: True)  # appears alive
+    monkeypatch.setattr(dc, "_terminate", lambda pid, timeout=10.0: (False, "run as Administrator"))
+    res = dc.stop()
+    assert res["result"] == "stop-failed"
+    assert res["hint"] == "run as Administrator"
+
+
+# --- __pycache__ clearing on restart (fresh-code guarantee) -------------------------------
+
+def test_clear_pycache_removes_source_caches_and_skips_deps(tmp_path):
+    # Project source caches are wiped; dependency / VCS / runtime trees (dotdirs, venv,
+    # node_modules) are pruned so we never delete a dependency's own cache.
+    (tmp_path / "pkg" / "__pycache__").mkdir(parents=True)
+    (tmp_path / "pkg" / "__pycache__" / "m.cpython-310.pyc").write_bytes(b"x")
+    (tmp_path / "ui" / "web" / "__pycache__").mkdir(parents=True)
+    (tmp_path / ".venv" / "lib" / "__pycache__").mkdir(parents=True)   # must be skipped (dotdir)
+    (tmp_path / "node_modules" / "__pycache__").mkdir(parents=True)    # must be skipped (deps)
+    removed = dc.clear_pycache(tmp_path)
+    assert removed == 2
+    assert not (tmp_path / "pkg" / "__pycache__").exists()
+    assert not (tmp_path / "ui" / "web" / "__pycache__").exists()
+    assert (tmp_path / ".venv" / "lib" / "__pycache__").exists()
+    assert (tmp_path / "node_modules" / "__pycache__").exists()
+
+
+def test_clear_pycache_tolerates_locked_dir(tmp_path, monkeypatch):
+    # A cache dir still locked by a live process must be skipped, never fail the restart.
+    (tmp_path / "a" / "__pycache__").mkdir(parents=True)
+    monkeypatch.setattr(dc.shutil, "rmtree",
+                        lambda *a, **k: (_ for _ in ()).throw(PermissionError("locked")))
+    assert dc.clear_pycache(tmp_path) == 0  # swallowed, returns a count, doesn't raise
+
+
+def test_restart_clears_pycache_by_default_and_opt_out(monkeypatch):
+    seen: dict = {}
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "stopped", "pid": 1})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: False)
+    monkeypatch.setattr(dc, "clear_pycache", lambda root=dc.REPO_ROOT: seen.setdefault("n", 7))
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "started", "healthy": True, "pid": 2})
+    res = dc.restart("127.0.0.1", 5151)
+    assert res["pycache_cleared"] == 7 and seen.get("n") == 7  # cleared by default
+    seen.clear()
+    res2 = dc.restart("127.0.0.1", 5151, clear_cache=False)
+    assert res2["pycache_cleared"] == 0 and "n" not in seen   # opt-out skips the wipe entirely
+
+
+# --- --force kill-by-port (opt-in escape hatch) ---------------------------------------------
+
+def test_force_free_port_kills_foreign_listener(tmp_path):
+    # End-to-end: a foreign process holds a port; force_free_port enumerates and kills it.
+    # Skips when the OS lacks netstat/lsof to enumerate owners (best-effort by design).
+    port = _free_port()
+    code = ("import socket,time;s=socket.socket();"
+            "s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);"
+            f"s.bind(('127.0.0.1',{port}));s.listen(5);time.sleep(30)")
+    proc = subprocess.Popen([sys.executable, "-c", code])
+    try:
+        for _ in range(50):
+            if dc.port_listening("127.0.0.1", port):
+                break
+            time.sleep(0.1)
+        assert dc.port_listening("127.0.0.1", port), "the foreign listener never came up"
+        if proc.pid not in dc._pids_on_port(port):
+            pytest.skip("no netstat/lsof to enumerate port owners on this host")
+        res = dc.force_free_port("127.0.0.1", port, timeout=10)
+        assert proc.pid in res["killed"]
+        assert res["freed"] is True
+        proc.wait(timeout=5)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+
+
+def test_restart_force_invokes_force_free_port(monkeypatch):
+    # When the port is held and --force is set, restart escalates via force_free_port.
+    called: dict = {}
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "not-running"})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: True)
+    monkeypatch.setattr(dc, "clear_pycache", lambda root=dc.REPO_ROOT: 0)
+    monkeypatch.setattr(dc, "force_free_port",
+                        lambda h, p, t=10.0: called.setdefault("f", {"freed": True, "killed": [123], "failed": []}))
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "started", "healthy": True, "pid": 9})
+    res = dc.restart("127.0.0.1", 5151, force=True)
+    assert "f" in called                    # force path was taken
+    assert res["force"]["killed"] == [123]
+    assert res["result"] == "restarted"
+
+
+def test_restart_without_force_does_not_touch_port(monkeypatch):
+    # The default must NOT hunt-and-kill by port — force_free_port is never called.
+    monkeypatch.setattr(dc, "stop", lambda timeout=10.0: {"action": "stop", "result": "not-running"})
+    monkeypatch.setattr(dc, "port_listening", lambda h, p, timeout=0.5: True)
+    monkeypatch.setattr(dc, "clear_pycache", lambda root=dc.REPO_ROOT: 0)
+    boom = lambda *a, **k: pytest.fail("force_free_port must not run without --force")
+    monkeypatch.setattr(dc, "force_free_port", boom)
+    monkeypatch.setattr(dc, "start",
+                        lambda *a, **k: {"action": "start", "result": "already-running", "healthy": True})
+    res = dc.restart("127.0.0.1", 5151)  # force defaults False
+    assert res["result"] == "not-restarted"
+    assert "force" not in res
 
 
 def test_default_host_env_override():
