@@ -88,6 +88,39 @@ def test_hook_honors_scoped_ignore_marker():
     assert code == 0 and out == ""
 
 
+def _git_repo_with_ignore(tmp_path) -> Path:
+    """A tmp git repo whose .gitignore ignores cache/ — to test the gitignore-aware skip."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".gitignore").write_text("cache/\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True,
+                   env={k: v for k, v in __import__("os").environ.items() if not k.startswith("GIT_")})
+    return repo
+
+
+def test_hook_skips_gitignored_target(tmp_path):
+    """A high-confidence token written to a GITIGNORED file is allowed — it can't be committed,
+    so it can't leak (the real scrape-cache case measured on a scraper project)."""
+    repo = _git_repo_with_ignore(tmp_path)
+    import os
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    code, out = _run_hook({"tool_name": "Write",
+                           "tool_input": {"file_path": "cache/page.html", "content": f'k="{GOOGLE}"'}},
+                          env=env)
+    assert code == 0 and out == ""                    # gitignored → not blocked
+
+
+def test_hook_still_denies_tracked_target(tmp_path):
+    """The same token in a NON-ignored (committable) file is still denied."""
+    repo = _git_repo_with_ignore(tmp_path)
+    import os
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    code, out = _run_hook({"tool_name": "Write",
+                           "tool_input": {"file_path": "app.py", "content": f'k="{GOOGLE}"'}},
+                          env=env)
+    assert code == 0 and _deny(out)                   # committable → blocked
+
+
 def test_hook_denies_edit_new_string():
     code, out = _run_hook({"tool_name": "Edit", "tool_input": {
         "file_path": "app.py", "old_string": "X", "new_string": f"tok = '{GH}'"}})

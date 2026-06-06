@@ -17,9 +17,11 @@ SCOPE AND HONESTY (measured, not assumed):
     catch plain passwords, framework SECRET/FERNET keys, database URLs, or unquoted
     ``KEY=value`` env entries — on the same project it caught none of those. Do not read a
     silent pass as "no secrets here".
-  * Allow-paths (neither is a way to defeat a guard — both are the *correct* action):
-      - writing to a ``.env`` / ``.env.*`` file is exempt (that is the right, gitignored
-        home for a real key);
+  * Allow-paths (none is a way to defeat a guard — each is the *correct* action):
+      - a **gitignored** target is exempt: the gate exists to stop a secret being *committed*,
+        and a gitignored file can't be (measured: on a scraper project every high-confidence
+        hit was in a gitignored cache of scraped third-party pages, never a committable file);
+      - writing to a ``.env`` / ``.env.*`` file is exempt (the right home for a real key);
       - a ``# leak-scan: ignore[<name>]`` marker on the line lets a known placeholder /
         intentional fixture through.
 
@@ -30,6 +32,7 @@ boundary.
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -62,6 +65,22 @@ _LABELS = {
 
 # Files that are the CORRECT, gitignored home for a real secret — never gated.
 _ENV_FILE_RE = re.compile(r"(^|[\\/])\.env(\.[^\\/]*)?$", re.IGNORECASE)
+
+
+def _is_gitignored(file_path: str) -> bool:
+    """True if git would ignore ``file_path`` — meaning it can't be committed, so a secret in it
+    can't leak via the repo. Runs ``git check-ignore`` (works on a not-yet-created path too).
+    Any error / not-a-repo / git-missing → False, i.e. gate normally: when we can't prove the
+    file is uncommittable, prefer to flag. Only ever called on a (rare) high-confidence match."""
+    root = os.environ.get("CLAUDE_PROJECT_DIR")
+    parent = Path(str(file_path)).parent
+    cwd = root or (str(parent) if parent.exists() else None)
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", "--", str(file_path)],
+                           cwd=cwd, capture_output=True, timeout=5)
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def _written_text(tool_name: str, tool_input: dict) -> str:
@@ -126,6 +145,8 @@ def main():
 
     hit = find_hard_secret(_written_text(tool_name, tool_input))
     if hit:
+        if _is_gitignored(str(file_path)):
+            sys.exit(0)  # uncommittable (e.g. a scrape cache) → can't leak via the repo
         name, lineno = hit
         label = _LABELS.get(name, "credential")
         where = Path(str(file_path)).name or "this file"
