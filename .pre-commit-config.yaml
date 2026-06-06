@@ -15,13 +15,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: tests
-        name: pytest
-        entry: python -m pytest -q
-        language: system
-        pass_filenames: false
-        always_run: true
-
       # The kit dogfoods its own invariant framework (CI runs this too). Replace the
       # SAMPLE_INVARIANTS in tools/invariants.py with your project's real rules; the
       # known_violations.json baseline grandfathers any legacy hits (empty here).
@@ -56,6 +49,17 @@ repos:
       - id: manifest-sync
         name: manifest sync (file-set drift)
         entry: python tools/sync_manifest.py --check
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # pytest runs LAST: it is by far the slowest gate (~tens of seconds), so the cheap
+      # structural checks above (each ~1s) fail fast and surface a quick, obvious fix before
+      # you wait on the suite. leak-scan deliberately stays FIRST — a leaked secret is the one
+      # red you want to see before anything else runs.
+      - id: tests
+        name: pytest
+        entry: python -m pytest -q
         language: system
         pass_filenames: false
         always_run: true
