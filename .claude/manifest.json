@@ -232,7 +232,7 @@
     "tools/automerge_status.py": {
       "category": "tools",
       "lines": 112,
-      "bytes": 4375
+      "bytes": 4486
     },
     "tools/check_context_budget.py": {
       "category": "tools",
@@ -288,6 +288,11 @@
       "category": "tools",
       "lines": 146,
       "bytes": 7281
+    },
+    "tools/pre_push_check.py": {
+      "category": "tools",
+      "lines": 147,
+      "bytes": 6568
     },
     "tools/precommit_present.py": {
       "category": "tools",
