@@ -39,6 +39,7 @@ def test_default_snippet_is_byte_identical_python():
     so existing settings/uninstall round-trips and tests don't shift under the refactor."""
     expected = [
         'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/block_dangerous.py"',
+        'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/secret_write_gate.py"',
         'python "$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-refiner-inject.py"',
         'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/post_edit_simplify.py"',
         'python "$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/context_tracker.py"',

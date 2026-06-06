@@ -96,7 +96,9 @@ def test_merge_preserves_unrelated_keys_and_is_idempotent():
     twice = _merge_settings(once, SETTINGS_SNIPPET)
     assert once == twice                              # idempotent
     assert once["model"] == "claude-opus-4-8"         # unrelated key preserved
-    assert len(once["hooks"]["PreToolUse"]) == 1      # the already-present hook is not duplicated
+    # block_dangerous (already present) is not duplicated; secret_write_gate (the other
+    # PreToolUse hook in the snippet) is added → 2 groups, not a dup of the first.
+    assert len(once["hooks"]["PreToolUse"]) == 2
     assert "UserPromptSubmit" in once["hooks"]        # the missing ones are added
 
 
