@@ -71,6 +71,27 @@ Avoid, by default:
 - **Use a golden master for gnarly logic** — pin the known-good output and diff against it, rather
   than asserting a dozen fields by hand.
 
+## Don't skip the test gate
+
+> **Agent-facing note — deliberately *not* in the user-facing [getting-started](getting-started.md).**
+
+The pre-commit `tests` hook is not optional. The affected-tests selector and `pytest -n auto` keep the
+local run fast enough that "skip to commit quicker" is never worth it — a green local run is the
+cheapest place to catch a break.
+
+If you ever genuinely must skip a hook out-of-band, two facts matter, and both are why this stays out
+of the user docs:
+
+- The skip token is the hook **`id`**, not the displayed label: it's `SKIP=tests`, even though the
+  hook prints as `pytest`. Skipping by the label name silently does nothing.
+- The **CI test gate runs independently** and will still go red. Skipping locally buys nothing toward
+  a merge — it only defers the same failure to CI, where it's slower to see and (once branch
+  protection lands) blocks the merge anyway.
+
+So: skip only after you've verified the suite green by another means, and never reach for it as a
+shortcut. For a non-coder driving the agent, the id/label mismatch plus the independent CI gate make
+this a footgun, so it lives here, not in the onboarding path.
+
 ## Commits
 
 Commit message conventions are canonical in [`CLAUDE.md`](../CLAUDE.md) ("Commit conventions") — type
