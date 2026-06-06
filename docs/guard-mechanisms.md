@@ -49,11 +49,18 @@ guard stays byte-identical.** Two reasons:
   clean seam to "scope by verb". A content-aware allowlist is exactly what was removed earlier
   because substring-shadowing let `git push --force` / `git reset --hard` slip through; re-adding it
   would re-open that hole. A guard you can't scope safely is one you leave whole.
-- **The per-command overhead is interpreter spawn, not the matcher.** The cost is paid by the
-  harness launching the hook process *before* any matching logic runs, so scoping the matcher would
-  not remove it. The often-quoted figure (~80 ms) is **qualitative and was not re-benchmarked** in
-  this round — so it is recorded here as a rough order, never cited as a measured number, and
-  certainly not used to justify weakening the guard against an unverified cost.
+- **The per-command overhead is process spawn + import, not the matching.** Re-benchmarked on this
+  machine (Windows, 12-core, Python 3.10, warm steady state, n=40 spawns): the hook costs **~70 ms
+  per Bash command** (median) — of which **~36 ms is bare interpreter spawn** (`python -c pass`
+  measures the same) and **~34 ms is the hook's own import + one-time regex compile**. The pattern
+  *matching* itself is negligible (microseconds over ~18 short regexes on a normalized string). So
+  scoping or shrinking the matcher would **not** move the number: the cost is paying for a Python
+  process per command, which the matcher's content does not change. (Cold first-spawn measured
+  ~70–76 ms here — not materially higher, because the interpreter and script were already cached; a
+  true idle-cold spawn after a Defender eviction would be higher.) This *refines* the older
+  qualitative "~80 ms, all interpreter-spawn" estimate: the order of magnitude was right, but about
+  half the cost is the hook's import/compile rather than spawn — and crucially, **neither half is
+  the matching** the scoping idea wanted to trim.
 
 The net: a destructive-command guard earns its keep by being unconditional. The right place to make
 a refused command *friendlier* is the deny message (the recovery-first text already does this), not
