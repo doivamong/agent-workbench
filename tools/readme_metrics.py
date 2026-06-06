@@ -7,6 +7,10 @@ computes each from the tree and either checks the README matches (``--check``, a
 rewrites the numbers in place (``--write``), so reconciling counts after a merge is a deterministic
 ``--write`` instead of manual arithmetic.
 
+By default it gates BOTH the English ``README.md`` and the Vietnamese mirror ``docs/README.vi.md``
+(whose numbers used to rot silently, since the gate only ever looked at the EN file). The VI mirror
+advertises the same five numbers with translated labels — see ``VI_PATTERNS``.
+
     python tools/readme_metrics.py --check     # exit 1 if any advertised number is stale (CI gate)
     python tools/readme_metrics.py --write      # rewrite the numbers from the tree, in place
     python tools/readme_metrics.py              # print the computed counts (dry)
@@ -52,6 +56,26 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("tests",  re.compile(r"(stdlib-only core · )(\d+)( tests · MIT)")),
 ]
 
+# Vietnamese mirror (docs/README.vi.md). Same five metrics + the two extra `tests` mirrors, but
+# with translated labels. The metrics-table prefixes `| Tests | **` and `| Skills | **` happen to
+# match EN verbatim; the others are Vietnamese, and the footer reads "… stdlib · N tests · MIT".
+VI_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("deps",   re.compile(r"(\| Phụ thuộc của lõi tái dùng \| \*\*)(\d+)(\*\*)")),
+    ("tests",  re.compile(r"(\| Tests \| \*\*)(\d+)(\*\*)")),
+    ("demos",  re.compile(r"(\| Demo chạy được \| \*\*)(\d+)(\*\*)")),
+    ("skills", re.compile(r"(\| Skills \| \*\*)(\d+)(\*\*)")),
+    ("tools",  re.compile(r"(\| Tool độc lập \| \*\*)(\d+)(\*\*)")),
+    ("tests",  re.compile(r"(python -m pytest -q\s+# )(\d+)( tests)")),
+    ("tests",  re.compile(r"(stdlib · )(\d+)( tests · MIT)")),
+]
+
+# (relative path, pattern set) gated by default. Add a new localized mirror here and `--check` /
+# `--write` cover it automatically.
+TARGETS: list[tuple[str, list[tuple[str, re.Pattern[str]]]]] = [
+    ("README.md", PATTERNS),
+    ("docs/README.vi.md", VI_PATTERNS),
+]
+
 
 def count_tests(root: Path = ROOT) -> int:
     proc = subprocess.run([sys.executable, "-m", "pytest", "--co", "-q", "tests"],
@@ -79,10 +103,14 @@ def compute(root: Path = ROOT) -> dict[str, int]:
     return {**compute_static(root), "tests": count_tests(root)}
 
 
-def find_mismatches(counts: dict[str, int], text: str) -> list[tuple[str, int, int]]:
+def find_mismatches(
+    counts: dict[str, int],
+    text: str,
+    patterns: list[tuple[str, re.Pattern[str]]] = PATTERNS,
+) -> list[tuple[str, int, int]]:
     """Return (metric, found_in_readme, expected) for every advertised number that is stale."""
     bad: list[tuple[str, int, int]] = []
-    for key, rx in PATTERNS:
+    for key, rx in patterns:
         for m in rx.finditer(text):
             found = int(m.group(2))
             if found != counts[key]:
@@ -90,8 +118,12 @@ def find_mismatches(counts: dict[str, int], text: str) -> list[tuple[str, int, i
     return bad
 
 
-def rewrite(counts: dict[str, int], text: str) -> str:
-    for key, rx in PATTERNS:
+def rewrite(
+    counts: dict[str, int],
+    text: str,
+    patterns: list[tuple[str, re.Pattern[str]]] = PATTERNS,
+) -> str:
+    for key, rx in patterns:
         text = rx.sub(lambda m: f"{m.group(1)}{counts[key]}{m.group(3)}", text)
     return text
 
@@ -99,8 +131,9 @@ def rewrite(counts: dict[str, int], text: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Generate / gate the README 'At a glance' counts.")
     ap.add_argument("--check", action="store_true", help="exit 1 if any advertised number is stale")
-    ap.add_argument("--write", action="store_true", help="rewrite the numbers in README.md from the tree")
-    ap.add_argument("--readme", default=str(ROOT / "README.md"), help="path to README.md")
+    ap.add_argument("--write", action="store_true", help="rewrite the numbers in place from the tree")
+    ap.add_argument("--readme", default=None,
+                    help="gate a single EN-style file instead of the default EN+VI set")
     args = ap.parse_args(argv)
 
     counts = compute()
@@ -108,26 +141,37 @@ def main(argv: list[str] | None = None) -> int:
         print("computed counts: " + " · ".join(f"{k}={v}" for k, v in counts.items()))
         return 0
 
-    readme = Path(args.readme)
-    text = readme.read_text(encoding="utf-8")
+    # A single explicit --readme uses the EN pattern set; the default gates every TARGET (EN + VI).
+    if args.readme:
+        targets = [(Path(args.readme), PATTERNS)]
+    else:
+        targets = [(ROOT / rel, pats) for rel, pats in TARGETS]
+
+    summary = " · ".join(f"{k}={v}" for k, v in counts.items())
 
     if args.write:
-        new = rewrite(counts, text)
-        if new != text:
-            readme.write_text(new, encoding="utf-8")
-            print(f"updated README counts: " + " · ".join(f"{k}={v}" for k, v in counts.items()))
+        changed = []
+        for path, pats in targets:
+            text = path.read_text(encoding="utf-8")
+            new = rewrite(counts, text, pats)
+            if new != text:
+                path.write_text(new, encoding="utf-8")
+                changed.append(path.name)
+        if changed:
+            print(f"updated counts ({summary}) in: {', '.join(changed)}")
         else:
-            print("README counts already current.")
+            print("counts already current.")
         return 0
 
     # --check
-    bad = find_mismatches(counts, text)
+    bad = [(path, k, found, exp) for path, pats in targets
+           for k, found, exp in find_mismatches(counts, path.read_text(encoding="utf-8"), pats)]
     if not bad:
-        print("README counts match the tree.")
+        print("README counts match the tree (EN + VI).")
         return 0
     print("README counts are STALE (run `python tools/readme_metrics.py --write`):", file=sys.stderr)
-    for key, found, expected in bad:
-        print(f"  {key}: README says {found}, tree has {expected}", file=sys.stderr)
+    for path, key, found, expected in bad:
+        print(f"  {path.name} :: {key}: says {found}, tree has {expected}", file=sys.stderr)
     return 1
 
 
