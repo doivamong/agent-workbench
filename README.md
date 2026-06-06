@@ -293,10 +293,10 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **757**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **27** (`examples/`) |
+| Tests | **770**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **28** (`examples/`) |
 | Skills | **17** (10 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **19** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
+| Standalone tools | **20** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
 
@@ -329,7 +329,7 @@ python examples/sync_manifest_demo.py     # file-set drift gate (added/removed f
 python examples/install_doctor_demo.py    # prove wired hooks actually run (--doctor)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 757 tests
+python -m pytest -q                 # 770 tests
 ```
 
 ## Install it into your own project
@@ -451,7 +451,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 757 tests · MIT
+**Agent Workbench** · stdlib-only core · 770 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 
