@@ -39,6 +39,26 @@ Because a guard *skill* is bypassable, it must say so. Every guard-tier `SKILL.m
 does NOT do** — it is a seatbelt, not a security boundary. `skill_lint.py` warns when a guard-tier
 skill is missing that line, so the honesty contract is greppable, not aspirational.
 
+## Decision: `block_dangerous` is kept whole, not scoped
+
+A recurring optimisation idea is to make `block_dangerous` cheaper or narrower — scope its matcher
+to fewer commands, or add an allowlist so "safe" commands skip it. **Considered and rejected; the
+guard stays byte-identical.** Two reasons:
+
+- **The matcher keys on the tool *name* (`Bash`), not the command's content** — so there is no
+  clean seam to "scope by verb". A content-aware allowlist is exactly what was removed earlier
+  because substring-shadowing let `git push --force` / `git reset --hard` slip through; re-adding it
+  would re-open that hole. A guard you can't scope safely is one you leave whole.
+- **The per-command overhead is interpreter spawn, not the matcher.** The cost is paid by the
+  harness launching the hook process *before* any matching logic runs, so scoping the matcher would
+  not remove it. The often-quoted figure (~80 ms) is **qualitative and was not re-benchmarked** in
+  this round — so it is recorded here as a rough order, never cited as a measured number, and
+  certainly not used to justify weakening the guard against an unverified cost.
+
+The net: a destructive-command guard earns its keep by being unconditional. The right place to make
+a refused command *friendlier* is the deny message (the recovery-first text already does this), not
+the coverage.
+
 ## Honest limit of this page
 
 This is a guideline, not a generator: it tells you where a guard *belongs*; it does not enforce
