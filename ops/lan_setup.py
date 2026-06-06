@@ -16,9 +16,12 @@ the same Wi-Fi. It sets things on two levels so it works immediately AND permane
     python ops/lan_setup.py enable --dry-run   # show what it would do, change nothing
 
 Stdlib only. The shipped default stays ``127.0.0.1``; only your machine, configured here, defaults
-to a LAN bind. The ``/admin`` action surface still refuses a ``0.0.0.0`` bind regardless — only the
-read-only data is ever on the wire. The firewall (scoped to your LOCAL SUBNET) is the real access
-control, not the app.
+to a LAN bind. A ``0.0.0.0`` bind is allowed (the read-only dashboard on your LAN); a public /
+Internet-routable bind is REFUSED at the chokepoint (see ``ui/bind_policy.py``). ``/admin`` is NOT
+refused on a LAN bind — once you set an admin password it is reachable over the LAN, and because
+this is plain HTTP that password travels in cleartext. The firewall (scoped to your LOCAL SUBNET)
+is the real access control; for access from a domain, front it with a reverse proxy / Cloudflare
+Tunnel rather than widening the bind.
 """
 from __future__ import annotations
 

@@ -99,7 +99,7 @@ tiết kỹ thuật được dời sang các đường dẫn liên kết và cá
 | Khi bạn cần… | Cái này cho bạn | Đường dẫn |
 |---|---|---|
 | **Cấu hình chính agent** | Template `CLAUDE.md` + `AGENTS.md` thả vào là chạy được ngay — chỉ dẫn dự án ngắn, đậm tín hiệu, nạp mỗi phiên, di động qua các công cụ AI | [`CLAUDE.md`](../CLAUDE.md) · [`AGENTS.md`](../AGENTS.md) |
-| **Hệ thống hoá các playbook tái dùng** | Một hệ skill có anatomy, tiers, registry, và **mười sáu** skill chạy được trên cả năm tier — chín **workflow**, bốn **guard**, một **meta** router, một **feature**, một **audit** | [`.claude/skills/`](../.claude/skills/) |
+| **Hệ thống hoá các playbook tái dùng** | Một hệ skill có anatomy, tiers, registry, và **mười bảy** skill chạy được trên cả năm tier — mười **workflow**, bốn **guard**, một **meta** router, một **feature**, một **audit** | [`.claude/skills/`](../.claude/skills/) |
 | **Mang context qua các phiên** | Một scaffold memory dựa trên file, có một index điều phối việc nạp (đây chỉ là scaffold ví dụ để bạn thay bằng cái của mình). Harness tự nạp `MEMORY.md` từ một đường dẫn per-project, **không** phải `memory/` của repo này — xem [memory-governance.md](memory-governance.md) | [`memory/`](../memory/) |
 | **Bắt các footgun thường gặp** | Hooks bắt các lệnh shell phá huỷ thường gặp (chịu được khoảng trắng/thứ tự cờ — là *lưới an toàn*, không phải ranh giới bảo mật), gắn cờ prompt mơ hồ, nhắc một lượt simplify sau loạt edit, và bọc mọi thứ fail-open kèm log crash | [`.claude/hooks/`](../.claude/hooks/) |
 | **Giữ secret được mã hoá khi lưu trữ (at rest)** | Một bộ mã hoá file không phụ thuộc (stdlib-only) — HMAC-CTR stream cipher + PBKDF2 — để giữ file nhạy cảm được mã hoá trong backup riêng tư. Là một **cấu trúc stdlib tự chế, không phải thư viện crypto đã được audit**; ổn cho backup at-rest, nhưng hãy dùng `age`/`sops`/libsodium nếu bạn có mô hình đe doạ đối kháng thật (xem [`docs/SECURITY.md`](SECURITY.md)) | [`scripts/secrets_guard.py`](../scripts/secrets_guard.py) |
@@ -178,7 +178,7 @@ flowchart TB
 <summary><b>Đào sâu: hệ skill (tiers, registry & skills)</b></summary>
 
 Skills là playbook kích hoạt theo ý định. Registry phân loại mỗi skill vào một **tier** để agent
-biết cái nào thắng khi nhiều cái cùng khớp. Mười sáu skill chạy được ship như các tham chiếu hoạt
+biết cái nào thắng khi nhiều cái cùng khớp. Mười bảy skill chạy được ship như các tham chiếu hoạt
 động:
 
 | Skill | Tier | Kích hoạt khi | Vai trò |
@@ -254,9 +254,9 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **706**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Tests | **716**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
 | Demo chạy được | **25** (`examples/`) |
-| Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
+| Skills | **17** (10 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **17** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
 ## Quickstart (5 phút)
@@ -282,7 +282,7 @@ python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt fi
 python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 706 tests
+python -m pytest -q                 # 716 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -384,7 +384,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 706 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 716 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 

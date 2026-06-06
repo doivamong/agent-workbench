@@ -16,8 +16,11 @@ Stdlib only. **Windows:** a Scheduled Task (``schtasks``) triggered ``ONLOGON`` 
 *user* service (auto-creating one is too distro-specific to do safely).
 
 Security: this makes the dashboard come up on every logon — if it defaults to a LAN bind, it is
-reachable on your subnet at every boot. The firewall (LocalSubnet) is still the control, and the
-``/admin`` action surface still refuses ``0.0.0.0`` — only the read-only data is ever on the wire.
+reachable on your subnet at every boot. The firewall (LocalSubnet) is the real control. A LAN /
+``0.0.0.0`` bind is allowed but a public bind is refused (``ui/bind_policy.py``); ``/admin`` is NOT
+refused on a LAN bind, so if you have set an admin password it is reachable on the subnet at every
+boot and its password travels in cleartext over plain HTTP — keep it on a trusted LAN, or front it
+with a reverse proxy / Cloudflare Tunnel for domain access.
 """
 from __future__ import annotations
 

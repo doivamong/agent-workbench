@@ -257,6 +257,29 @@ def test_C3_cli_refuses_debug(tmp_path):
         webapp.main(["--debug"])
 
 
+def test_C3b_public_bind_refused_but_lan_allowed():
+    """opt-2: create_app refuses a public/Internet-routable bind (cleartext HTTP must not face
+    the Internet), while loopback / private-LAN / 0.0.0.0 stay allowed (the sanctioned modes)."""
+    with pytest.raises(ValueError):
+        webapp.create_app(host="8.8.8.8")        # a public address → refused
+    for ok in ("127.0.0.1", "0.0.0.0", "192.168.1.50", "10.0.0.5"):
+        assert "ADMIN_TOKEN" in webapp.create_app(host=ok).config  # built without raising
+
+
+def test_C3b_cli_refuses_public_bind():
+    with pytest.raises(SystemExit):
+        webapp.main(["--host", "8.8.8.8"])        # a public IP → clean SystemExit, no traceback
+
+
+def test_admin_page_reachability_badge_reflects_real_bind():
+    """opt-2 UI honesty: the /admin page shows a badge driven by the REAL bind host — 'reachable
+    on LAN' for a 0.0.0.0 bind, 'this machine only' for loopback."""
+    lan_html = _authed_client(_admin_app(host="0.0.0.0")).get("/admin?lang=en").get_data(as_text=True)
+    assert "reachable on LAN" in lan_html
+    local_html = _authed_client(_admin_app(host="127.0.0.1")).get("/admin?lang=en").get_data(as_text=True)
+    assert "this machine only" in local_html
+
+
 # --------------------------------------------------------------------------- #
 # C4 — Restore TOCTOU + server-enumerated targets
 # --------------------------------------------------------------------------- #

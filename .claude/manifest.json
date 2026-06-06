@@ -121,8 +121,8 @@
     },
     ".claude/skills/README.md": {
       "category": ".claude/skills",
-      "lines": 117,
-      "bytes": 7529
+      "lines": 118,
+      "bytes": 7769
     },
     ".claude/skills/SKILL_TEMPLATE.md": {
       "category": ".claude/skills",
@@ -158,6 +158,11 @@
       "category": ".claude/skills",
       "lines": 86,
       "bytes": 5140
+    },
+    ".claude/skills/awb-install-and-verify/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 77,
+      "bytes": 4683
     },
     ".claude/skills/awb-lessons-capture/SKILL.md": {
       "category": ".claude/skills",
@@ -211,8 +216,8 @@
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
-      "lines": 54,
-      "bytes": 5407
+      "lines": 55,
+      "bytes": 5752
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
@@ -304,10 +309,15 @@
       "lines": 55,
       "bytes": 3182
     },
+    "ui/bind_policy.py": {
+      "category": "ui",
+      "lines": 67,
+      "bytes": 3600
+    },
     "ui/i18n.py": {
       "category": "ui",
-      "lines": 990,
-      "bytes": 61284
+      "lines": 996,
+      "bytes": 62512
     },
     "ui/kit_status/generator.py": {
       "category": "ui",

@@ -343,3 +343,34 @@ def test_default_host_env_override():
     off = {k: v for k, v in os.environ.items() if k != "AWB_DASHBOARD_HOST"}
     default = subprocess.run([sys.executable, "-c", probe], env=off, capture_output=True, text=True)
     assert default.stdout.strip() == "127.0.0.1"  # ships localhost-only
+
+
+def test_start_refuses_public_bind_without_spawning():
+    """opt-2: start() refuses a public/Internet-routable host BEFORE spawning a server, so the
+    operator gets a clean reason instead of a process exposing cleartext HTTP."""
+    res = dc.start("8.8.8.8", _free_port(), wait=False)
+    assert res["result"] == "refused-public-bind"
+    assert "pid" not in res                      # nothing was launched
+    assert "cleartext" in res["reason"].lower()
+
+
+def test_restart_refuses_public_bind_without_touching_server():
+    """opt-2: restart() must refuse a public host BEFORE stop() — otherwise it tears the live
+    server down for a doomed restart — and the top-level result must say 'refused', never fall
+    through to 'restarted' (a guard that fired reporting success is the kit's worst failure)."""
+    res = dc.restart("8.8.8.8", _free_port())
+    assert res["result"] == "refused-public-bind"
+    assert res["action"] == "restart"
+    assert "stop" not in res                          # the running server was not touched
+    assert "cleartext" in res["reason"].lower()
+
+
+def test_start_allows_lan_and_loopback_hosts(monkeypatch):
+    """The sanctioned modes must pass the public-bind pre-flight. We stub port_listening to True
+    so start() short-circuits to 'already-running' WITHOUT spawning a real server — the point is
+    only that the guard did not refuse these hosts."""
+    monkeypatch.setattr(dc, "port_listening", lambda host, port: True)
+    monkeypatch.setattr(dc, "health_ok", lambda host, port: True)
+    for ok in ("127.0.0.1", "0.0.0.0", "192.168.1.50"):
+        res = dc.start(ok, 5151, wait=False)
+        assert res["result"] == "already-running", ok   # passed the guard, no spawn
