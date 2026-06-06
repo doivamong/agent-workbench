@@ -104,6 +104,44 @@ def test_hook_fails_closed_on_malformed_payload():
     assert decision == "deny"
 
 
+def _deny_reason(payload_or_text) -> str:
+    """Run the hook and return the permissionDecisionReason of its deny decision."""
+    kwargs = {"capture_output": True, "text": True}
+    if isinstance(payload_or_text, str):
+        kwargs["input"] = payload_or_text          # malformed -> parse-fail deny path
+    else:
+        kwargs["input"] = json.dumps(payload_or_text)
+    proc = subprocess.run([sys.executable, str(HOOK)], **kwargs)
+    out = json.loads(proc.stdout.strip())
+    return out["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# Both user-facing deny paths: the pattern-match deny and the parse-fail (fail-closed) deny.
+DENY_PATHS = [
+    {"tool_name": "Bash", "tool_input": {"command": "rm -rf /"}},  # match path
+    "this is not json",                                            # parse-fail path
+]
+# Bypass *incantations* a non-programmer must never be taught. These phrases never appear in a
+# legitimate danger reason label (so this stays decoupled from the {reason} text — note "force"
+# is deliberately NOT here: it is part of honest reason labels like "Force push").
+BYPASS_PHRASES = ["outside the agent", "manually", "--no-verify", "bypass", "override"]
+
+
+@pytest.mark.parametrize("payload", DENY_PATHS)
+def test_deny_message_is_recovery_first(payload):
+    """Every deny message must keep the honest seatbelt-limit clause and offer a recovery a
+    non-programmer can act on, WITHOUT teaching a way to bypass the guard. This test fails if a
+    future edit drops the limit clause or reintroduces a bypass incantation (spec opt-3)."""
+    reason = _deny_reason(payload).lower()
+    # honest limit kept
+    assert "not a security boundary" in reason
+    # an actionable, non-bypass recovery is offered
+    assert "ask me" in reason
+    # no bypass incantation
+    for phrase in BYPASS_PHRASES:
+        assert phrase not in reason, f"deny message must not teach a bypass: {phrase!r}"
+
+
 # --- project-defined (data-driven) patterns ---------------------------------
 
 import os
