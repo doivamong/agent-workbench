@@ -114,3 +114,4 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`awb-config-guard/SKILL.md`](awb-config-guard/SKILL.md) | A **guard** skill: catch the two silent config-access traps (wrong context; nested key → silent `None`) |
 | [`awb-optimize/SKILL.md`](awb-optimize/SKILL.md) | A **feature** skill: baseline → measure → fix the top bottleneck → re-measure → before/after table |
 | [`awb-dead-code-audit/SKILL.md`](awb-dead-code-audit/SKILL.md) | An **audit** skill: find genuinely dead code behind a false-positive gate — never auto-deletes |
+| [`awb-install-and-verify/SKILL.md`](awb-install-and-verify/SKILL.md) | A **workflow** skill: wire the kit's guards into a project and prove they run (`install.py --merge-settings` → `--doctor`), narrating only what `--doctor` proves |

@@ -17,7 +17,7 @@ surface lean — the body-token figures are an on-demand / maintenance magnitude
     python tools/check_context_budget.py --top 5     # top N issues
     python tools/check_context_budget.py --verbose   # list every component
     python tools/check_context_budget.py --window 1000000   # 1M context window
-    python tools/check_context_budget.py --max-skills 16  # CI gate: cap the live-skill COUNT
+    python tools/check_context_budget.py --max-skills 17  # CI gate: cap the live-skill COUNT
 
 Exit 0 = OK / minor warnings; exit 1 = a component crossed a *critical* threshold (e.g. a SKILL.md
 body > 800 lines, an agent description > 50 words) OR a --max-skills / --max-skill-tokens cap was

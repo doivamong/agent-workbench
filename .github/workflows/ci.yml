@@ -63,7 +63,7 @@ jobs:
       # A total-body cap would mis-measure session-start ~5x (bodies don't all load) — it's NOT gated
       # here; pass --max-skill-tokens only if you want an opt-in total maintenance budget.
       - name: Context budget (skill-set bloat)
-        run: python tools/check_context_budget.py --max-skills 16
+        run: python tools/check_context_budget.py --max-skills 17
 
       # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
       # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
