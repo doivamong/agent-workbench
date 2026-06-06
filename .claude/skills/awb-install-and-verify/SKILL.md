@@ -34,11 +34,13 @@ never narrate protection it hasn't proven.
 
 ## Process
 
-1. **Wire the hooks.** Run `python install.py <project-path> --merge-settings`. (Skip if the
-   user only wants to verify an existing install.) If the user is installing into *this* kit
-   repo itself, use `.` as the path.
-2. **Verify — run the real doctor.** Run `python install.py <project-path> --doctor`. This is
-   read-only; it launches the wired guards and reports.
+1. **Wire the hooks.** Run `python install.py <project-path> --merge-settings`, where
+   `<project-path>` is the **adopter project** (an external path). (Skip if the user only wants
+   to verify an existing install.) Note: `install.py` refuses to install into the kit repo
+   itself, so do **not** use `.` here — only `--doctor` (step 2) accepts `.`.
+2. **Verify — run the real doctor.** Run `python install.py <project-path> --doctor` (here `.`
+   *is* allowed, to verify the kit's own wiring). Read-only; it launches the wired guards and
+   reports.
 3. **HARD GATE: doctor must exit 0.** If it prints any `FAIL`, the guards are **not**
    protecting the user yet — relay the doctor's own `Fix:` line in plain language and stop.
    Do **not** tell the user they're protected. A green-looking summary you didn't read is
