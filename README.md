@@ -186,7 +186,7 @@ flowchart TB
         block["block_dangerous · PreToolUse"]:::hook
         refine["prompt-refiner-inject · UserPromptSubmit"]:::hook
         edits["post_edit_simplify + context_tracker · PostToolUse"]:::hook
-        life["session_start / session_end · precompact_backup<br/>compact_restore · skill_routing_inject"]:::hook
+        life["session_start / session_end · concurrent_session_guard<br/>precompact_backup · compact_restore · skill_routing_inject"]:::hook
         wrap(["hook_logger · fail-open + crash log"]):::wrapn
         block & refine & edits & life -.->|wrapped by| wrap
     end
@@ -260,7 +260,8 @@ crash file and exits cleanly, rather than wedging the agent. The shipped hooks:
 | `sync_guard.py` | `PostToolUse` (Write) | **Maintainer-only — not wired by the installer** (its `tools/sync_manifest.py` gate and `.claude/manifest.json` ship with the kit, not into adopter projects, so wiring it there would only nag). When a Write creates a *new* file in a watched source-of-truth dir, nudges you to update its dependents and regenerate the manifest. Distinguishes new-file from edit via `.claude/manifest.json`, so content edits stay quiet. Advisory; the deterministic gate is `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (all) | As a session grows long, nudges you to `/compact` or to save a handover before limits hit. Throttled; counts are per-project. |
 | `session_start.py` | `SessionStart` (startup\|resume\|clear) | Injects the project primer (`.claude/session-primer.md`) — a short, stable pointer ("you have skills; here's the registry; pick by the trigger markers") — at the top of each session, and surfaces the `session_end.py` breadcrumb as a "Last session: …" line. Does **not** fire on `compact` (that's `compact_restore.py`). Kill-switch `SESSION_PRIMER=0`. |
-| `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Kill-switch `SESSION_BREADCRUMB=0`. |
+| `concurrent_session_guard.py` | `SessionStart` (startup\|resume\|clear) | Warns when a **second** session attaches to a checkout that already has a live one — two sessions on one working tree race the shared git index/HEAD and can corrupt `.git/config`. Writes a per-worktree lock (`.claude/.logs/session_lock.json`, gitignored) recording the agent process; a stale lock (dead pid) is silently reclaimed, and `session_end.py` releases it. A **seatbelt, not a lock** — it warns after a second session attaches, it cannot prevent one, and it fails toward silence (a missed warning), never a false alarm. Advisory only; never blocks. Kill-switch `SESSION_LOCK_GUARD=0`. |
+| `session_end.py` | `SessionEnd` | Writes a one-line breadcrumb (git branch, last commit, uncommitted count, time) when a session ends; `session_start.py` surfaces it next time as a "Last session: …" line. A lightweight, automatic complement to a hand-written handover — orientation, not a replay. Also releases this session's concurrent-session lock. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — not wired by default.** Logs which skills a prompt names (an explicit `/<skill>` as a strong "invoke", a bare name as a weak "mention") to a local, gitignored JSONL for [`tools/skill_usage_report.py`](tools/skill_usage_report.py) to summarize. Enable by adding it to the `UserPromptSubmit` chain in `.claude/settings.json`. |
 
 The fail-open wrapper lives in [`.claude/hooks/lib/hook_logger.py`](.claude/hooks/lib/hook_logger.py).
@@ -292,8 +293,8 @@ what's transferable and what was intentionally left behind:
 | Signal | Value |
 |---|---|
 | Reusable core dependencies | **0** (stdlib-only) |
-| Tests | **667**, green in CI (incl. adversarial evasion cases for the command guard) |
-| Runnable demos | **23** (`examples/`) |
+| Tests | **684**, green in CI (incl. adversarial evasion cases for the command guard) |
+| Runnable demos | **24** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **17** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
@@ -328,7 +329,7 @@ python examples/sync_manifest_demo.py     # file-set drift gate (added/removed f
 python examples/install_doctor_demo.py    # prove wired hooks actually run (--doctor)
 
 # Prove the tools actually work:
-python -m pytest -q                 # 667 tests
+python -m pytest -q                 # 684 tests
 ```
 
 ## Install it into your own project
@@ -443,7 +444,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: this is a learning 
 
 <div align="center">
 
-**Agent Workbench** · stdlib-only core · 667 tests · MIT
+**Agent Workbench** · stdlib-only core · 684 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 fail-open guardrails
 

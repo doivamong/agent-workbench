@@ -38,7 +38,13 @@ the "kill" silently no-op'd.
 **Fix:** before debugging the code, prove the old process died.
 `Get-NetTCPConnection -LocalPort <port> | Select OwningProcess` → `Get-Process -Id <pid>`; if it's the
 stale PID, kill it (elevate the shell if it's SYSTEM/elevated), confirm the port is free, then restart
-and re-verify the change landed.
+and re-verify the change landed. **Verify served bytes, not the browser:** a long-lived server caches
+what it loaded at startup (e.g. Flask with `debug=off` caches Jinja templates for the process lifetime),
+so a stale process serves *old code even though the file on disk is new* — `curl` the endpoint and grep
+for a recent marker rather than trusting a browser repro (which also caches). The kit's
+[`ops/win/restart_all.bat`](../ops/win/restart_all.bat) now **automates the elevated-kill case**: it
+auto-escalates with one UAC prompt to free the port even when the holder was launched elevated, then
+restarts the dashboard non-elevated so it stays killable next time.
 
 ## A `requirements.txt` bump is not a deploy
 

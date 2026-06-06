@@ -12,32 +12,37 @@
     ".claude/agents/silent-failure-hunter.md": {
       "category": ".claude/agents",
       "lines": 80,
-      "bytes": 4548
+      "bytes": 4627
     },
     ".claude/hooks/lib/handover_utils.py": {
       "category": ".claude/hooks",
       "lines": 42,
-      "bytes": 1450
+      "bytes": 1491
     },
     ".claude/hooks/lib/hook_logger.py": {
       "category": ".claude/hooks",
       "lines": 76,
-      "bytes": 2416
+      "bytes": 2491
     },
     ".claude/hooks/lib/session_breadcrumb.py": {
       "category": ".claude/hooks",
       "lines": 75,
-      "bytes": 3022
+      "bytes": 3096
+    },
+    ".claude/hooks/lib/session_lock.py": {
+      "category": ".claude/hooks",
+      "lines": 176,
+      "bytes": 7851
     },
     ".claude/hooks/lib/stdio_utf8.py": {
       "category": ".claude/hooks",
       "lines": 35,
-      "bytes": 1647
+      "bytes": 1681
     },
     ".claude/hooks/prompt-refiner-inject.py": {
       "category": ".claude/hooks",
       "lines": 222,
-      "bytes": 8758
+      "bytes": 8979
     },
     ".claude/hooks/scripts/block_dangerous.py": {
       "category": ".claude/hooks",
@@ -47,32 +52,37 @@
     ".claude/hooks/scripts/compact_restore.py": {
       "category": ".claude/hooks",
       "lines": 93,
-      "bytes": 3330
+      "bytes": 3422
+    },
+    ".claude/hooks/scripts/concurrent_session_guard.py": {
+      "category": ".claude/hooks",
+      "lines": 75,
+      "bytes": 3177
     },
     ".claude/hooks/scripts/context_tracker.py": {
       "category": ".claude/hooks",
       "lines": 145,
-      "bytes": 5122
+      "bytes": 5266
     },
     ".claude/hooks/scripts/post_edit_simplify.py": {
       "category": ".claude/hooks",
       "lines": 159,
-      "bytes": 5794
+      "bytes": 5952
     },
     ".claude/hooks/scripts/precompact_backup.py": {
       "category": ".claude/hooks",
       "lines": 79,
-      "bytes": 2615
+      "bytes": 2693
     },
     ".claude/hooks/scripts/session_end.py": {
       "category": ".claude/hooks",
-      "lines": 68,
-      "bytes": 2524
+      "lines": 72,
+      "bytes": 2920
     },
     ".claude/hooks/scripts/session_start.py": {
       "category": ".claude/hooks",
       "lines": 98,
-      "bytes": 3961
+      "bytes": 4058
     },
     ".claude/hooks/scripts/skill_routing_inject.py": {
       "category": ".claude/hooks",
@@ -92,7 +102,7 @@
     ".claude/rules/command-writing-style.md": {
       "category": ".claude/rules",
       "lines": 250,
-      "bytes": 8410
+      "bytes": 8659
     },
     ".claude/rules/defer-discipline.md": {
       "category": ".claude/rules",
@@ -112,7 +122,7 @@
     ".claude/skills/SKILL_TEMPLATE.md": {
       "category": ".claude/skills",
       "lines": 58,
-      "bytes": 2147
+      "bytes": 2204
     },
     ".claude/skills/awb-config-guard/SKILL.md": {
       "category": ".claude/skills",
@@ -207,7 +217,7 @@
     "tools/affected_tests.py": {
       "category": "tools",
       "lines": 373,
-      "bytes": 13136
+      "bytes": 13508
     },
     "tools/check_context_budget.py": {
       "category": "tools",
@@ -217,7 +227,7 @@
     "tools/check_requirements_diff.py": {
       "category": "tools",
       "lines": 98,
-      "bytes": 3867
+      "bytes": 3964
     },
     "tools/invariants.py": {
       "category": "tools",
@@ -226,8 +236,8 @@
     },
     "tools/leak_scan.py": {
       "category": "tools",
-      "lines": 348,
-      "bytes": 18184
+      "lines": 351,
+      "bytes": 18473
     },
     "tools/license_scan.py": {
       "category": "tools",
@@ -277,7 +287,7 @@
     "tools/skill_usage_report.py": {
       "category": "tools",
       "lines": 257,
-      "bytes": 10567
+      "bytes": 10823
     },
     "tools/sync_manifest.py": {
       "category": "tools",
@@ -296,8 +306,8 @@
     },
     "ui/kit_status/generator.py": {
       "category": "ui",
-      "lines": 678,
-      "bytes": 41047
+      "lines": 680,
+      "bytes": 41266
     }
   }
 }
