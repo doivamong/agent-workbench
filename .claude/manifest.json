@@ -46,8 +46,8 @@
     },
     ".claude/hooks/scripts/block_dangerous.py": {
       "category": ".claude/hooks",
-      "lines": 218,
-      "bytes": 9295
+      "lines": 222,
+      "bytes": 9634
     },
     ".claude/hooks/scripts/compact_restore.py": {
       "category": ".claude/hooks",
@@ -299,10 +299,15 @@
       "lines": 55,
       "bytes": 3182
     },
+    "ui/bind_policy.py": {
+      "category": "ui",
+      "lines": 61,
+      "bytes": 3072
+    },
     "ui/i18n.py": {
       "category": "ui",
-      "lines": 990,
-      "bytes": 61284
+      "lines": 996,
+      "bytes": 62512
     },
     "ui/kit_status/generator.py": {
       "category": "ui",

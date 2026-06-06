@@ -33,6 +33,14 @@
       <div class="topbar__meta">
         <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> {{ t.pill_local }}</span>
         <span class="env-pill kit-num">{{ host }}:{{ port }}</span>
+        {#- Reachability badge — driven by the REAL bind host (not a guess). 'lan' = reachable on
+            the local network (read-only); 'localhost' = this machine only. A public bind never
+            reaches here (it is refused at startup — see ui/bind_policy.py). -#}
+        <span class="env-pill"{% if bind_scope == 'lan' %} style="background:var(--danger-dim);border-color:var(--accent-deep)"{% endif %}>
+          {%- if bind_scope == 'localhost' %}{{ t.admin_reach_localhost }}
+          {%- elif bind_scope == 'lan' %}{{ t.admin_reach_lan }}
+          {%- else %}{{ t.admin_reach_other }}{% endif -%}
+        </span>
         {% include "_lang_switch.html.jinja" %}
         <a class="btn" href="/">{{ t.admin_back_dashboard }}</a>
         {% if auth_enabled %}

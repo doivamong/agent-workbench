@@ -56,6 +56,7 @@ sys.path.insert(0, str(_KIT_STATUS))
 sys.path.insert(0, str(HERE.parent))
 import generator as ksr  # noqa: E402
 import i18n  # noqa: E402 — the shared EN/VI string catalog (ui/i18n.py; stdlib-only)
+import bind_policy  # noqa: E402 — bind-host classifier + Internet-facing-bind refusal (ui/bind_policy.py)
 
 try:
     from flask import Flask, current_app, render_template, request
@@ -217,10 +218,14 @@ def create_app(*, host: str = "127.0.0.1", port: int = 5151,
     ``--admin`` flag gate: a flag authenticates nobody, a login does.
 
     ``--debug`` is **refused outright** — admin is always mounted and the Werkzeug debugger is
-    a remote-code console the dashboard never needs."""
+    a remote-code console the dashboard never needs. A **public/Internet-routable bind host** is
+    refused too: this is a plain-HTTP, cleartext surface, so loopback / LAN / 0.0.0.0 are allowed
+    but a public IP is not (see ``ui/bind_policy.py``)."""
     if debug:
         raise ValueError("the web dashboard refuses --debug: admin is always mounted and the "
                          "Werkzeug debugger is a remote code console. Run without --debug.")
+    if bind_policy.is_public_bind_host(host):
+        raise ValueError(bind_policy.public_bind_refusal(host))
 
     app = Flask(__name__)
     app.config["DAYS"] = 14
@@ -302,7 +307,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Opt-in web dashboard for the kit's own state.")
     ap.add_argument("--host", default=os.environ.get("AWB_DASHBOARD_HOST") or "127.0.0.1",
                     help="bind host (default: 127.0.0.1, localhost-only; set env AWB_DASHBOARD_HOST"
-                         "=0.0.0.0 to default to a LAN bind — read-only only, /admin still refuses it)")
+                         "=0.0.0.0 for a LAN bind so a phone on the same subnet can reach the read-only "
+                         "dashboard. A public/Internet-routable IP is REFUSED — this is cleartext HTTP; "
+                         "use a reverse proxy / Cloudflare Tunnel for domain access)")
     ap.add_argument("--port", type=int, default=5151,
                     help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
     ap.add_argument("--days", type=int, default=14, help="telemetry window in days (default: 14)")
@@ -326,6 +333,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.debug:
         raise SystemExit("refusing: --debug is no longer supported — admin is always mounted "
                          "and the Werkzeug debugger is an RCE console. Run without --debug.")
+    if bind_policy.is_public_bind_host(args.host):
+        raise SystemExit("refusing: " + bind_policy.public_bind_refusal(args.host))
 
     built = create_app(host=args.host, port=args.port,
                        admin_password_hash=pw_hash or None)

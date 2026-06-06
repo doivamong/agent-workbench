@@ -49,6 +49,12 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APP = REPO_ROOT / "ui" / "web" / "app.py"
 OPS_DIR = REPO_ROOT / ".ops"
+
+# Single source of the bind-host policy (loopback/LAN/0.0.0.0 allowed, public IP refused). It is
+# stdlib-only, so importing it here couples ops/ to nothing heavy — this controller already knows
+# about ui/web (it spawns APP). Keeping ONE classifier avoids drift in a security check.
+sys.path.insert(0, str(REPO_ROOT / "ui"))
+import bind_policy  # noqa: E402
 PIDFILE = OPS_DIR / "dashboard.pid"
 LOGFILE = OPS_DIR / "dashboard.log"
 STATEFILE = OPS_DIR / "dashboard.json"  # records the last-started host:port (see write_state)
@@ -326,7 +332,14 @@ def start(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = APP
           extra: list[str] | None = None, wait: bool = True,
           timeout: float = 20.0) -> dict:
     """Launch the dashboard if it isn't already up. Idempotent: if something is
-    already listening, report it rather than starting a second one."""
+    already listening, report it rather than starting a second one.
+
+    Refuses a public/Internet-routable bind host BEFORE spawning, so the operator gets a clean
+    reason instead of a server that comes up exposing cleartext HTTP. Loopback / LAN / 0.0.0.0
+    are allowed; see ui/bind_policy.py. (app.create_app re-checks as defence in depth.)"""
+    if bind_policy.is_public_bind_host(host):
+        return {"action": "start", "result": "refused-public-bind",
+                "bind_host": host, "reason": bind_policy.public_bind_refusal(host)}
     if port_listening(host, port):
         return {"action": "start", "result": "already-running",
                 "healthy": health_ok(host, port), "url": _url(host, port)}
@@ -560,7 +573,8 @@ def main(argv: list[str] | None = None) -> int:
         for k, v in result.items():
             print(f"  {k}: {v}")
     # Exit non-zero when the outcome is a failure the caller should notice.
-    failed = result.get("result") in {"stop-failed", "started-unverified", "not-restarted"} or (
+    failed = result.get("result") in {"stop-failed", "started-unverified", "not-restarted",
+                                      "refused-public-bind"} or (
         args.command == "status" and not result.get("healthy"))
     return 1 if failed else 0
 
