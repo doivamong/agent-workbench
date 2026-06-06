@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 import affected_tests
 
 _MODULE = Path(affected_tests.__file__)
@@ -50,6 +52,74 @@ def test_full_suite_trigger_returns_run_all():
 
 def test_non_python_change_is_noop():
     assert affected_tests.affected(["docs/readme.md"]) == []
+
+
+# --- B1: non-.py classification happens BEFORE the .py filter --------------------------
+
+@pytest.mark.parametrize("artifact", [
+    "ui/web/templates/admin.html.jinja",   # template a test renders
+    "ops/web/page.html",                    # ops-side template
+    ".claude/skills/awb-review/SKILL.md",   # skill definition (skill-lint / -usage tests)
+    ".claude/skills/skill-registry.md",     # skill registry
+    ".claude/manifest.json",                # file-set manifest
+    "known_violations.json",                # invariant baseline
+    ".claude/settings.json",                # hook control-plane
+])
+def test_high_blast_nonpy_runs_full_suite(artifact):
+    # Regression for B1: each used to select [] because the .py filter dropped it first.
+    assert affected_tests.affected([artifact]) == [affected_tests.RUN_ALL_MARKER]
+
+
+def test_unknown_nonpy_runs_full_suite_failsafe():
+    # requirements.txt carries no import edge and is not a doc → conservative full run.
+    assert affected_tests.affected(["requirements.txt"]) == [affected_tests.RUN_ALL_MARKER]
+
+
+def test_mixed_doc_and_code_selects_only_code():
+    # a .md alongside a .py: the doc is skipped, the .py drives selection (not RUN_ALL).
+    result = affected_tests.affected(["docs/x.md", "tools/leak_scan.py"])
+    assert affected_tests.RUN_ALL_MARKER not in result
+    assert "tests/test_leak_scan.py" in result
+
+
+def test_dropped_dead_triggers_no_longer_listed():
+    # pyproject.toml / setup.cfg removed from FULL_SUITE_TRIGGERS (they don't exist here);
+    # a pyproject.toml change now runs full via the unknown-non-.py fail-safe instead.
+    assert "pyproject.toml" not in affected_tests.FULL_SUITE_TRIGGERS
+    assert affected_tests.affected(["pyproject.toml"]) == [affected_tests.RUN_ALL_MARKER]
+
+
+# --- --run mode (the pre-commit entry) -------------------------------------------------
+
+def test_run_mode_skips_pytest_when_nothing_affected():
+    # _run_pytest([]) must exit 0 without spawning pytest.
+    assert affected_tests._run_pytest([]) == 0
+
+
+def test_run_mode_builds_full_command_for_run_all(monkeypatch):
+    captured = {}
+
+    def fake_call(cmd, **k):
+        captured["cmd"] = cmd
+        return 0
+
+    monkeypatch.setattr(affected_tests.subprocess, "call", fake_call)
+    rc = affected_tests._run_pytest([affected_tests.RUN_ALL_MARKER])
+    assert rc == 0
+    assert "-n" in captured["cmd"] and "auto" in captured["cmd"]
+    assert not any(str(c).startswith("tests/") for c in captured["cmd"])  # no file pinned
+
+
+def test_run_mode_appends_selected_files(monkeypatch):
+    captured = {}
+
+    def fake_call(cmd, **k):
+        captured["cmd"] = cmd
+        return 0
+
+    monkeypatch.setattr(affected_tests.subprocess, "call", fake_call)
+    affected_tests._run_pytest(["tests/test_leak_scan.py"])
+    assert "tests/test_leak_scan.py" in captured["cmd"]
 
 
 def test_force_full_returns_run_all():

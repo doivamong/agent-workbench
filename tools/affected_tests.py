@@ -57,18 +57,46 @@ CACHE_FILE = CACHE_DIR / "affected_tests.json"
 # sys.path. Tune to your project's layout (e.g. add your package/app dirs here).
 SCAN_DIRS = ("src", "lib", "tests", "tools", "scripts")
 
-# Files whose change triggers the full test suite (high blast radius).
-# Add your own "everything depends on this" files (app entrypoints, shared
-# fixtures, build config) here.
+# Python files whose change triggers the full test suite (high blast radius).
+# Add your own "everything depends on this" .py files (app entrypoints, shared
+# fixtures) here. Non-.py high-blast files are handled by _is_high_blast_nonpy below
+# (build config like a pyproject.toml is caught there as an unknown non-.py → full suite).
 FULL_SUITE_TRIGGERS = {
     "conftest.py",
     "tests/conftest.py",
-    "pyproject.toml",
-    "setup.cfg",
 }
 
 # Sentinel value returned when the full suite must run.
 RUN_ALL_MARKER = "__RUN_ALL_TESTS__"
+
+
+def _is_high_blast_nonpy(rel: str) -> bool:
+    """A non-.py change a test renders or validates — so it must run the full suite.
+
+    These files carry no Python import edge, so the import graph cannot see their blast
+    radius. The selector used to drop every non-.py path before this check, silently
+    selecting *zero* tests for a changed template / skill / manifest (the B1 bug).
+    """
+    if (rel.startswith("ui/") or rel.startswith("ops/")) and rel.endswith((".jinja", ".html")):
+        return True  # templates that test_ui_web / admin tests render
+    if rel.endswith("/SKILL.md") or rel.endswith("skill-registry.md"):
+        return True  # skill definitions / registry — gated by skill-lint + skill-usage tests
+    if rel.endswith("manifest.json") or rel.endswith("known_violations.json"):
+        return True  # the file-set manifest / invariant baseline the gates check
+    if rel.endswith(".claude/settings.json"):
+        return True  # the hook control-plane
+    return False
+
+
+def _is_doc_nonpy(rel: str) -> bool:
+    """A non-.py documentation change with no test impact (markdown prose).
+
+    SKILL.md / skill-registry.md are .md but high-blast, so they are matched by
+    _is_high_blast_nonpy *first*; only plain docs reach here. Anything non-.py that is
+    neither high-blast nor a doc is treated as unknown and conservatively runs the full
+    suite (fail-safe), never "no tests".
+    """
+    return rel.endswith(".md")
 
 CACHE_VERSION = 1
 
@@ -257,8 +285,24 @@ def affected(changed: list[str], depth: int = 5, force_full: bool = False) -> li
         return [RUN_ALL_MARKER]
 
     changed_norm = [c.replace("\\", "/").lstrip("./") for c in changed if c.strip()]
-    changed_norm = [c for c in changed_norm if c.endswith(".py")]
 
+    # Classify non-.py files BEFORE filtering to .py (B1). The old code dropped every
+    # non-.py path here, so a high-blast artifact (a template, a SKILL.md, a manifest)
+    # selected zero tests. Now: a high-blast non-.py runs the full suite; a doc is a
+    # no-op; an unknown non-.py runs the full suite (fail-safe). Only .py files fall
+    # through to graph-based selection below.
+    py_changed: list[str] = []
+    for c in changed_norm:
+        if c.endswith(".py"):
+            py_changed.append(c)
+        elif _is_high_blast_nonpy(c):
+            return [RUN_ALL_MARKER]
+        elif _is_doc_nonpy(c):
+            continue  # documentation: no test impact
+        else:
+            return [RUN_ALL_MARKER]  # unknown non-.py → conservative full run
+
+    changed_norm = py_changed
     if not changed_norm:
         return []
 
@@ -291,6 +335,27 @@ def affected(changed: list[str], depth: int = 5, force_full: bool = False) -> li
     return sorted(affected_tests)
 
 
+def _run_pytest(selected: list[str]) -> int:
+    """Run ``pytest -n auto`` on the selected tests; return pytest's exit code.
+
+    RUN_ALL → full suite; empty → skip with exit 0 (nothing impacted); otherwise run only
+    the selected files. Used by the pre-commit hook so a doc-only commit skips pytest while
+    a code change still runs the tests that cover it. Cross-platform (no shell pipe).
+    """
+    base = [sys.executable, "-m", "pytest", "-n", "auto", "-q"]
+    if RUN_ALL_MARKER in selected:
+        cmd = base
+    elif not selected:
+        print(
+            "affected_tests: no impacted tests for the changed files — skipping pytest.",
+            file=sys.stderr,
+        )
+        return 0
+    else:
+        cmd = base + selected
+    return subprocess.call(cmd, cwd=str(ROOT))
+
+
 def _read_stdin() -> list[str]:
     return [line.strip() for line in sys.stdin if line.strip()]
 
@@ -321,6 +386,9 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true", help="Print file paths only (pytest-friendly)")
     parser.add_argument("--force-full", action="store_true", help="Skip analysis, always return full suite")
     parser.add_argument("--rebuild-cache", action="store_true", help="Force rebuild of the import graph cache")
+    parser.add_argument("--run", action="store_true",
+                        help="Run pytest -n auto on the affected tests (full suite if a high-blast "
+                             "file changed; skip with exit 0 if nothing is impacted)")
     args = parser.parse_args()
 
     if args.rebuild_cache:
@@ -341,6 +409,9 @@ def main() -> int:
         return 0
 
     result = affected(sources, depth=args.depth, force_full=args.force_full)
+
+    if args.run:
+        return _run_pytest(result)
 
     if RUN_ALL_MARKER in result:
         if args.json:
