@@ -229,6 +229,11 @@
       "lines": 444,
       "bytes": 16973
     },
+    "tools/automerge_status.py": {
+      "category": "tools",
+      "lines": 112,
+      "bytes": 4375
+    },
     "tools/check_context_budget.py": {
       "category": "tools",
       "lines": 467,
@@ -287,7 +292,7 @@
     "tools/precommit_present.py": {
       "category": "tools",
       "lines": 75,
-      "bytes": 3184
+      "bytes": 3258
     },
     "tools/readme_metrics.py": {
       "category": "tools",
