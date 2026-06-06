@@ -55,6 +55,23 @@ def test_example_email_allowed(tmp_path):
     assert leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS) == []
 
 
+# Built at runtime (prefixed concat) so this test's own source isn't itself a Windows
+# user-path literal that the self-scan would flag.
+_WIN_PATH_RAW = "C" + r":\Users\someone\app.py"        # one backslash (raw machine path)
+_WIN_PATH_JSON = "C" + r":\\Users\\someone\\app.py"    # JSON-doubled (e.g. inside settings.json)
+
+
+@pytest.mark.parametrize("content", [_WIN_PATH_RAW, _WIN_PATH_JSON])
+def test_windows_user_path_caught_raw_and_json_escaped(tmp_path, content):
+    """Regression: a Windows user path must be flagged in BOTH its raw single-backslash
+    form and the JSON-doubled-backslash form it takes once serialized into a settings.json
+    command — the doubled form previously slipped the gate (a real machine-path leak)."""
+    f = tmp_path / "settings.json"
+    f.write_text(content + "\n", encoding="utf-8")
+    found = leak_scan.scan_file(f, leak_scan.GENERIC_PATTERNS)
+    assert any(name == "windows_user_path" for _, name, _ in found), content
+
+
 # --- multi-line (cross-line) secret assignment ------------------------------
 
 def test_multiline_catches_cross_line_assignment(tmp_path):
@@ -174,7 +191,7 @@ def test_respect_gitignore_drops_ignored_file(tmp_path):
     (tmp_path / ".gitignore").write_text("notes/\n", encoding="utf-8")
     (tmp_path / "notes").mkdir()
     # A leak that lives ONLY in a git-ignored file is a false positive: it never ships.
-    (tmp_path / "notes" / "scratch.md").write_text("path C:\\Users\\someone\\x\n", encoding="utf-8")
+    (tmp_path / "notes" / "scratch.md").write_text("path C:\\Users\\someone\\x\n", encoding="utf-8")  # leak-scan: ignore[windows_user_path]
     files = list(leak_scan.iter_text_files(tmp_path))
     assert any(f.name == "scratch.md" for f in files)  # the walker still sees it
     kept, warning = leak_scan.filter_gitignored(tmp_path, files)

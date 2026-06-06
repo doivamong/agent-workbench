@@ -253,8 +253,8 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **638**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **22** (`examples/`) |
+| Tests | **660**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **23** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **17** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
@@ -278,9 +278,10 @@ python examples/context_budget_demo.py   # audit ngân sách context của repo 
 python examples/requirements_diff_demo.py # cảnh báo một phụ thuộc mới thêm
 python examples/affected_tests_demo.py   # chỉ chọn test mà thay đổi ảnh hưởng
 python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt file)
+python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 638 tests
+python -m pytest -q                 # 660 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -382,7 +383,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 638 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 660 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 
