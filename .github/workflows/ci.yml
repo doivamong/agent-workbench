@@ -8,21 +8,83 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on a PR (a force-push obsoletes the previous run), but NEVER on
+  # main: a post-merge run must finish so two quick merges don't cancel the first's signal.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
+  # The structural gates run ONCE here (ubuntu/3.12), not once per matrix cell. They are
+  # platform- and Python-independent (file-set, registry, counts, leak scan), so running them
+  # across the OS/Python matrix was six redundant copies of the same check.
+  lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # This kit gates itself with its own tools (dogfooding).
+      # --entropy adds the high-entropy token sweep so keyless secrets are caught too.
+      # --respect-gitignore keeps the documented command safe verbatim on a working tree (it
+      # skips gitignored handovers/scratch); CI's fresh checkout has no untracked files, so it
+      # never narrows coverage of what actually ships.
+      - name: Leak scan (no secrets / identifiers committed)
+        run: python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
+
+      - name: Invariants
+        run: python tools/invariants.py .
+
+      # The skill registry is the single source of truth; gate it so a folder/row mismatch
+      # can't ship green.
+      - name: Skill registry lint
+        run: python tools/skill_lint.py
+
+      # Gate skill-set bloat against what ACTUALLY costs session-start context: a COUNT cap
+      # (the always-loaded routing-map grows linearly in count) plus the automatic per-skill
+      # body CRITICAL. A total-body cap would mis-measure ~5x and is NOT gated here.
+      - name: Context budget (skill-set bloat)
+        run: python tools/check_context_budget.py --max-skills 17
+
+      # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
+      # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
+      - name: Manifest sync (file-set drift)
+        run: python tools/sync_manifest.py --check
+
+      # Gate the README "At a glance" counts so two branches can't drift or conflict on
+      # hand-typed numbers — `--write` recomputes them; this `--check` fails when they're stale.
+      - name: README metrics (count drift)
+        run: python tools/readme_metrics.py --check
+
+  # Tests across the support matrix. Windows is in the matrix on purpose: a Windows-only
+  # install/encoding regression (UnicodeEncodeError, path handling) previously had no CI to
+  # catch it. It runs on 3.12 only — the Windows-specific risk is OS, not Python-version,
+  # bound — while the full 3.10/3.11/3.12 sweep runs on Ubuntu.
   test:
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # Windows is in the matrix on purpose: a Windows-only install/encoding
-        # regression (e.g. UnicodeEncodeError) previously had no CI to catch it.
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -39,54 +101,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # This kit gates itself with its own tools (dogfooding).
-      # --entropy adds the high-entropy token sweep so keyless secrets are caught too.
-      # --respect-gitignore keeps the exact documented command safe to run verbatim on a working
-      # tree too: it skips gitignored handovers/scratch that would false-positive. CI's fresh
-      # checkout has no untracked files, so this never narrows coverage of what actually ships.
-      - name: Leak scan (no secrets / identifiers committed)
-        run: python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
-
-      - name: Invariants
-        run: python tools/invariants.py .
-
-      # The skill registry is the single source of truth; gate it so a folder/row mismatch
-      # can't ship green (previously skill_lint only ran via its own unit tests).
-      - name: Skill registry lint
-        run: python tools/skill_lint.py
-
-      # Gate skill-set bloat against what ACTUALLY costs session-start context. Per Claude Code's
-      # progressive disclosure, only a skill's frontmatter DESCRIPTION is always in context (capped
-      # by skill_lint); the SKILL.md body loads on-demand when the skill is invoked. So the binding
-      # gates are: a COUNT cap (--max-skills — the always-loaded routing-map grows linearly in count)
-      # plus the automatic per-skill body CRITICAL (a SKILL.md > 800 lines → exit 1, ITF-aligned).
-      # A total-body cap would mis-measure session-start ~5x (bodies don't all load) — it's NOT gated
-      # here; pass --max-skill-tokens only if you want an opt-in total maintenance budget.
-      - name: Context budget (skill-set bloat)
-        run: python tools/check_context_budget.py --max-skills 17
-
-      # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
-      # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
-      - name: Manifest sync (file-set drift)
-        run: python tools/sync_manifest.py --check
-
-      # Gate the README "At a glance" counts so two branches can't drift or conflict on hand-typed
-      # numbers — `--write` recomputes them from the tree; this `--check` fails when they're stale.
-      - name: README metrics (count drift)
-        run: python tools/readme_metrics.py --check
-
-      # --cov-fail-under is a regression ratchet, not a completeness claim: lines run
-      # through a subprocess (the hook e2e tests) are not counted, so true coverage is
-      # higher than the floor.
+      # -n auto parallelises across cores; coverage is combined across workers (verified to
+      # match the -n 0 total). --cov-fail-under is a regression ratchet, not a completeness
+      # claim: lines run through a subprocess (the hook e2e tests) are not counted, so true
+      # coverage is higher than the floor. Rollback if xdist ever misbehaves: drop `-n auto`.
       - name: Tests
-        run: python -m pytest -q --cov --cov-fail-under=65
+        run: python -m pytest -n auto -q --cov --cov-fail-under=65
 
-  # SEPARATE job on purpose: the 'test' matrix above installs ONLY requirements.txt to prove the
-  # reusable core (tools/, scripts/, .claude/hooks/, ui/kit_status/) stays stdlib-only. This job
-  # installs ui/web's opt-in Flask layer so the Flask-gated ui/web security tests — the admin
-  # C1–C4 suite (CSRF, restore TOCTOU, lockout, RCE-surface) — actually RUN in CI instead of
-  # skipping. Without it ~84 tests on the highest-risk surface never run in any CI job.
+  # SEPARATE job on purpose: the 'test' matrix installs ONLY requirements.txt to prove the
+  # reusable core stays stdlib-only. This job installs ui/web's opt-in Flask layer so the
+  # Flask-gated ui/web security tests — the admin C1–C4 suite (CSRF, restore TOCTOU, lockout,
+  # RCE-surface) — actually RUN instead of skipping. Without it ~84 tests on the highest-risk
+  # surface never run in any CI job.
   ui-web:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -107,10 +135,10 @@ jobs:
         run: pip install -r requirements.txt -r ui/web/requirements.txt
 
       # Fail closed if the opt-in layer didn't actually import: the ui/web tests' skip condition
-      # (_HAS_FLASK) is set by a guarded import that pulls in Flask AND the ui/web sibling modules
-      # (app → generator/passwords, admin). If Flask installs but any sibling breaks at import time,
-      # _HAS_FLASK flips False, the admin C1–C4 suite skips, and the job exits 0 having run nothing.
-      # Import the SAME modules the skip condition imports so this guard fails LOUDLY in that case.
+      # (_HAS_FLASK) is set by a guarded import that pulls in Flask AND the ui/web sibling
+      # modules. If Flask installs but a sibling breaks at import, _HAS_FLASK flips False, the
+      # admin suite skips, and the job exits 0 having run nothing. Import the SAME modules the
+      # skip condition imports so this guard fails LOUDLY in that case.
       - name: Verify ui/web imports cleanly (else the tests below would silently skip)
         run: python -c "import sys; sys.path.insert(0, 'ui/web'); import flask, jinja2, app, admin; print('flask', flask.__version__)"
 
@@ -118,3 +146,39 @@ jobs:
       # False, so the ui/web admin security suite executes instead of skipping.
       - name: ui/web tests (Flask-gated admin security suite)
         run: python -m pytest tests/test_ops_admin_web.py tests/test_ui_web.py tests/test_ui_web_set_password.py -q -rs
+
+  # Post-merge smoke (push to main only). Deliberately lighter than the PR's required set:
+  # a squash-merge makes main HEAD equal the PR head that lint + the full matrix (incl. the
+  # Windows leg) + ui-web already verified as required checks, so re-running the Windows and
+  # extra-Python legs post-merge would be pure duplication. This keeps a green-main signal and
+  # catches a broken merge with the structural gates + a fast parallel test pass on ubuntu/3.12.
+  smoke:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Structural gates
+        run: |
+          python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
+          python tools/invariants.py .
+          python tools/skill_lint.py
+          python tools/check_context_budget.py --max-skills 17
+          python tools/sync_manifest.py --check
+          python tools/readme_metrics.py --check
+
+      - name: Tests (fast parallel pass)
+        run: python -m pytest -n auto -q
