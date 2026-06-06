@@ -254,8 +254,8 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **684**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **24** (`examples/`) |
+| Tests | **702**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **25** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **17** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
@@ -282,7 +282,7 @@ python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt fi
 python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 684 tests
+python -m pytest -q                 # 702 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -384,7 +384,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 684 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 702 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 

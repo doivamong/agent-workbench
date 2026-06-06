@@ -46,8 +46,8 @@
     },
     ".claude/hooks/scripts/block_dangerous.py": {
       "category": ".claude/hooks",
-      "lines": 218,
-      "bytes": 9295
+      "lines": 222,
+      "bytes": 9634
     },
     ".claude/hooks/scripts/compact_restore.py": {
       "category": ".claude/hooks",
@@ -73,6 +73,11 @@
       "category": ".claude/hooks",
       "lines": 79,
       "bytes": 2693
+    },
+    ".claude/hooks/scripts/secret_write_gate.py": {
+      "category": ".claude/hooks",
+      "lines": 164,
+      "bytes": 7014
     },
     ".claude/hooks/scripts/session_end.py": {
       "category": ".claude/hooks",
