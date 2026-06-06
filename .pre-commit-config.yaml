@@ -57,9 +57,14 @@ repos:
       # structural checks above (each ~1s) fail fast and surface a quick, obvious fix before
       # you wait on the suite. leak-scan deliberately stays FIRST — a leaked secret is the one
       # red you want to see before anything else runs.
+      #
+      # --diff --run selects only the tests impacted by the staged change (reverse import
+      # graph) and runs them with -n auto: a doc-only commit skips pytest, a code change runs
+      # its covering tests, and a high-blast / unknown file falls back to the full suite. The
+      # five structural gates above always run in full — only this pytest step is scoped.
       - id: tests
         name: pytest
-        entry: python -m pytest -n auto -q
+        entry: python tools/affected_tests.py --diff --run
         language: system
         pass_filenames: false
         always_run: true
