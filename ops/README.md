@@ -28,9 +28,15 @@ python ops/dashboard_ctl.py stop       # stop the process WE started
 python ops/dashboard_ctl.py restart    # stop + start
 ```
 Windows convenience: double-click [`win/restart_all.bat`](win/restart_all.bat) (or
-`win/restart_all.ps1`) — thin wrappers that call `restart`. **Honest limit:** it only
-stops/restarts the process in its own `.ops/dashboard.pid`; a dashboard you started another
-way is invisible to it (it never hunts-and-kills by port). Localhost/single-dev only.
+`win/restart_all.ps1`) — wrappers that **definitively reclaim port 5151**. They try a plain
+`restart` first; if that is blocked because a *foreign* process holds the port (a dashboard you
+started another way, or one launched **elevated** that a normal `taskkill` can't reach), they
+auto-escalate to free the port — a single **UAC prompt** for an elevated holder — via
+`stop --force`, then start the dashboard back **as you (non-elevated)** so it stays killable next
+time (no perpetual-elevation cycle). The bare `restart` engine still only touches the pidfiled
+process and never hunts-and-kills by port; `--force` (which the wrappers use) is what frees the
+port. **Honest limit:** killing an elevated holder *requires* that one UAC approval — cancel it
+and the old server keeps the port. Localhost/single-dev only.
 
 `restart` reuses the host:port the dashboard was last started on (recorded in
 `.ops/dashboard.json`), so a LAN bind survives a no-arg restart. To **default** to a LAN bind
