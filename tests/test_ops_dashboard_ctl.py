@@ -1,7 +1,6 @@
 """Tests for ops/dashboard_ctl.py — stdlib only (no Flask). The healthcheck is
 exercised against a throwaway http.server; stop() against a dummy child process."""
 import os
-import socket
 import subprocess
 import sys
 import threading
@@ -15,13 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import ops.dashboard_ctl as dc  # noqa: E402
 
-
-def _free_port() -> int:
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+# Free-port allocation lives in conftest as the suite-wide ``free_port`` fixture (xdist-safe).
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -39,8 +32,8 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def server():
-    port = _free_port()
+def server(free_port):
+    port = free_port()
     httpd = HTTPServer(("127.0.0.1", port), _Handler)
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
@@ -79,8 +72,8 @@ def test_port_and_health(server):
     assert st["listening"] and st["healthy"]
 
 
-def test_port_not_listening():
-    p = _free_port()  # bound then closed → nothing listening
+def test_port_not_listening(free_port):
+    p = free_port()  # bound then closed → nothing listening
     assert dc.port_listening("127.0.0.1", p) is False
     assert dc.health_ok("127.0.0.1", p) is False
 
@@ -276,10 +269,10 @@ def test_restart_clears_pycache_by_default_and_opt_out(monkeypatch):
 
 # --- --force kill-by-port (opt-in escape hatch) ---------------------------------------------
 
-def test_force_free_port_kills_foreign_listener(tmp_path):
+def test_force_free_port_kills_foreign_listener(tmp_path, free_port):
     # End-to-end: a foreign process holds a port; force_free_port enumerates and kills it.
     # Skips when the OS lacks netstat/lsof to enumerate owners (best-effort by design).
-    port = _free_port()
+    port = free_port()
     code = ("import socket,time;s=socket.socket();"
             "s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);"
             f"s.bind(('127.0.0.1',{port}));s.listen(5);time.sleep(30)")
@@ -345,20 +338,20 @@ def test_default_host_env_override():
     assert default.stdout.strip() == "127.0.0.1"  # ships localhost-only
 
 
-def test_start_refuses_public_bind_without_spawning():
+def test_start_refuses_public_bind_without_spawning(free_port):
     """opt-2: start() refuses a public/Internet-routable host BEFORE spawning a server, so the
     operator gets a clean reason instead of a process exposing cleartext HTTP."""
-    res = dc.start("8.8.8.8", _free_port(), wait=False)
+    res = dc.start("8.8.8.8", free_port(), wait=False)
     assert res["result"] == "refused-public-bind"
     assert "pid" not in res                      # nothing was launched
     assert "cleartext" in res["reason"].lower()
 
 
-def test_restart_refuses_public_bind_without_touching_server():
+def test_restart_refuses_public_bind_without_touching_server(free_port):
     """opt-2: restart() must refuse a public host BEFORE stop() — otherwise it tears the live
     server down for a doomed restart — and the top-level result must say 'refused', never fall
     through to 'restarted' (a guard that fired reporting success is the kit's worst failure)."""
-    res = dc.restart("8.8.8.8", _free_port())
+    res = dc.restart("8.8.8.8", free_port())
     assert res["result"] == "refused-public-bind"
     assert res["action"] == "restart"
     assert "stop" not in res                          # the running server was not touched

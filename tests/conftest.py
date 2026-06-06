@@ -1,5 +1,6 @@
 """Make the kit's modules importable from tests without packaging."""
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -35,3 +36,40 @@ def _isolate_git_env(monkeypatch):
     """
     for _k in _GIT_LOCATION_VARS:
         monkeypatch.delenv(_k, raising=False)
+
+
+@pytest.fixture
+def free_port():
+    """Hand out OS-assigned free TCP ports — returns a factory so a test can take several.
+
+    Binds to ``:0`` (the OS picks an unused port), reads it back, then releases the socket.
+    Because every allocation is OS-assigned rather than a hard-coded number, ports never
+    collide across ``pytest -n auto`` workers. Promoted here from a per-file helper so any
+    test reaches for this instead of hard-coding a port (the thing that would race xdist).
+    """
+    def _alloc() -> int:
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        try:
+            return s.getsockname()[1]
+        finally:
+            s.close()
+    return _alloc
+
+
+@pytest.fixture(autouse=True)
+def _isolate_dashboard_statefile(request, monkeypatch):
+    """Redirect ``ops.dashboard_ctl.STATEFILE`` to a per-test tmp file (xdist-safety net).
+
+    The controller's default ``STATEFILE`` is the shared ``.ops/dashboard.json``; under
+    ``pytest -n auto`` two workers could race it. This points it at a unique tmp file for
+    every test that has the module loaded, so no test writes the shared state — defense in
+    depth for any test that forgets to monkeypatch it itself (the explicit per-test
+    monkeypatches still win, as they run after this fixture). Lazy by design: it acts only
+    when the module is already imported, and pulls ``tmp_path`` only then, so it never
+    forces the import — or a needless tmp dir — onto the hundreds of unrelated tests.
+    """
+    dc = sys.modules.get("ops.dashboard_ctl")
+    if dc is not None and hasattr(dc, "STATEFILE"):
+        tmp_path = request.getfixturevalue("tmp_path")
+        monkeypatch.setattr(dc, "STATEFILE", tmp_path / "dashboard.json", raising=False)
