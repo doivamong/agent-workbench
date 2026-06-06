@@ -8,9 +8,13 @@ repos:
       # notes) that never ship, so a finding inside one is a false positive that would block every
       # commit. Skipping them matches the real question — "would this leak when PUBLISHED?". (CI
       # runs on a fresh checkout with no gitignored files, so its leak step needs no such flag.)
+      # Wrapped in precommit_present so a refused commit ends with a plain-language note
+      # ("ask the agent; nothing was committed") instead of a bare scanner dump. The wrapper
+      # re-emits the gate's exit code unchanged and fails CLOSED on its own error — it can
+      # only present a failure, never hide one. (leak-scan's findings still print above it.)
       - id: leak-scan
         name: leak scan (no secrets / identifiers committed)
-        entry: python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
+        entry: python tools/precommit_present.py -- python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
         language: system
         pass_filenames: false
         always_run: true
@@ -76,7 +80,7 @@ repos:
       # five structural gates above always run in full — only this pytest step is scoped.
       - id: tests
         name: pytest
-        entry: python tools/affected_tests.py --diff --run
+        entry: python tools/precommit_present.py -- python tools/affected_tests.py --diff --run
         language: system
         pass_filenames: false
         always_run: true
