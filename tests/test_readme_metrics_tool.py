@@ -84,3 +84,48 @@ def test_main_write_then_check_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(rm, "compute", lambda root=rm.ROOT: COUNTS)
     assert rm.main(["--write", "--readme", str(readme)]) == 0
     assert rm.main(["--check", "--readme", str(readme)]) == 0
+
+
+# --- Vietnamese mirror (docs/README.vi.md) --------------------------------------------------
+
+VI_FIXTURE = """\
+| Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
+| Tests | **99**, xanh trong CI (...) |
+| Demo chạy được | **99** (`examples/`) |
+| Skills | **99** (...) |
+| Tool độc lập | **99** (...) |
+
+python -m pytest -q                 # 99 tests
+
+**Agent Workbench** · lõi chỉ stdlib · 99 tests · MIT
+"""
+
+
+def test_vi_find_mismatches_flags_all_stale():
+    keys = [k for k, _, _ in rm.find_mismatches(COUNTS, VI_FIXTURE, rm.VI_PATTERNS)]
+    assert keys.count("tests") == 3        # metrics row + Quickstart comment + footer
+    assert "demos" in keys and "tools" in keys and "skills" in keys
+    assert "deps" not in keys              # already 0 -> not stale
+
+
+def test_vi_rewrite_fixes_all_numbers():
+    out = rm.rewrite(COUNTS, VI_FIXTURE, rm.VI_PATTERNS)
+    assert rm.find_mismatches(COUNTS, out, rm.VI_PATTERNS) == []
+    assert "Tests | **353**" in out
+    assert "# 353 tests" in out
+    assert "353 tests · MIT" in out
+    assert "Demo chạy được | **14**" in out
+    assert "Tool độc lập | **12**" in out
+
+
+def test_main_default_gates_both_en_and_vi(tmp_path, monkeypatch):
+    """The default run (no --readme) must catch staleness in the VI mirror, not just EN —
+    the coverage gap that let docs/README.vi.md's counts rot."""
+    (tmp_path / "README.md").write_text(README_FIXTURE, encoding="utf-8")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "README.vi.md").write_text(VI_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(rm, "ROOT", tmp_path)
+    monkeypatch.setattr(rm, "compute", lambda root=tmp_path: COUNTS)
+    assert rm.main(["--check"]) == 1       # both files stale -> red
+    assert rm.main(["--write"]) == 0
+    assert rm.main(["--check"]) == 0       # both reconciled -> green
