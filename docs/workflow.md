@@ -76,6 +76,36 @@ place, nothing on the platform stops a red or stale merge — the loop above is 
 responsibility. Once required checks land, GitHub enforces the green-before-merge half for you; the
 git-side mergeability check stays useful regardless.
 
+## Auto-merge: enqueue, don't wait
+
+Once branch protection requires the CI checks, the safety of a merge lives in the **required
+checks**, not in a human watching the run. So after verifying a push (above), enqueue the merge
+and move on instead of babysitting CI:
+
+```bash
+gh pr merge <pr> --auto --squash --delete-branch
+```
+
+`--auto` queues the PR; GitHub merges it **only when every required check is green**, then deletes
+the branch. The agent still runs the 4-point integrity check and the run-id / merge-tree
+verification *before* enqueuing — `--auto` is not a substitute for that, it just removes the
+dead-wait afterwards. Tell the user, in plain language, that the PR is **queued and will merge when
+green** (in Vietnamese for this project: *"đã xếp hàng, sẽ merge khi CI xanh"*). For a genuinely
+urgent merge of an already-green PR, `--now` (or an admin merge) is the escape hatch.
+
+**The silent failure to guard (B5):** a queued PR whose *late* check goes red just sits open,
+un-merged, with nobody watching. So after enqueuing — and again on your next ship — run the
+surfacer:
+
+```bash
+python tools/automerge_status.py            # plain-language report of every open PR
+python tools/automerge_status.py --exit-code # exit 1 if any queued PR is STUCK (alert/CI use)
+```
+
+It flags a PR that is **STUCK** (auto-merge on, but a required check failed → it will never merge)
+distinctly from one merely **queued** (waiting on pending checks), and prints the exact recheck
+command for each. It is read-only — it never merges or closes anything.
+
 ## When several skills could fire
 
 Precedence (**Workflow > Guard > Feature > Audit**) and "a domain-specific rule beats a general
