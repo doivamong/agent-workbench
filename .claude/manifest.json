@@ -76,8 +76,8 @@
     },
     ".claude/hooks/scripts/secret_write_gate.py": {
       "category": ".claude/hooks",
-      "lines": 164,
-      "bytes": 7014
+      "lines": 185,
+      "bytes": 8460
     },
     ".claude/hooks/scripts/session_end.py": {
       "category": ".claude/hooks",

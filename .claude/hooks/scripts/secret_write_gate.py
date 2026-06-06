@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hook: PreToolUse (Write | Edit | MultiEdit)
+Hook: PreToolUse (Write | Edit | MultiEdit | NotebookEdit)
 Stop the agent from writing a near-certain CLOUD CREDENTIAL into a file that could be
 committed and leaked. A non-programmer driving the agent can't tell that a hardcoded
 ``AKIA…`` / ``ghp_…`` / ``AIza…`` is a catastrophic, costly leak — this catches the

@@ -92,7 +92,7 @@ SETTINGS_BAK_REL = ".claude/settings.json.bak"
 # that doesn't resolve on Windows isn't silently wired as a no-op).
 _HOOK_WIRING = [
     ("PreToolUse", ".claude/hooks/scripts/block_dangerous.py", "Bash"),
-    ("PreToolUse", ".claude/hooks/scripts/secret_write_gate.py", "Write|Edit|MultiEdit"),
+    ("PreToolUse", ".claude/hooks/scripts/secret_write_gate.py", "Write|Edit|MultiEdit|NotebookEdit"),
     ("UserPromptSubmit", ".claude/hooks/prompt-refiner-inject.py", None),
     ("PostToolUse", ".claude/hooks/scripts/post_edit_simplify.py", "Edit|Write"),
     ("PostToolUse", ".claude/hooks/scripts/context_tracker.py", None),
