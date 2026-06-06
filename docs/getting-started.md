@@ -63,8 +63,21 @@ python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore   # thi
 
 🇻🇳 *Cài vào dự án — `install.py` chép hooks/skills/rules/tool/`secrets_guard`/scaffold memory, tuỳ chọn cài git pre-commit gate, rồi in đoạn `settings.json` để bạn merge.*
 
+> **Prefer to just talk to Claude Code?** Clone agent-workbench and **open that folder** in Claude
+> Code first, then say: *"install agent-workbench into `<path-to-my-project>` and confirm the guards
+> are on."* The agent (skill `awb-install-and-verify`) runs the install below against your project,
+> then `install.py … --doctor` to prove the guards actually fire — and tells you honestly what's
+> protected and what isn't. It runs **from the kit folder**, not from inside your empty project (the
+> tools aren't there yet).
+>
+> 🇻🇳 *Thích chỉ trò chuyện với Claude Code? Trước hết clone agent-workbench và **mở thư mục đó**
+> trong Claude Code, rồi nói: "cài agent-workbench vào `<đường-dẫn-dự-án>` và xác nhận guard đã bật."
+> Agent (skill `awb-install-and-verify`) chạy lệnh cài bên dưới rồi `--doctor` để chứng minh guard
+> thực sự chạy, và nói thật cái gì được bảo vệ. Chạy **từ thư mục kit**, không phải từ trong dự án trống.*
+
 ```bash
 python install.py /path/to/your/project --with-git-hook
+python install.py /path/to/your/project --doctor   # then verify the wired guards actually fire
 # --dry-run to preview; --force to overwrite existing files
 ```
 

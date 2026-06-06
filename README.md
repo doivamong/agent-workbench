@@ -350,6 +350,12 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 # --dry-run to preview first; --force to overwrite existing copied files.
 ```
 
+**Prefer to just talk to Claude Code?** Clone agent-workbench and open that folder in Claude Code,
+then say *"install agent-workbench into `<path-to-my-project>` and confirm the guards are on"* — the
+agent (skill `awb-install-and-verify`) runs the install above against your project, then
+`install.py <project> --doctor` to prove the guards fire, and reports honestly what's protected and
+what isn't. It runs **from the kit folder**, not from inside your empty project (the tools aren't there yet).
+
 **Install only what you want, and uninstall cleanly.** Groups are `hooks`, `skills`, `rules`,
 `agents`, `tools`, `memory`; dependencies are pulled in automatically (selecting `hooks` adds
 `skills`, so routing has something to route to):
@@ -357,6 +363,7 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 ```bash
 python install.py /path/to/your/project --select hooks,skills   # only these groups (+deps)
 python install.py /path/to/your/project --list                  # what's available / installed
+python install.py /path/to/your/project --doctor                # verify the wired guards actually fire
 python uninstall.py /path/to/your/project                       # dry run — shows the plan
 python uninstall.py /path/to/your/project --yes                 # reverse the install
 ```

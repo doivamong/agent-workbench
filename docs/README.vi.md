@@ -300,6 +300,12 @@ python install.py /path/to/your/project --with-git-hook --merge-settings
 # --dry-run để xem trước; --force để ghi đè file đã chép.
 ```
 
+**Thích chỉ trò chuyện với Claude Code?** Clone agent-workbench và mở thư mục đó trong Claude Code,
+rồi nói *"cài agent-workbench vào `<đường-dẫn-dự-án-của-tôi>` và xác nhận guard đã bật"* — agent
+(skill `awb-install-and-verify`) chạy lệnh cài ở trên nhắm vào dự án của bạn, rồi
+`install.py <dự-án> --doctor` để chứng minh guard thực sự chạy, và báo cáo trung thực cái gì được
+bảo vệ, cái gì không. Nó chạy **từ thư mục kit**, không phải từ trong dự án trống (ở đó chưa có tool).
+
 **Chỉ cài đúng cái bạn muốn, và gỡ sạch.** Các nhóm là `hooks`, `skills`, `rules`, `agents`,
 `tools`, `memory`; phụ thuộc được kéo theo tự động (chọn `hooks` sẽ thêm `skills` để routing có cái
 mà trỏ tới):
@@ -307,6 +313,7 @@ mà trỏ tới):
 ```bash
 python install.py /path/to/your/project --select hooks,skills   # chỉ các nhóm này (+deps)
 python install.py /path/to/your/project --list                  # xem có gì / đã cài gì
+python install.py /path/to/your/project --doctor                # xác nhận guard thực sự chạy
 python uninstall.py /path/to/your/project                       # chạy thử — in ra kế hoạch
 python uninstall.py /path/to/your/project --yes                 # đảo ngược lần cài
 ```

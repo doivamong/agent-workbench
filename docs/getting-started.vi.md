@@ -59,8 +59,15 @@ python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore   # thi
 
 ## 2. Cài vào dự án của bạn
 
+> **Thích chỉ trò chuyện với Claude Code?** Trước hết clone agent-workbench và **mở thư mục đó**
+> trong Claude Code, rồi nói: *"cài agent-workbench vào `<đường-dẫn-dự-án-của-tôi>` và xác nhận các
+> guard đã bật."* Agent (skill `awb-install-and-verify`) chạy lệnh cài bên dưới nhắm vào dự án của
+> bạn, rồi `install.py … --doctor` để chứng minh guard thực sự chạy — và nói thật cái gì được bảo vệ,
+> cái gì không. Nó chạy **từ thư mục kit**, không phải từ trong dự án trống (ở đó chưa có tool).
+
 ```bash
 python install.py /path/to/your/project --with-git-hook
+python install.py /path/to/your/project --doctor   # then verify the wired guards actually fire
 # --dry-run to preview; --force to overwrite existing files
 ```
 
