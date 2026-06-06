@@ -4,6 +4,8 @@
 > là **nguồn chân lý**: nó là bản chuẩn. Nếu hai bản lệch nhau ở bất cứ điểm nào, **tin bản tiếng Anh** —
 > file đó thắng.
 
+<!-- en-sha256: 9d5d0dd01f1eb3f1d8b929f4b1e01f87f734fb64428c603c47c25817c318fb97 leak-scan: ignore[high_entropy_hex] -->
+
 **Chuẩn (Canonical).** Đây là nguồn chân lý cho việc vì sao Agent Workbench tồn tại và nó phải hành
 xử ra sao. [`README.md`](../README.md), [`CLAUDE.md`](../CLAUDE.md), và [`AGENTS.md`](../AGENTS.md)
 trích đúng một dòng rồi link về đây — chúng không lặp lại nó. Nếu bất cứ thứ gì trong repo mâu thuẫn
@@ -53,6 +55,13 @@ nó nếu nó làm bất cứ điều nào sau đây — hãy bắt chúng trong
 - một tool ship mà không dán nhãn SHIPS vs BLUEPRINT;
 - một định danh nghiệp vụ, đường dẫn máy thật, PII, hay secret quay trở lại;
 - `CLAUDE.md` phình quá ngân sách ngắn của nó thay vì link ra ngoài;
+- công việc làm **cho persona người-không-lập-trình** lại ship dưới dạng đánh bóng dashboard hay
+  marketing kiểu "dễ / an toàn cho người không biết code", HOẶC giấu lời rào của nó trong một doc mà
+  persona đó sẽ không bao giờ đọc — thay vì là một guard **fail-closed** (chặn-khi-lỗi) lặng lẽ, hoặc
+  một lời rào mà agent **nói rõ bằng ngôn ngữ đời thường ngay tại thời điểm có rủi ro**. Một "dây an
+  toàn" trung thực mà người dùng lại hiểu thành "két sắt" thì chính là phản bội đúng người mà nó tự
+  nhận là bảo vệ. (Một guard *fail-open* (lỗi-thì-mở) thì vẫn ổn — leak-scan của chính bộ kit là một
+  ví dụ — miễn là lời rào của nó được nói ra hoặc nêu rõ, chứ không bị chôn giấu.)
 - **file này phình thành một bản tuyên ngôn** thay vì một ràng buộc cô đọng.
 
 ## Dành cho một agent context mới đang sửa repo này

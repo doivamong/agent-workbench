@@ -4,6 +4,8 @@
 > **khối lệnh** bên dưới được giữ y hệt bản tiếng Anh [`getting-started.md`](getting-started.md)
 > (một test CI canh để chúng không bao giờ lệch nhau); chỉ phần văn xung quanh là tiếng Việt.
 
+<!-- en-sha256: 8421f0d5fbf99546b0469920fa436950dae26dc0418f5a856ed554205e0bc5cd leak-scan: ignore[high_entropy_hex] -->
+
 <kbd>[🇬🇧 English](getting-started.md)</kbd> · <kbd>[README (VI)](README.vi.md)</kbd> · <kbd>[Thuật ngữ](README.vi.md#thuật-ngữ-nhanh)</kbd>
 
 Một lượt đi ~10 phút: chạy thử các demo (mỗi cái vài giây), rồi gắn bộ tool vào dự án của bạn.
