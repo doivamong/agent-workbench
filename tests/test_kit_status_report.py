@@ -8,6 +8,7 @@ HTML-escapes untrusted names.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -234,3 +235,80 @@ def test_json_flag_emits_gather_data(tmp_path, capsys):
         assert key in data, f"missing key: {key}"
     assert {s["name"] for s in data["skills"]} == {"awb-review", "awb-tdd"}
     assert data["wired"] is False                       # telemetry not wired in fixture
+
+
+# --------------------------------------------------------------------------- #
+# Bilingual EN/VI (the --lang flag; Vietnamese is the default and is byte-identical
+# to the pre-i18n output — the existing tests above lock that VI render).
+# --------------------------------------------------------------------------- #
+def test_default_render_is_vietnamese(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    html = ksr.render(ksr.gather(proj, 14, None))        # no lang arg -> default VI
+    assert '<html lang="vi">' in html
+    assert "Trạng thái kit" in html                      # VI hero heading
+    body = html.split("</style>", 1)[1]                  # body excludes the shared CSS comments
+    assert "Kit status" not in body                      # no English heading in the VI body
+
+
+def test_lang_en_renders_english(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    html = ksr.render(ksr.gather(proj, 14, None), "en")
+    assert '<html lang="en">' in html
+    # The CSS comments in the shared <style> stay Vietnamese by design (code comments, not UI),
+    # so assert against the body only.
+    body = html.split("</style>", 1)[1]
+    for s in ("Kit status report", "Telemetry is off", "not measured", "Checks",
+              "Tools present", "Memory budget", "Hooks wired", "Contents", "Overview"):
+        assert s in body, f"missing EN string: {s}"
+    for vi in ("Trạng thái kit", "Telemetry chưa bật", "chưa đo", "Mục lục", "Tổng quan",
+               "Cổng kiểm tra", "Ngân sách bộ nhớ"):
+        assert vi not in body, f"VI UI string leaked into EN body: {vi}"
+    assert not re.search(r"\$[a-z_]{3,}", html)          # no template placeholders survive
+
+
+def test_en_preserves_honesty_model(tmp_path):
+    # The honesty model must survive translation: a measured 0-fire non-guard is "never
+    # name-called", a guard is "auto-fired", and the death verdict never appears.
+    proj = _make_project(
+        tmp_path,
+        {"awb-review": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"},
+        wired=True)
+    log = proj / ".claude" / ".logs"
+    log.mkdir(parents=True)
+    now = datetime.now().isoformat(timespec="seconds")
+    (log / "skill_usage.jsonl").write_text(
+        json.dumps({"time": now, "skill": "awb-review", "signal": "invoke"}) + "\n",
+        encoding="utf-8")
+    html = ksr.render(ksr.gather(proj, 14, None), "en")
+    assert "never name-called" in html                   # awb-tdd: non-guard 0-fire
+    assert "auto-fired" in html                           # awb-output-guard: guard 0-fire
+    assert "name-called" in html                          # awb-review fired (was named)
+    assert "Measuring by name typed in the prompt" in html  # the measured-state caveat
+    # the death verdict never appears as VISIBLE TEXT (the badge--dead CSS class is a style hook,
+    # allowed — it lives in an attribute, not a text node). Check the body only: the self-contained
+    # report inlines its CSS, whose `.badge--dead` selector would otherwise false-match.
+    body = html.split("</style>", 1)[1]
+    assert not re.search(r">[^<]*\bdead\b", body, re.I)
+
+
+def test_bogus_lang_falls_back_to_vietnamese(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    html = ksr.render(ksr.gather(proj, 14, None), "zz")  # unknown code -> default VI
+    assert '<html lang="vi">' in html
+    assert "Trạng thái kit" in html
+
+
+def test_lang_flag_selects_language_via_main(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    en, vi = tmp_path / "en.html", tmp_path / "vi.html"
+    assert ksr.main(["--project", str(proj), "--output", str(en), "--lang", "en"]) == 0
+    assert ksr.main(["--project", str(proj), "--output", str(vi)]) == 0   # default -> vi
+    en_html, vi_html = en.read_text(encoding="utf-8"), vi.read_text(encoding="utf-8")
+    assert '<html lang="en">' in en_html and "Kit status report" in en_html
+    assert '<html lang="vi">' in vi_html and "Báo cáo trạng thái kit" in vi_html
+
+
+def test_report_catalog_en_vi_key_parity():
+    # ui/ is on sys.path because importing generator (top of this file) puts it there.
+    import i18n
+    assert set(i18n.report_catalog("vi")) == set(i18n.report_catalog("en"))

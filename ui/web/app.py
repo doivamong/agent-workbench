@@ -51,8 +51,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 _KIT_STATUS = HERE.parent / "kit_status"
 sys.path.insert(0, str(_KIT_STATUS))
+# The EN/VI string catalog now lives in the stdlib core (ui/i18n.py) so BOTH this opt-in
+# dashboard and the stdlib ui/kit_status report share one source — see ui/i18n.py.
+sys.path.insert(0, str(HERE.parent))
 import generator as ksr  # noqa: E402
-import i18n  # noqa: E402 — the EN/VI string catalog (sibling module; stdlib-only)
+import i18n  # noqa: E402 — the shared EN/VI string catalog (ui/i18n.py; stdlib-only)
 
 try:
     from flask import Flask, current_app, render_template, request
@@ -72,7 +75,7 @@ def _project_dir() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", str(_REPO_ROOT))).resolve()
 
 
-# The five real tiers, in display order. Human labels are localized in ui/web/i18n.py
+# The five real tiers, in display order. Human labels are localized in ui/i18n.py
 # (TIER_LABELS) — match the kit_status report's vocabulary for Vietnamese.
 TIERS = ("workflow", "guard", "feature", "audit", "meta")
 # Tier accent colors — same palette as ui/kit_status/template.html (--cat-*).

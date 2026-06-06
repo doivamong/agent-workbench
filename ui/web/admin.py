@@ -63,8 +63,10 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+if str(HERE.parent) not in sys.path:   # ui/ — the shared EN/VI catalog (ui/i18n.py) lives here
+    sys.path.insert(0, str(HERE.parent))
 import passwords                     # noqa: E402  — shared stdlib hashing (no Flask), see passwords.py
-import i18n                          # noqa: E402  — EN/VI catalog for server-rendered result messages
+import i18n                          # noqa: E402  — shared EN/VI catalog (ui/i18n.py)
 import ops.autostart as autos      # noqa: E402  — read-only status; enable/disable may need admin
 import ops.dashboard_ctl as dctl   # noqa: E402  — reused engine (process control)
 import ops.lan_setup as lans       # noqa: E402  — read-only status; enable/disable (setx, no admin)
