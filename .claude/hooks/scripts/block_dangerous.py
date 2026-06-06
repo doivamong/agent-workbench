@@ -171,9 +171,10 @@ def main():
         # safe, so we deny by default rather than silently letting it through. A
         # security guardrail must not become a no-op on malformed input.
         _emit_deny(
-            "block_dangerous could not parse the tool payload, so it cannot verify "
-            "the command is safe. Denying by default (fail-closed). If this is a "
-            "false positive, run the command manually outside the agent."
+            "I couldn't read that command well enough to confirm it's safe, so I "
+            "stopped it as a precaution — this guard fails safe when unsure, and it "
+            "is not a security boundary. Ask me to look at the exact command and "
+            "explain what it does; I won't run it until we've confirmed it's safe."
         )
         return
 
@@ -189,8 +190,11 @@ def main():
     if hit:
         _pattern, reason = hit
         _emit_deny(
-            f"Blocked a dangerous command ({reason}). "
-            f"Run it manually outside the agent if this is genuinely intended."
+            f"I stopped a command that can permanently destroy work or data: {reason}. "
+            f"This guard catches common accidents — it is not a security boundary. If "
+            f"you do want this, ask me to explain exactly what the command changes "
+            f"before anything runs; I won't proceed until you've confirmed you "
+            f"understand it."
         )
         return
 

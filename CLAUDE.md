@@ -50,6 +50,9 @@ path-scoped rule files (see `.claude/rules/`).*
   (commit via `pre-commit run --all-files` and audit `git config --local --list` after — committing
   from a linked worktree can leak an absolute `GIT_DIR` and corrupt the shared `.git/config`), or a
   separate clone for full isolation.
+- **When a safety hook blocks an action, relay it in plain language** — tell the user what was
+  stopped and why, and offer a safe next step; never suggest re-running it outside the guard (to
+  them or to yourself). A hook's deny reason is shown to the agent, not directly to the user.
 - **Match the surrounding code's style** rather than importing your own conventions.
 
 ## Project map
