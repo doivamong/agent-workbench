@@ -129,3 +129,26 @@ Open your project in Claude Code (or your agent). Immediately:
 The included [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs the leak scan,
 invariants, and tests on every push/PR — the kit gates itself with its own tools. Reuse the
 same pattern in your project.
+
+## 6. When a commit is refused (and who fixes it)
+
+🇻🇳 *Khi commit bị từ chối — mỗi "gate" đỏ là một lằn ranh an toàn đang làm việc, không phải lỗi của bạn. Bảng dưới dịch từng gate sang lời thường và "ai sửa": trong mọi trường hợp, **agent sửa, không phải bạn** — chỉ cần nói "commit bị từ chối". Chi tiết: [pre-commit-failure-modes.md](pre-commit-failure-modes.md).*
+
+A refused commit is a guard doing its job, not a mistake on your part. Seven gates can turn a commit
+(or a CI run) red. Here is what each means in plain words — and in every case **the agent fixes it,
+not you**:
+
+| Gate | When it is red, it means | Where it runs |
+|---|---|---|
+| leak scan | a secret, identifier, or absolute machine path slipped into a tracked file | local + CI |
+| pytest | a test failed — something the code promised stopped being true | local + CI |
+| codebase invariants | a project "must never break" rule tripped (e.g. a debug `print` left in a library) | local + CI |
+| skill registry lint | a skill file and the registry that lists it drifted apart | local + CI |
+| context budget | the skill set grew past its size cap (a bloat guard) | local + CI |
+| manifest sync | the set of files on disk no longer matches the recorded manifest | local + CI |
+| README metrics | a count in the README (tools, tests, …) no longer matches reality | CI only |
+
+The first six run on every local commit and again in CI; the seventh runs only in CI. None of them
+ask you to read a traceback — tell the agent "the commit was refused" and it diagnoses and fixes the
+cause. The [pre-commit-failure-modes.md](pre-commit-failure-modes.md) registry explains how these
+gates learn from anything that slips past them.
