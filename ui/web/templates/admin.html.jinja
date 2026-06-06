@@ -1,4 +1,4 @@
-{#- Agent Workbench — /admin action surface (opt-in, mounted only with --admin).
+{#- Agent Workbench — /admin action surface (opt-in; always mounted, inert until a password is set — login is the gate).
     Same design language / tokens as the read-only dashboard. Fully offline (vendored htmx +
     css, no external refs). Every action is a POST form carrying the per-process CSRF token;
     results are HTMX-swapped into #admin-result. All copy is Vietnamese with diacritics. -#}

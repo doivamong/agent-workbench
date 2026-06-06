@@ -106,10 +106,13 @@ jobs:
       - name: Install core + ui/web (Flask) dependencies
         run: pip install -r requirements.txt -r ui/web/requirements.txt
 
-      # Fail closed if the opt-in layer didn't actually install: the ui/web tests skip when Flask
-      # is absent, so without this guard a broken install would go green having run nothing.
-      - name: Verify Flask present (else the tests below would silently skip)
-        run: python -c "import flask, jinja2; print('flask', flask.__version__)"
+      # Fail closed if the opt-in layer didn't actually import: the ui/web tests' skip condition
+      # (_HAS_FLASK) is set by a guarded import that pulls in Flask AND the ui/web sibling modules
+      # (app → generator/passwords, admin). If Flask installs but any sibling breaks at import time,
+      # _HAS_FLASK flips False, the admin C1–C4 suite skips, and the job exits 0 having run nothing.
+      # Import the SAME modules the skip condition imports so this guard fails LOUDLY in that case.
+      - name: Verify ui/web imports cleanly (else the tests below would silently skip)
+        run: python -c "import sys; sys.path.insert(0, 'ui/web'); import flask, jinja2, app, admin; print('flask', flask.__version__)"
 
       # -rs prints skip reasons so the log proves these RAN. With Flask installed the skipif is
       # False, so the ui/web admin security suite executes instead of skipping.
