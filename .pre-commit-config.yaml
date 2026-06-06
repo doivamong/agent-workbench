@@ -58,6 +58,18 @@ repos:
       # you wait on the suite. leak-scan deliberately stays FIRST — a leaked secret is the one
       # red you want to see before anything else runs.
       #
+      # Heads-up shown right before pytest (verbose: true, so it prints on the success path
+      # too). pytest is the slow gate; this tells you the wait is expected, not a hang. The
+      # range is deliberately soft (no hard-coded count or seconds) so it never goes stale as
+      # the suite grows or the machine changes.
+      - id: test-heartbeat
+        name: heads-up (tests next)
+        entry: python -c "print('Test gate next - the slowest step (~10-60s for a full run; quick or skipped for a small change). This is normal, the commit is not stuck.')"
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
       # --diff --run selects only the tests impacted by the staged change (reverse import
       # graph) and runs them with -n auto: a doc-only commit skips pytest, a code change runs
       # its covering tests, and a high-blast / unknown file falls back to the full suite. The
