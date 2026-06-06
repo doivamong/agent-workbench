@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from stdio_utf8 import ensure_utf8_io  # noqa: E402
 from session_breadcrumb import breadcrumb_path, write_breadcrumb  # noqa: E402
+from session_lock import lock_path, release_lock  # noqa: E402
 from hook_logger import hook_main  # noqa: E402
 
 # UTF-8, pythonw-safe stdout/stdin before any output (shared lib/stdio_utf8.py).
@@ -61,6 +62,9 @@ def main() -> None:
         write_breadcrumb(breadcrumb_path(cwd), collect_state(cwd))
     except Exception:
         pass  # the breadcrumb is best-effort; never disrupt session teardown
+    # Release this session's concurrent-session lock (concurrent_session_guard.py). Only removes
+    # the lock if it is ours; another live session's lock is left intact. Best-effort.
+    release_lock(lock_path(cwd), os.getppid(), event.get("session_id") or "")
 
 
 if __name__ == "__main__":

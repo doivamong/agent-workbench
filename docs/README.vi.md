@@ -149,7 +149,7 @@ flowchart TB
         block["block_dangerous · PreToolUse"]:::hook
         refine["prompt-refiner-inject · UserPromptSubmit"]:::hook
         edits["post_edit_simplify + context_tracker · PostToolUse"]:::hook
-        life["session_start / session_end · precompact_backup<br/>compact_restore · skill_routing_inject"]:::hook
+        life["session_start / session_end · concurrent_session_guard<br/>precompact_backup · compact_restore · skill_routing_inject"]:::hook
         wrap(["hook_logger · fail-open + log crash"]):::wrapn
         block & refine & edits & life -.->|bọc bởi| wrap
     end
@@ -223,7 +223,8 @@ file crash JSONL và thoát sạch, thay vì kẹt agent. Các hook ship sẵn:
 | `session_start.py` | `SessionStart` (startup\|resume\|clear) | Inject project primer (`.claude/session-primer.md`) — một con trỏ ngắn, ổn định ("bạn có skills; đây là registry; chọn theo trigger marker") — ở đầu mỗi phiên, và hiện breadcrumb mà `session_end.py` ghi thành dòng "Last session: …". **Không** kích hoạt khi `compact` (đó là việc của `compact_restore.py`). Kill-switch `SESSION_PRIMER=0`. |
 | `sync_guard.py` | `PostToolUse` (Write) | **Chỉ dành cho maintainer — không được installer wire** (gate `tools/sync_manifest.py` và `.claude/manifest.json` ship cùng kit, không vào dự án adopter, nên wire ở đó chỉ làm phiền). Khi một Write tạo một file *mới* trong thư mục nguồn chuẩn được canh, nhắc cập nhật phụ thuộc và regen manifest. Phân biệt file-mới với edit qua `.claude/manifest.json` nên sửa nội dung vẫn im. Tư vấn; gate xác định là `tools/sync_manifest.py --check`. |
 | `context_tracker.py` | `PostToolUse` (mọi) | Khi phiên dài ra, nhắc `/compact` hoặc lưu handover trước khi chạm giới hạn. Bị tiết chế; đếm theo per-project. |
-| `session_end.py` | `SessionEnd` | Ghi một breadcrumb một dòng (git branch, commit cuối, số file chưa commit, thời gian) khi một phiên kết thúc; `session_start.py` hiện nó lần sau thành dòng "Last session: …". Một bổ trợ nhẹ, tự động cho handover viết tay — định hướng, không phải phát lại. Kill-switch `SESSION_BREADCRUMB=0`. |
+| `concurrent_session_guard.py` | `SessionStart` (startup\|resume\|clear) | Cảnh báo khi một phiên **thứ hai** gắn vào một checkout đã có phiên đang sống — hai phiên trên một working tree đua nhau git index/HEAD chung và có thể làm hỏng `.git/config`. Ghi một lock theo từng worktree (`.claude/.logs/session_lock.json`, gitignored) ghi lại tiến trình agent; lock cũ (pid đã chết) được thu hồi im lặng, và `session_end.py` giải phóng nó. Là **dây an toàn, không phải khóa** — nó cảnh báo *sau khi* phiên thứ hai đã gắn, không ngăn được, và nghiêng về im lặng (bỏ sót cảnh báo) chứ không báo động giả. Chỉ tư vấn; không bao giờ chặn. Kill-switch `SESSION_LOCK_GUARD=0`. |
+| `session_end.py` | `SessionEnd` | Ghi một breadcrumb một dòng (git branch, commit cuối, số file chưa commit, thời gian) khi một phiên kết thúc; `session_start.py` hiện nó lần sau thành dòng "Last session: …". Một bổ trợ nhẹ, tự động cho handover viết tay — định hướng, không phải phát lại. Cũng giải phóng lock concurrent-session của phiên này. Kill-switch `SESSION_BREADCRUMB=0`. |
 | `skill_usage_logger.py` | `UserPromptSubmit` | **Opt-in — không wire mặc định.** Log skill nào một prompt nhắc tên (một `/<skill>` tường minh là "invoke" mạnh, tên trơ là "mention" yếu) vào một JSONL local, gitignored cho [`tools/skill_usage_report.py`](../tools/skill_usage_report.py) tổng kết. Bật bằng cách thêm nó vào chuỗi `UserPromptSubmit` trong `.claude/settings.json`. |
 
 Bộ bọc fail-open nằm ở [`.claude/hooks/lib/hook_logger.py`](../.claude/hooks/lib/hook_logger.py).
@@ -253,8 +254,8 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **665**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **23** (`examples/`) |
+| Tests | **682**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **24** (`examples/`) |
 | Skills | **16** (9 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **17** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
@@ -281,7 +282,7 @@ python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt fi
 python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 665 tests
+python -m pytest -q                 # 682 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -383,7 +384,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 665 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 682 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 
