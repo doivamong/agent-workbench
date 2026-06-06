@@ -4,7 +4,7 @@
 > **khối lệnh** bên dưới được giữ y hệt bản tiếng Anh [`getting-started.md`](getting-started.md)
 > (một test CI canh để chúng không bao giờ lệch nhau); chỉ phần văn xung quanh là tiếng Việt.
 
-<!-- en-sha256: 8421f0d5fbf99546b0469920fa436950dae26dc0418f5a856ed554205e0bc5cd leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: a6011ac92b3d7c7c75dfa6553e17767371199d53d4de5b5dab7fc845cd0db755 leak-scan: ignore[high_entropy_hex] -->
 
 <kbd>[🇬🇧 English](getting-started.md)</kbd> · <kbd>[README (VI)](README.vi.md)</kbd> · <kbd>[Thuật ngữ](README.vi.md#thuật-ngữ-nhanh)</kbd>
 
@@ -112,3 +112,24 @@ Mở dự án bằng Claude Code (hoặc agent của bạn). Ngay lập tức:
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) kèm sẵn chạy leak scan, invariants, và
 tests mỗi push/PR — kit tự gate bằng chính tool của nó. Dùng lại mẫu này cho dự án bạn.
+
+## 6. Khi một commit bị từ chối (và ai sửa)
+
+Một commit bị từ chối là một guard đang làm đúng việc của nó, không phải lỗi của bạn. Bảy gate có thể
+làm một commit (hoặc một lần chạy CI) hóa đỏ. Đây là ý nghĩa của từng cái bằng lời thường — và trong
+mọi trường hợp, **agent sửa, không phải bạn**:
+
+| Gate | Khi nó đỏ, nghĩa là | Chạy ở đâu |
+|---|---|---|
+| leak scan | một secret, định danh, hoặc đường dẫn máy tuyệt đối lọt vào một file được theo dõi | local + CI |
+| pytest | một test thất bại — một điều code đã hứa nay không còn đúng | local + CI |
+| codebase invariants | một rule "không được phá vỡ" của dự án bị vi phạm (vd: một `print` debug bỏ quên trong thư viện) | local + CI |
+| skill registry lint | một file skill và registry liệt kê nó đã lệch nhau | local + CI |
+| context budget | bộ skill phình quá giới hạn kích thước (guard chống bloat) | local + CI |
+| manifest sync | tập file trên đĩa không còn khớp manifest đã ghi | local + CI |
+| README metrics | một con số trong README (số tool, số test, …) không còn khớp thực tế | chỉ CI |
+
+Sáu cái đầu chạy ở mỗi commit local và lặp lại trong CI; cái thứ bảy chỉ chạy trong CI. Không cái nào
+bắt bạn đọc traceback — chỉ cần nói với agent "commit bị từ chối" và nó sẽ chẩn đoán rồi sửa nguyên
+nhân. Registry [pre-commit-failure-modes.md](pre-commit-failure-modes.md) giải thích các gate này học
+từ bất cứ thứ gì lọt qua chúng như thế nào.
