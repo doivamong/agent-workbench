@@ -1,29 +1,46 @@
 #!/usr/bin/env python3
-"""ui/web/i18n.py — the EN/VI string catalog for the opt-in web dashboard.
+"""ui/i18n.py — the shared EN/VI string catalog for the whole ``ui/`` tree.
 
-One source of truth for every user-facing string in ``ui/web`` (the read-only dashboard,
-its HTMX fragments, and the ``/admin`` action surface). The dashboard renders **one** language
-at a time (server-side, chosen per request) — there is no client-side dictionary and no doubled
-DOM, so the two languages can never drift out of sync on screen.
+One source of truth for every user-facing string in both UI surfaces, so the two can never
+drift apart:
+  * ``ui/web`` (the opt-in Flask dashboard, its HTMX fragments, and the ``/admin`` action
+    surface) — strings in ``_UI``/``_ADMIN``/``_JS``, accessed via ``catalog``/``admin_msg``/
+    ``js_strings``. It renders **one** language at a time (server-side, per request): no
+    client-side dictionary and no doubled DOM.
+  * ``ui/kit_status`` (the stdlib static HTML report) — strings in ``_REPORT``, accessed via
+    ``report_catalog``. It renders one language per invocation, chosen by its ``--lang`` flag.
+    A static file cannot carry an in-page toggle without doubling the DOM, so the language is a
+    build-time choice — see ``ui/kit_status/generator.py``.
 
-Language resolution (see ``app._resolve`` / ``resolve_lang`` here): an explicit ``?lang=`` query
-wins, else the ``awb_lang`` cookie, else the default (**Vietnamese**). The cookie is what keeps
-HTMX fragments — which do not resend ``?lang`` — in the same language as the page.
+The shared language machinery (``LANGS``/``DEFAULT_LANG``/``normalize_lang``/``resolve_lang``)
+and the tier vocabulary (``TIER_LABELS``/``tier_labels``) are used by both surfaces — keeping
+them here means the tier words and the language whitelist cannot diverge between report and
+dashboard.
 
-This module is **stdlib-only** (it is just data + tiny helpers, no Flask import), so it could be
-lifted into the stdlib core later if ``ui/kit_status`` ever grows a ``--lang`` flag. The web app
-(``app.py``) and the admin blueprint (``admin.py``) both import it.
+Language resolution (``resolve_lang``, used by the web app): an explicit ``?lang=`` query wins,
+else the ``awb_lang`` cookie, else the default (**Vietnamese**). The cookie is what keeps HTMX
+fragments — which do not resend ``?lang`` — in the same language as the page. The static report
+does not use the cookie path; it passes its ``--lang`` value straight through ``normalize_lang``.
+
+This module is **stdlib-only** (just data + tiny helpers, no Flask import), so the stdlib report
+can import it without pulling in the opt-in web layer's only dependency. The web app (``app.py``),
+the admin blueprint (``admin.py``), and the report generator (``ui/kit_status/generator.py``) all
+import it.
 
 Conventions:
-  * UI template strings live in ``_UI``; some carry inline HTML (``<span class="mono">`` …) and
-    are rendered with Jinja's ``|safe``. Strings with a runtime value use ``{name}`` placeholders
-    and are filled with ``str.format`` in the template — keeping word order correct per language
-    instead of gluing translated fragments around a number.
+  * Web UI template strings live in ``_UI``; some carry inline HTML (``<span class="mono">`` …)
+    and are rendered with Jinja's ``|safe``. Strings with a runtime value use ``{name}``
+    placeholders and are filled with ``str.format`` in the template — keeping word order correct
+    per language instead of gluing translated fragments around a number.
   * Server-rendered ``/admin`` result messages live in ``_ADMIN`` (filled with ``.format`` in
     ``admin.py``).
+  * The static report's strings live in ``_REPORT``; the generator interpolates the translatable
+    words/phrases into its HTML structure (some carry a ``{name}`` placeholder filled with
+    ``.format``, mirroring the web convention). Dynamic, untrusted values (skill names, branch,
+    commit) are HTML-escaped in the generator, NOT in the catalog.
   * The single JS string (a Chart.js axis label) lives in ``_JS`` and is shipped to the page as a
     small embedded JSON blob.
-  * **The Vietnamese values are verbatim the strings the templates shipped before i18n** — the
+  * **The Vietnamese values are verbatim the strings each surface shipped before i18n** — the
     default language is Vietnamese, so the existing tests (which assert the VI render) stay green
     and the VI experience is byte-identical.
   * The EN/VI switcher's option labels (``VI`` / ``EN`` in ``_lang_switch.html.jinja``) are
@@ -668,3 +685,305 @@ def js_strings(lang: str) -> dict:
 def tier_labels(lang: str) -> dict:
     """tier id -> human label, for one language (validated)."""
     return TIER_LABELS[normalize_lang(lang)]
+
+
+# --------------------------------------------------------------------------- #
+# ui/kit_status static report strings (the stdlib generator interpolates these)
+# --------------------------------------------------------------------------- #
+# The VI values are VERBATIM the strings the report shipped before i18n, so the default
+# (Vietnamese) render is byte-identical and tests/test_kit_status_report.py stays green.
+# The generator keeps the surrounding HTML structure and the HTML-escaping of untrusted
+# values; these are just the translatable words/phrases (some with a {name} placeholder
+# filled by .format in the generator).
+_REPORT = {
+    "vi": {
+        # --- document chrome (template.html) ---
+        "page_title": "Agent Workbench — Báo cáo trạng thái kit",
+        "skip_to_content": "Bỏ qua tới nội dung chính",
+        "rail_aria": "Tóm tắt nhanh và điều hướng",
+        "rail_screen": "Báo cáo trạng thái kit",
+        # --- shared state words ---
+        "state_unmeasured": "chưa đo",
+        "state_not_run": "chưa chạy",
+        # --- honesty banners ---
+        "banner_notwired_title": "Telemetry chưa bật",
+        "banner_notwired_body": ('Số lượt gọi tên skill là <strong>chưa đo</strong>, không phải “chết”. '
+            'Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào '
+            '<span class="mono">.claude/settings.json</span>.'),
+        "banner_empty_title": "Telemetry vừa bật — chưa có dữ liệu",
+        "banner_empty_body": ('Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>, '
+            'không phải “chết”. Dữ liệu tích lũy từ các phiên sau.'),
+        "banner_measured": ('<strong style="color:var(--text)">Đang đo theo tên trong prompt.</strong> '
+            'Chỉ số đếm lượt người dùng <strong style="color:var(--text)">gõ tên</strong> skill '
+            '(<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là skill '
+            'bảo vệ/guard (output-guard, config-guard) — không tính ở đây; 0 nghĩa là chưa ai gõ '
+            'tên trong cửa sổ này, <strong style="color:var(--text)">không phải skill hỏng hay '
+            'vô dụng</strong>.'),
+        # --- rail (left sticky summary) ---
+        "rail_overall_ok": "Mọi thứ ổn",
+        "rail_overall_status": "Trạng thái kit",
+        "rail_overall_pass": "{lbl} cổng PASS",
+        "rail_overall_norun": "cổng chưa chạy · xem mục bên dưới",
+        "rail_kpis_aria": "Chỉ số tóm tắt",
+        "rk_skills": "Skill",
+        "rk_skills_sub_measured": "{dead} chưa ai gọi tên",
+        "rk_gates": "Cổng kiểm tra",
+        "rk_tools": "Công cụ",
+        "rk_tools_sub": "thiếu {n}",
+        "rk_hooks": "Hook nối",
+        "rk_hooks_sub": "sự kiện đã nối",
+        "nav_cap": "Mục lục",
+        "nav_gates": "Cổng kiểm tra",
+        "nav_skills": "Skill &amp; loại",
+        "nav_telemetry": "Lượt gọi tên",
+        "nav_tools": "Công cụ",
+        "nav_memory": "Bộ nhớ",
+        "nav_hooks": "Hook",
+        "rail_foot_branch": "Nhánh",
+        "rail_foot_updated": "Cập nhật {today}",
+        # --- hero ---
+        "hero_aria": "Tổng quan",
+        "hero_eyebrow": "Agent Workbench · trạng thái kit",
+        "hero_h1": "Trạng thái kit · {today}",
+        "hero_lead": "Ảnh chụp cục bộ. {n_skills} skill, {n_hooks} hook đã nối, {tele_phrase}.",
+        "tele_phrase_measured": "{total} lượt gọi tên trong {days} ngày",
+        "tele_phrase_empty": "telemetry chưa có dữ liệu",
+        "tele_phrase_notwired": "telemetry chưa bật",
+        "pill_branch": "Nhánh",
+        "pill_commit": "Commit",
+        "hero_kpi_namecalls": "Lượt gọi tên · {days} ngày",
+        "hero_tele_sub_measured": "trung bình <strong>{avg}</strong>/ngày",
+        "hero_tele_sub_unmeasured": "bật telemetry để đo",
+        "hero_kpi_gates": "Cổng kiểm tra",
+        "hero_kpi_mem": "Bộ nhớ đã dùng",
+        "hero_mem_sub_present": "<strong>{used}</strong>/{budget} KB · {facts} fact",
+        "hero_mem_sub_absent": "không tìm thấy MEMORY.md",
+        # --- gates ---
+        "gates_eyebrow": "Tính toàn vẹn",
+        "gates_h2": "Cổng kiểm tra",
+        "gate_name_leak_scan": "Không lộ bí mật/đường dẫn",
+        "gate_name_invariants": "Bất biến cấu trúc",
+        "gate_name_skill_lint": "Định dạng skill hợp lệ",
+        "gate_name_pytest": "Bộ test",
+        "gates_foot": "Cổng là bất biến: một cổng đỏ chặn commit, không chỉ cảnh báo.",
+        "gates_empty_title": "Cổng chưa chạy trong báo cáo này",
+        "gates_empty_msg": ('Báo cáo không tự chạy gate (nặng + có thể thay đổi cây làm việc). '
+            'Chạy <span class="mono">pre-commit run --all-files</span> rồi truyền '
+            '<span class="mono">--gates-json</span> để hiển thị kết quả thật.'),
+        # --- skills ---
+        "skills_eyebrow": "Hệ skill",
+        "skills_h2": "Skill &amp; phân bố loại",
+        "skills_panel_head": "Lượt gọi tên theo skill",
+        "skills_panel_hint": "cao&nbsp;→&nbsp;thấp",
+        "th_skill": "Skill",
+        "th_tier": "Loại",
+        "th_namecalls": "Lượt gọi tên",
+        "th_ratio": "Tỉ lệ",
+        "th_signal": "Tín hiệu",
+        "badge_n_skills": "skill",
+        "skill_guard_spark": "tự gọi",
+        "skill_guard_badge": "tự gọi · không đo qua prompt",
+        "skill_guard_title": "Skill này do model tự gọi, không gõ tên — 0 ở đây là bình thường.",
+        "skill_zero_spark": "chưa có lượt gọi",
+        "skill_dead_badge": "chưa ai gọi tên",
+        "skill_dead_title": ("Không có prompt nào gọi tên skill này trong cửa sổ đo. Tín hiệu để "
+            "xem lại (đặt tên khó tìm? trùng? thừa?), chưa phải kết luận chết."),
+        "skill_named_badge": "đã gọi tên",
+        # --- telemetry ---
+        "tele_eyebrow": "Telemetry",
+        "tele_h2": "Lượt gọi tên skill",
+        "tele_total_label": "Tổng {n} ngày",
+        "unit_times": "lần",
+        "tele_avg_label": "Trung bình ngày",
+        "unit_times_per_day": "lần/ngày",
+        "tele_peak_label": "Đỉnh",
+        "tele_peak_unit": "ngày {label}",
+        "tele_badge_total": "tổng",
+        "tele_foot": "Đỉnh là dữ liệu thật, không nội suy.",
+        "tele_chart_aria": "Lượt gọi tên {n} ngày",
+        "tele_empty_title": "Chưa có dữ liệu telemetry",
+        "tele_empty_msg": ('Wire <span class="mono">skill_usage_logger</span> vào '
+            '<span class="mono">UserPromptSubmit</span> trong settings.json; biểu đồ sẽ hiện khi có dữ liệu.'),
+        # --- tools ---
+        "tools_eyebrow": "Bộ công cụ",
+        "tools_h2": "Công cụ có mặt",
+        "tools_missing_head": "Còn thiếu",
+        "tools_missing_hint": "cần cài để đủ bộ",
+        "tools_badge_missing": "thiếu {n}",
+        "tools_badge_ok": "đủ",
+        "tools_complete_title": "Đủ bộ công cụ",
+        "tools_complete_msg": 'Tất cả công cụ kit có mặt trong <span class="mono">tools/</span>.',
+        "tools_donut_aria": "Đã cài {present} trên {full} công cụ",
+        "tools_donut_caption": "ĐÃ CÀI",
+        "tools_pct_sub": "{pct}% công cụ sẵn sàng",
+        # --- memory ---
+        "mem_eyebrow": "Hệ bộ nhớ",
+        "mem_h2": "Ngân sách bộ nhớ",
+        "mem_badge_used": "đã dùng",
+        "mem_free": "Còn <strong>{free} KB</strong> trống",
+        "mem_over": ". Trên ngưỡng 75% — gom/cắt fact trước khi thêm.",
+        "mem_meter_aria": "Đã dùng {pct}% ngân sách",
+        "mem_stat_facts": "Số fact",
+        "mem_stat_dangling": "Liên kết hỏng",
+        "mem_stat_used": "Đã dùng",
+        "mem_stat_budget": "Ngân sách",
+        "mem_empty_title": "Không tìm thấy MEMORY.md",
+        "mem_empty_msg": "Hệ bộ nhớ chưa được khởi tạo trong dự án này.",
+        # --- hooks ---
+        "hooks_eyebrow": "Hook an toàn",
+        "hooks_h2": "Hook đã nối",
+        "hooks_badge": "hook",
+        "hooks_empty": "chưa nối hook nào",
+        "hooks_total_label": "Tổng hook",
+        "hooks_events_sub": "{n} loại sự kiện đã nối",
+        # --- footer ---
+        "footer_label": "báo cáo trạng thái kit · ảnh chụp cục bộ",
+    },
+    "en": {
+        # --- document chrome ---
+        "page_title": "Agent Workbench — Kit status report",
+        "skip_to_content": "Skip to main content",
+        "rail_aria": "Quick summary and navigation",
+        "rail_screen": "Kit status report",
+        # --- shared state words ---
+        "state_unmeasured": "not measured",
+        "state_not_run": "not run",
+        # --- honesty banners ---
+        "banner_notwired_title": "Telemetry is off",
+        "banner_notwired_body": ('Skill name-call counts are <strong>not measured</strong>, not “dead”. '
+            'Turn it on by adding <span class="mono">skill_usage_logger</span> to '
+            '<span class="mono">.claude/settings.json</span>.'),
+        "banner_empty_title": "Telemetry just enabled — no data yet",
+        "banner_empty_body": ('The logger is wired but the log is still empty; skills are still '
+            '<strong>not measured</strong>, not “dead”. Data accumulates over later sessions.'),
+        "banner_measured": ('<strong style="color:var(--text)">Measuring by name typed in the prompt.</strong> '
+            'The metric counts how often a user <strong style="color:var(--text)">types the name</strong> of a '
+            'skill (<span class="mono">/name</span> or mentioning it). Skills the model auto-fires — especially '
+            'guards (output-guard, config-guard) — are not counted here; 0 means nobody typed the name in this '
+            'window, <strong style="color:var(--text)">not that the skill is broken or useless</strong>.'),
+        # --- rail ---
+        "rail_overall_ok": "All good",
+        "rail_overall_status": "Kit status",
+        "rail_overall_pass": "{lbl} gates PASS",
+        "rail_overall_norun": "gates not run · see the section below",
+        "rail_kpis_aria": "Summary metrics",
+        "rk_skills": "Skills",
+        "rk_skills_sub_measured": "{dead} never name-called",
+        "rk_gates": "Checks",
+        "rk_tools": "Tools",
+        "rk_tools_sub": "{n} missing",
+        "rk_hooks": "Hooks wired",
+        "rk_hooks_sub": "events wired",
+        "nav_cap": "Contents",
+        "nav_gates": "Checks",
+        "nav_skills": "Skills &amp; tier",
+        "nav_telemetry": "Name-calls",
+        "nav_tools": "Tools",
+        "nav_memory": "Memory",
+        "nav_hooks": "Hooks",
+        "rail_foot_branch": "Branch",
+        "rail_foot_updated": "Updated {today}",
+        # --- hero ---
+        "hero_aria": "Overview",
+        "hero_eyebrow": "Agent Workbench · kit status",
+        "hero_h1": "Kit status · {today}",
+        "hero_lead": "Local snapshot. {n_skills} skills, {n_hooks} hooks wired, {tele_phrase}.",
+        "tele_phrase_measured": "{total} name-calls in {days} days",
+        "tele_phrase_empty": "telemetry has no data yet",
+        "tele_phrase_notwired": "telemetry is off",
+        "pill_branch": "Branch",
+        "pill_commit": "Commit",
+        "hero_kpi_namecalls": "Name-calls · {days} days",
+        "hero_tele_sub_measured": "avg <strong>{avg}</strong>/day",
+        "hero_tele_sub_unmeasured": "enable telemetry to measure",
+        "hero_kpi_gates": "Checks",
+        "hero_kpi_mem": "Memory used",
+        "hero_mem_sub_present": "<strong>{used}</strong>/{budget} KB · {facts} facts",
+        "hero_mem_sub_absent": "MEMORY.md not found",
+        # --- gates ---
+        "gates_eyebrow": "Integrity",
+        "gates_h2": "Checks",
+        "gate_name_leak_scan": "No secret/path leaks",
+        "gate_name_invariants": "Structural invariants",
+        "gate_name_skill_lint": "Valid skill format",
+        "gate_name_pytest": "Test suite",
+        "gates_foot": "Gates are invariants: a red gate blocks the commit, it doesn't just warn.",
+        "gates_empty_title": "Gates not run in this report",
+        "gates_empty_msg": ("The report doesn't run gates itself (heavy + may change the working tree). "
+            'Run <span class="mono">pre-commit run --all-files</span> then pass '
+            '<span class="mono">--gates-json</span> to show real results.'),
+        # --- skills ---
+        "skills_eyebrow": "Skill system",
+        "skills_h2": "Skills &amp; tier distribution",
+        "skills_panel_head": "Name-calls by skill",
+        "skills_panel_hint": "high&nbsp;→&nbsp;low",
+        "th_skill": "Skill",
+        "th_tier": "Tier",
+        "th_namecalls": "Name-calls",
+        "th_ratio": "Share",
+        "th_signal": "Signal",
+        "badge_n_skills": "skills",
+        "skill_guard_spark": "auto-fired",
+        "skill_guard_badge": "auto-fired · not measured via prompt",
+        "skill_guard_title": "This skill is auto-fired by the model, not typed by name — a 0 here is normal.",
+        "skill_zero_spark": "no name-calls",
+        "skill_dead_badge": "never name-called",
+        "skill_dead_title": ("No prompt named this skill in the measured window. A signal to review "
+            "(hard-to-find name? duplicate? redundant?), not a verdict of dead."),
+        "skill_named_badge": "name-called",
+        # --- telemetry ---
+        "tele_eyebrow": "Telemetry",
+        "tele_h2": "Skill name-calls",
+        "tele_total_label": "Total {n} days",
+        "unit_times": "calls",
+        "tele_avg_label": "Daily average",
+        "unit_times_per_day": "calls/day",
+        "tele_peak_label": "Peak",
+        "tele_peak_unit": "day {label}",
+        "tele_badge_total": "total",
+        "tele_foot": "The peak is real data, not interpolated.",
+        "tele_chart_aria": "Name-calls over {n} days",
+        "tele_empty_title": "No telemetry data yet",
+        "tele_empty_msg": ('Wire <span class="mono">skill_usage_logger</span> into '
+            '<span class="mono">UserPromptSubmit</span> in settings.json; the chart appears once there is data.'),
+        # --- tools ---
+        "tools_eyebrow": "Toolset",
+        "tools_h2": "Tools present",
+        "tools_missing_head": "Missing",
+        "tools_missing_hint": "install to complete the set",
+        "tools_badge_missing": "{n} missing",
+        "tools_badge_ok": "complete",
+        "tools_complete_title": "Toolset complete",
+        "tools_complete_msg": 'All kit tools are present in <span class="mono">tools/</span>.',
+        "tools_donut_aria": "Installed {present} of {full} tools",
+        "tools_donut_caption": "INSTALLED",
+        "tools_pct_sub": "{pct}% of tools ready",
+        # --- memory ---
+        "mem_eyebrow": "Memory system",
+        "mem_h2": "Memory budget",
+        "mem_badge_used": "used",
+        "mem_free": "<strong>{free} KB</strong> free",
+        "mem_over": ". Over the 75% threshold — consolidate/trim facts before adding.",
+        "mem_meter_aria": "Used {pct}% of the budget",
+        "mem_stat_facts": "Facts",
+        "mem_stat_dangling": "Broken links",
+        "mem_stat_used": "Used",
+        "mem_stat_budget": "Budget",
+        "mem_empty_title": "MEMORY.md not found",
+        "mem_empty_msg": "The memory system isn't initialised in this project.",
+        # --- hooks ---
+        "hooks_eyebrow": "Safety hooks",
+        "hooks_h2": "Hooks wired",
+        "hooks_badge": "hooks",
+        "hooks_empty": "no hooks wired",
+        "hooks_total_label": "Total hooks",
+        "hooks_events_sub": "{n} event types wired",
+        # --- footer ---
+        "footer_label": "kit status report · local snapshot",
+    },
+}
+
+
+def report_catalog(lang: str) -> dict:
+    """Static-report strings for one language (validated). Consumed by ui/kit_status."""
+    return _REPORT[normalize_lang(lang)]

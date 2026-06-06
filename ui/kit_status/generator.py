@@ -57,6 +57,13 @@ try:
 except Exception:
     INDEX_MAX_BYTES = 25_600  # documented fallback; see tools/memory_budget.py
 
+# The EN/VI string catalog lives one level up in the stdlib core (ui/i18n.py). BOTH this report
+# and the opt-in ui/web dashboard read from it, so their shared vocabulary (tier labels, the
+# language whitelist, every translated string) can never drift apart. It is stdlib-only — no
+# Flask — so importing it keeps this report dependency-free.
+sys.path.insert(0, str(HERE.parent))
+import i18n  # noqa: E402
+
 
 # --------------------------------------------------------------------------- #
 # helpers
@@ -267,8 +274,17 @@ DOT = {"workflow": "dot--workflow", "guard": "dot--guard", "feature": "dot--feat
        "audit": "dot--audit", "meta": "dot--meta"}
 
 
-def build(ctx: dict) -> dict[str, str]:
+def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
+    lang = i18n.normalize_lang(lang)
+    t = i18n.report_catalog(lang)
     f: dict[str, str] = {}
+    # Document-chrome strings substituted into template.html (the bits outside the fragment
+    # placeholders): the <html lang>, <title>, skip link, and the rail's aria/screen labels.
+    f["lang"] = lang
+    f["page_title"] = t["page_title"]
+    f["skip_to_content"] = t["skip_to_content"]
+    f["rail_aria"] = t["rail_aria"]
+    f["rail_screen"] = t["rail_screen"]
     cfg_wired = ctx["wired"]
     total = ctx["total"]
     # "wired" below means MEASURED = configured AND has data. A logger just wired with an
@@ -287,11 +303,11 @@ def build(ctx: dict) -> dict[str, str]:
     gates = ctx["gates"]
     branch, commit, today = ctx["branch"], ctx["commit"], ctx["today"]
 
-    skills_lbl = "chưa đo" if not wired else f"{dead} chưa ai gọi tên"
+    skills_lbl = t["state_unmeasured"] if not wired else t["rk_skills_sub_measured"].format(dead=dead)
     tools_lbl = f"{len(tools_present)}/{n_tools_full}"
     mem_pct = round(mem["used"] / mem["budget"] * 100) if mem.get("present") else 0
     mem_pct_lbl = f"{mem_pct}%" if mem.get("present") else "—"
-    gates_lbl = f"{sum(gates.values())}/{len(gates)}" if gates else "chưa chạy"
+    gates_lbl = f"{sum(gates.values())}/{len(gates)}" if gates else t["state_not_run"]
 
     # --- honesty banner (3 states: not-wired / wired-but-no-data / measured) #
     def _banner(title: str, sub: str) -> str:
@@ -301,14 +317,9 @@ def build(ctx: dict) -> dict[str, str]:
             f'<span class="overall__txt"><span class="overall__title">{title}</span>'
             f'<span class="overall__sub">{sub}</span></span></div>')
     if not cfg_wired:
-        f["honesty_banner"] = _banner("Telemetry chưa bật",
-            'Số lượt gọi tên skill là <strong>chưa đo</strong>, không phải “chết”. '
-            'Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào '
-            '<span class="mono">.claude/settings.json</span>.')
+        f["honesty_banner"] = _banner(t["banner_notwired_title"], t["banner_notwired_body"])
     elif not wired:  # configured, but the log is still empty
-        f["honesty_banner"] = _banner("Telemetry vừa bật — chưa có dữ liệu",
-            'Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>, '
-            'không phải “chết”. Dữ liệu tích lũy từ các phiên sau.')
+        f["honesty_banner"] = _banner(t["banner_empty_title"], t["banner_empty_body"])
     else:
         # MEASURED state. The two banners above only fire when NOT measured, so this is the
         # one state that prints the 0-fire labels — and it must carry the caveat that the
@@ -319,12 +330,7 @@ def build(ctx: dict) -> dict[str, str]:
             '<div role="status" style="margin:0 0 var(--sp-5);padding:var(--sp-3) var(--sp-4);'
             'border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);'
             'color:var(--text-dim);font-size:var(--fs-sm);line-height:1.5">'
-            '<strong style="color:var(--text)">Đang đo theo tên trong prompt.</strong> '
-            'Chỉ số đếm lượt người dùng <strong style="color:var(--text)">gõ tên</strong> skill '
-            '(<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là skill '
-            'bảo vệ/guard (output-guard, config-guard) — không tính ở đây; 0 nghĩa là chưa ai gõ '
-            'tên trong cửa sổ này, <strong style="color:var(--text)">không phải skill hỏng hay '
-            'vô dụng</strong>.</div>')
+            f'{t["banner_measured"]}</div>')
 
     # --- rail -------------------------------------------------------------- #
     ok = "kit-num--ok"
@@ -333,73 +339,74 @@ def build(ctx: dict) -> dict[str, str]:
         '<div class="overall" role="status"><span class="overall__pulse" aria-hidden="true"></span>'
         '<span class="overall__txt"><span class="overall__title">%s</span>'
         '<span class="overall__sub">%s</span></span></div>' % (
-            ("Mọi thứ ổn" if gates and all(gates.values()) else "Trạng thái kit"),
-            (f"{gates_lbl} cổng PASS" if gates else "cổng chưa chạy · xem mục bên dưới")))
+            (t["rail_overall_ok"] if gates and all(gates.values()) else t["rail_overall_status"]),
+            (t["rail_overall_pass"].format(lbl=gates_lbl) if gates else t["rail_overall_norun"])))
 
     def rk(label, sub, val, cls):
         return ('<div class="rail-kpi"><span class="rail-kpi__meta">'
                 f'<span class="rail-kpi__label">{label}</span>'
                 f'<span class="rail-kpi__sub">{escape(sub)}</span></span>'
                 f'<span class="rail-kpi__val"><span class="kit-num kit-num--lg {cls}">{val}</span></span></div>')
-    f["rail_kpis"] = ('<div class="rail-kpis" aria-label="Chỉ số tóm tắt">'
-        + rk("Skill", skills_lbl, n_skills, ok)  # un-named ≠ error: never amber (fix B)
-        + rk("Cổng kiểm tra", "leak · inv · lint · pytest", gates_lbl, ok if gates and all(gates.values()) else warn)
-        + rk("Công cụ", f"thiếu {len(tools_missing)}", tools_lbl, ok if not tools_missing else warn)
-        + rk("Hook nối", "sự kiện đã nối", n_hooks, ok)
+    f["rail_kpis"] = (f'<div class="rail-kpis" aria-label="{t["rail_kpis_aria"]}">'
+        + rk(t["rk_skills"], skills_lbl, n_skills, ok)  # un-named ≠ error: never amber (fix B)
+        + rk(t["rk_gates"], "leak · inv · lint · pytest", gates_lbl, ok if gates and all(gates.values()) else warn)
+        + rk(t["rk_tools"], t["rk_tools_sub"].format(n=len(tools_missing)), tools_lbl, ok if not tools_missing else warn)
+        + rk(t["rk_hooks"], t["rk_hooks_sub"], n_hooks, ok)
         + '</div>')
 
     def nav(href, label, count):
         return f'<a href="#{href}">{label} <span class="railnav__count">{count}</span></a>'
-    f["rail_nav"] = ('<nav class="railnav" aria-label="Mục lục"><span class="railnav__cap">Mục lục</span>'
-        + nav("gates", "Cổng kiểm tra", gates_lbl)
-        + nav("skills", "Skill &amp; loại", n_skills)
-        + nav("telemetry", "Lượt gọi tên", total if wired else "—")
-        + nav("tools", "Công cụ", tools_lbl)
-        + nav("memory", "Bộ nhớ", mem_pct_lbl)
-        + nav("hooks", "Hook", n_hooks) + '</nav>')
+    f["rail_nav"] = (f'<nav class="railnav" aria-label="{t["nav_cap"]}"><span class="railnav__cap">{t["nav_cap"]}</span>'
+        + nav("gates", t["nav_gates"], gates_lbl)
+        + nav("skills", t["nav_skills"], n_skills)
+        + nav("telemetry", t["nav_telemetry"], total if wired else "—")
+        + nav("tools", t["nav_tools"], tools_lbl)
+        + nav("memory", t["nav_memory"], mem_pct_lbl)
+        + nav("hooks", t["nav_hooks"], n_hooks) + '</nav>')
 
     f["rail_foot"] = ('<div class="rail__foot hairline-soft" style="padding-top:var(--sp-3)">'
-        f'Nhánh <span class="mono">{escape(branch)}</span> · <span class="mono">{escape(commit)}</span><br>'
-        f'Cập nhật {today}</div>')
+        f'{t["rail_foot_branch"]} <span class="mono">{escape(branch)}</span> · <span class="mono">{escape(commit)}</span><br>'
+        f'{t["rail_foot_updated"].format(today=today)}</div>')
 
     # --- hero -------------------------------------------------------------- #
-    tele_kpi = _kpi_display(total, "lần", "kit-num--accent") if wired else _kpi_display("chưa đo")
-    tele_sub = (f'trung bình <strong>{_vn_num(total / max(ctx["days"],1))}</strong>/ngày'
-                if wired else 'bật telemetry để đo')
+    tele_kpi = _kpi_display(total, t["unit_times"], "kit-num--accent") if wired else _kpi_display(t["state_unmeasured"])
+    tele_sub = (t["hero_tele_sub_measured"].format(avg=_vn_num(total / max(ctx["days"], 1)))
+                if wired else t["hero_tele_sub_unmeasured"])
     gates_val = _kpi_display(gates_lbl, "PASS" if gates else "",
                              "kit-num--ok" if gates and all(gates.values()) else "")
     mem_hero = _kpi_display(mem_pct, "%") if mem.get("present") else _kpi_display("—")
-    tele_phrase = (f'{total} lượt gọi tên trong {ctx["days"]} ngày' if wired
-                   else 'telemetry chưa có dữ liệu' if cfg_wired else 'telemetry chưa bật')
-    mem_sub = (f'<strong>{_vn_num(mem["used"]/1024)}</strong>/{round(mem["budget"]/1024)} KB · {mem["facts"]} fact'
-               if mem.get("present") else 'không tìm thấy MEMORY.md')
+    tele_phrase = (t["tele_phrase_measured"].format(total=total, days=ctx["days"]) if wired
+                   else t["tele_phrase_empty"] if cfg_wired else t["tele_phrase_notwired"])
+    mem_sub = (t["hero_mem_sub_present"].format(used=_vn_num(mem["used"] / 1024),
+                                                budget=round(mem["budget"] / 1024), facts=mem["facts"])
+               if mem.get("present") else t["hero_mem_sub_absent"])
     f["hero"] = (
-        '<section class="hero panel" aria-label="Tổng quan"><div class="statushero">'
+        f'<section class="hero panel" aria-label="{t["hero_aria"]}"><div class="statushero">'
         '<div class="statushero__top"><div>'
-        '<div class="sec__eyebrow">Agent Workbench · trạng thái kit</div>'
-        f'<h1>Trạng thái kit · {today}</h1>'
+        f'<div class="sec__eyebrow">{t["hero_eyebrow"]}</div>'
+        f'<h1>{t["hero_h1"].format(today=today)}</h1>'
         '<p class="muted" style="margin-top:var(--sp-2);max-width:54ch">'
-        f'Ảnh chụp cục bộ. {n_skills} skill, {n_hooks} hook đã nối, {tele_phrase}.</p>'
+        f'{t["hero_lead"].format(n_skills=n_skills, n_hooks=n_hooks, tele_phrase=tele_phrase)}</p>'
         '</div><div class="statushero__meta">'
         '<span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> LOCAL</span>'
-        f'<span class="env-pill">Nhánh <span class="kit-num">{escape(branch)}</span></span>'
-        f'<span class="env-pill">Commit <span class="kit-num">{escape(commit)}</span></span>'
+        f'<span class="env-pill">{t["pill_branch"]} <span class="kit-num">{escape(branch)}</span></span>'
+        f'<span class="env-pill">{t["pill_commit"]} <span class="kit-num">{escape(commit)}</span></span>'
         '</div></div>'
         '<div class="row wrap" style="gap:var(--sp-6);border-top:1px solid var(--border-soft);padding-top:var(--sp-4)">'
-        f'<div class="kpi"><span class="kpi__label">Lượt gọi tên · {ctx["days"]} ngày</span>'
+        f'<div class="kpi"><span class="kpi__label">{t["hero_kpi_namecalls"].format(days=ctx["days"])}</span>'
         f'<span class="kpi__value">{tele_kpi}</span><span class="kpi__sub">{tele_sub}</span></div>'
-        f'<div class="kpi"><span class="kpi__label">Cổng kiểm tra</span>'
+        f'<div class="kpi"><span class="kpi__label">{t["hero_kpi_gates"]}</span>'
         f'<span class="kpi__value">{gates_val}</span>'
         '<span class="kpi__sub">leak · invariants · lint · pytest</span></div>'
-        f'<div class="kpi"><span class="kpi__label">Bộ nhớ đã dùng</span>'
+        f'<div class="kpi"><span class="kpi__label">{t["hero_kpi_mem"]}</span>'
         f'<span class="kpi__value">{mem_hero}</span><span class="kpi__sub">{mem_sub}</span></div>'
         '</div></div></section>')
 
     # --- gates ------------------------------------------------------------- #
     if gates:
         cards = ""
-        names = {"leak_scan": "Không lộ bí mật/đường dẫn", "invariants": "Bất biến cấu trúc",
-                 "skill_lint": "Định dạng skill hợp lệ", "pytest": "Bộ test"}
+        names = {"leak_scan": t["gate_name_leak_scan"], "invariants": t["gate_name_invariants"],
+                 "skill_lint": t["gate_name_skill_lint"], "pytest": t["gate_name_pytest"]}
         for name, passed in gates.items():
             state = "PASS" if passed else "FAIL"
             icon_col = "" if passed else 'style="color:var(--danger)"'
@@ -411,18 +418,16 @@ def build(ctx: dict) -> dict[str, str]:
                 f'<span class="gate-card__state">{state}</span></div>')
         badge = f'<span class="badge badge--{"ok" if all(gates.values()) else "danger"}">{gates_lbl} PASS</span>'
         body = (f'<div class="gate-grid">{cards}</div>'
-                '<p class="section-foot">Cổng là bất biến: một cổng đỏ chặn commit, không chỉ cảnh báo.</p>')
+                f'<p class="section-foot">{t["gates_foot"]}</p>')
     else:
-        badge = '<span class="badge badge--warn">chưa chạy</span>'
+        badge = f'<span class="badge badge--warn">{t["state_not_run"]}</span>'
         body = ('<div class="empty"><span class="empty__icon" aria-hidden="true">'
                 '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6">'
                 '<path d="M12 8v5m0 3h.01M12 3l9 16H3l9-16Z" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
-                '<span class="empty__title">Cổng chưa chạy trong báo cáo này</span>'
-                '<span class="empty__msg">Báo cáo không tự chạy gate (nặng + có thể thay đổi cây làm việc). '
-                'Chạy <span class="mono">pre-commit run --all-files</span> rồi truyền '
-                '<span class="mono">--gates-json</span> để hiển thị kết quả thật.</span></div>')
+                f'<span class="empty__title">{t["gates_empty_title"]}</span>'
+                f'<span class="empty__msg">{t["gates_empty_msg"]}</span></div>')
     f["gates"] = ('<section class="sec" id="gates" aria-labelledby="h-gates"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Tính toàn vẹn</div><h2 id="h-gates">Cổng kiểm tra</h2></div>'
+        f'<div class="sec__eyebrow">{t["gates_eyebrow"]}</div><h2 id="h-gates">{t["gates_h2"]}</h2></div>'
         f'{badge}</div><div class="surface panel">{body}</div></section>')
 
     # --- skills ------------------------------------------------------------ #
@@ -430,38 +435,37 @@ def build(ctx: dict) -> dict[str, str]:
     for s in ctx["skills"]:
         dotc = DOT.get(s["tier"], "dot--workflow")
         if not wired:
-            spark = '<span class="muted" style="font-size:var(--fs-xs)">chưa đo</span>'
-            status = '<span class="badge">chưa đo</span>'
+            spark = f'<span class="muted" style="font-size:var(--fs-xs)">{t["state_unmeasured"]}</span>'
+            status = f'<span class="badge">{t["state_unmeasured"]}</span>'
             numcell = '<td class="num num--zero">—</td>'
         elif s["fired"] == 0:
             numcell = '<td class="num num--zero">0</td>'
             if s["tier"] == "guard":  # auto-fired by design → a prompt-name 0 is expected, not dead
-                spark = '<span class="muted" style="font-size:var(--fs-xs)">tự gọi</span>'
-                status = ('<span class="badge badge--dead" title="Skill này do model tự gọi, '
-                          'không gõ tên — 0 ở đây là bình thường.">tự gọi · không đo qua prompt</span>')
+                spark = f'<span class="muted" style="font-size:var(--fs-xs)">{t["skill_guard_spark"]}</span>'
+                status = (f'<span class="badge badge--dead" title="{t["skill_guard_title"]}">'
+                          f'{t["skill_guard_badge"]}</span>')
             else:
-                spark = '<span class="muted" style="font-size:var(--fs-xs)">chưa có lượt gọi</span>'
-                status = ('<span class="badge badge--dead" title="Không có prompt nào gọi tên '
-                          'skill này trong cửa sổ đo. Tín hiệu để xem lại (đặt tên khó tìm? '
-                          'trùng? thừa?), chưa phải kết luận chết.">chưa ai gọi tên</span>')
+                spark = f'<span class="muted" style="font-size:var(--fs-xs)">{t["skill_zero_spark"]}</span>'
+                status = (f'<span class="badge badge--dead" title="{t["skill_dead_title"]}">'
+                          f'{t["skill_dead_badge"]}</span>')
         else:
             h = max(2, round(s["fired"] / maxv * 18))
             spark = f'<span class="sparkbar" aria-hidden="true"><i class="hi" style="height:{h}px"></i></span>'
-            status = '<span class="badge badge--ok">đã gọi tên</span>'
+            status = f'<span class="badge badge--ok">{t["skill_named_badge"]}</span>'
             numcell = f'<td class="num">{s["fired"]}</td>'
         rows += (f'<tr><td><span class="cell-skill"><span class="dot {dotc}"></span>{escape(s["name"])}</span></td>'
                  f'<td class="muted">{escape(s["tier"])}</td>{numcell}'
                  f'<td><div class="cell-spark">{spark}</div></td><td>{status}</td></tr>')
-    head_badges = (f'<span class="badge"><span class="kit-num">{n_skills}</span>&nbsp;skill</span>'
-        + ('' if not wired else f'<span class="badge badge--dead"><span class="kit-num">{dead}</span>&nbsp;chưa ai gọi tên</span>'))
+    head_badges = (f'<span class="badge"><span class="kit-num">{n_skills}</span>&nbsp;{t["badge_n_skills"]}</span>'
+        + ('' if not wired else f'<span class="badge badge--dead"><span class="kit-num">{dead}</span>&nbsp;{t["skill_dead_badge"]}</span>'))
     f["skills"] = ('<section class="sec" id="skills" aria-labelledby="h-skills"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Hệ skill</div><h2 id="h-skills">Skill &amp; phân bố loại</h2></div>'
+        f'<div class="sec__eyebrow">{t["skills_eyebrow"]}</div><h2 id="h-skills">{t["skills_h2"]}</h2></div>'
         f'<div class="row" style="gap:var(--sp-2)">{head_badges}</div></div>'
         '<div class="surface panel"><div class="panel__head" style="margin-bottom:var(--sp-3)">'
-        '<h4>Lượt gọi tên theo skill</h4><span class="label">cao&nbsp;→&nbsp;thấp</span></div>'
-        '<table class="tbl tbl--zebra"><thead><tr><th scope="col">Skill</th><th scope="col">Loại</th>'
-        '<th scope="col" class="num">Lượt gọi tên</th><th scope="col" class="num">Tỉ lệ</th>'
-        f'<th scope="col">Tín hiệu</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+        f'<h4>{t["skills_panel_head"]}</h4><span class="label">{t["skills_panel_hint"]}</span></div>'
+        f'<table class="tbl tbl--zebra"><thead><tr><th scope="col">{t["th_skill"]}</th><th scope="col">{t["th_tier"]}</th>'
+        f'<th scope="col" class="num">{t["th_namecalls"]}</th><th scope="col" class="num">{t["th_ratio"]}</th>'
+        f'<th scope="col">{t["th_signal"]}</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
 
     # --- telemetry --------------------------------------------------------- #
     if wired and total > 0:
@@ -481,7 +485,7 @@ def build(ctx: dict) -> dict[str, str]:
         xlabels = "".join(
             f'<text class="viz-axis-label" x="{xs[i]:.1f}" y="224" text-anchor="middle">{labels[i]}</text>'
             for i in range(0, n, max(1, n // 7)))
-        svg = (f'<svg class="viz" viewBox="0 0 720 240" role="img" aria-label="Lượt gọi tên {n} ngày">'
+        svg = (f'<svg class="viz" viewBox="0 0 720 240" role="img" aria-label="{t["tele_chart_aria"].format(n=n)}">'
             '<defs><linearGradient id="vizAreaGrad" x1="0" y1="0" x2="0" y2="1">'
             '<stop offset="0%" stop-color="#CC2929" stop-opacity="0.28"/>'
             '<stop offset="55%" stop-color="#CC2929" stop-opacity="0.07"/>'
@@ -491,25 +495,24 @@ def build(ctx: dict) -> dict[str, str]:
             f'<text class="viz-peak-label" x="{xs[peak_i]:.1f}" y="{ys[peak_i]-8:.1f}" text-anchor="middle">{mx} · {labels[peak_i]}</text>'
             f'{xlabels}</svg>')
         avg = _vn_num(total / max(n, 1))
-        kpis = (f'<div class="kpi"><span class="kpi__label">Tổng {n} ngày</span><span class="kpi__value">'
-            f'<span class="kit-num kit-num--xl kit-num--accent">{total}</span><span class="kit-num__unit">lần</span></span></div>'
-            f'<div class="kpi"><span class="kpi__label">Trung bình ngày</span><span class="kpi__value">'
-            f'<span class="kit-num kit-num--xl">{avg}</span><span class="kit-num__unit">lần/ngày</span></span></div>'
-            f'<div class="kpi"><span class="kpi__label">Đỉnh</span><span class="kpi__value">'
-            f'<span class="kit-num kit-num--xl kit-num--accent">{mx}</span><span class="kit-num__unit">ngày {labels[peak_i]}</span></span></div>')
-        tbadge = f'<span class="badge"><span class="kit-num">{total}</span>&nbsp;tổng</span>'
+        kpis = (f'<div class="kpi"><span class="kpi__label">{t["tele_total_label"].format(n=n)}</span><span class="kpi__value">'
+            f'<span class="kit-num kit-num--xl kit-num--accent">{total}</span><span class="kit-num__unit">{t["unit_times"]}</span></span></div>'
+            f'<div class="kpi"><span class="kpi__label">{t["tele_avg_label"]}</span><span class="kpi__value">'
+            f'<span class="kit-num kit-num--xl">{avg}</span><span class="kit-num__unit">{t["unit_times_per_day"]}</span></span></div>'
+            f'<div class="kpi"><span class="kpi__label">{t["tele_peak_label"]}</span><span class="kpi__value">'
+            f'<span class="kit-num kit-num--xl kit-num--accent">{mx}</span><span class="kit-num__unit">{t["tele_peak_unit"].format(label=labels[peak_i])}</span></span></div>')
+        tbadge = f'<span class="badge"><span class="kit-num">{total}</span>&nbsp;{t["tele_badge_total"]}</span>'
         inner = (f'<div class="row wrap" style="gap:var(--sp-6);margin-bottom:var(--sp-5)">{kpis}</div>{svg}'
-                 '<p class="section-foot">Đỉnh là dữ liệu thật, không nội suy.</p>')
+                 f'<p class="section-foot">{t["tele_foot"]}</p>')
     else:
-        tbadge = '<span class="badge badge--warn">chưa đo</span>'
+        tbadge = f'<span class="badge badge--warn">{t["state_unmeasured"]}</span>'
         inner = ('<div class="empty"><span class="empty__icon" aria-hidden="true">'
             '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6">'
             '<path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
-            '<span class="empty__title">Chưa có dữ liệu telemetry</span>'
-            '<span class="empty__msg">Wire <span class="mono">skill_usage_logger</span> vào '
-            '<span class="mono">UserPromptSubmit</span> trong settings.json; biểu đồ sẽ hiện khi có dữ liệu.</span></div>')
+            f'<span class="empty__title">{t["tele_empty_title"]}</span>'
+            f'<span class="empty__msg">{t["tele_empty_msg"]}</span></div>')
     f["telemetry"] = ('<section class="sec" id="telemetry" aria-labelledby="h-telemetry"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Telemetry</div><h2 id="h-telemetry">Lượt gọi tên skill</h2></div>'
+        f'<div class="sec__eyebrow">{t["tele_eyebrow"]}</div><h2 id="h-telemetry">{t["tele_h2"]}</h2></div>'
         f'{tbadge}</div><div class="surface panel">{inner}</div></section>')
 
     # --- tools ------------------------------------------------------------- #
@@ -521,27 +524,27 @@ def build(ctx: dict) -> dict[str, str]:
             '<path d="M12 8v5m0 3h.01M12 3l9 16H3l9-16Z" stroke-linecap="round" stroke-linejoin="round"/></svg>'
             f'{escape(m)}</span>' for m in tools_missing)
         right = ('<div class="row row--between" style="margin-bottom:var(--sp-3)">'
-            f'<h4>Còn thiếu <span class="kit-num kit-num--accent">{len(tools_missing)}</span></h4>'
-            '<span class="label">cần cài để đủ bộ</span></div>'
+            f'<h4>{t["tools_missing_head"]} <span class="kit-num kit-num--accent">{len(tools_missing)}</span></h4>'
+            f'<span class="label">{t["tools_missing_hint"]}</span></div>'
             f'<div class="tools-missing">{miss}</div>')
-        tbadge2 = f'<span class="badge badge--warn"><span class="kit-num">{tools_lbl}</span>&nbsp;· thiếu {len(tools_missing)}</span>'
+        tbadge2 = f'<span class="badge badge--warn"><span class="kit-num">{tools_lbl}</span>&nbsp;· {t["tools_badge_missing"].format(n=len(tools_missing))}</span>'
     else:
-        right = ('<div class="empty" style="padding:var(--sp-4)"><span class="empty__title">Đủ bộ công cụ</span>'
-            '<span class="empty__msg">Tất cả công cụ kit có mặt trong <span class="mono">tools/</span>.</span></div>')
-        tbadge2 = f'<span class="badge badge--ok"><span class="kit-num">{tools_lbl}</span>&nbsp;· đủ</span>'
+        right = (f'<div class="empty" style="padding:var(--sp-4)"><span class="empty__title">{t["tools_complete_title"]}</span>'
+            f'<span class="empty__msg">{t["tools_complete_msg"]}</span></div>')
+        tbadge2 = f'<span class="badge badge--ok"><span class="kit-num">{tools_lbl}</span>&nbsp;· {t["tools_badge_ok"]}</span>'
     f["tools"] = ('<section class="sec" id="tools" aria-labelledby="h-tools"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Bộ công cụ</div><h2 id="h-tools">Công cụ có mặt</h2></div>'
+        f'<div class="sec__eyebrow">{t["tools_eyebrow"]}</div><h2 id="h-tools">{t["tools_h2"]}</h2></div>'
         f'{tbadge2}</div><div class="surface panel"><div class="tools-grid"><div class="tools-donut">'
         '<svg viewBox="0 0 120 120" width="148" height="148" role="img" '
-        f'aria-label="Đã cài {len(tools_present)} trên {n_tools_full} công cụ">'
+        f'aria-label="{t["tools_donut_aria"].format(present=len(tools_present), full=n_tools_full)}">'
         '<circle cx="60" cy="60" r="48" fill="none" stroke="var(--surface-3)" stroke-width="12"/>'
         f'<circle cx="60" cy="60" r="48" fill="none" stroke="var(--{"ok" if not tools_missing else "warn"})" stroke-width="12" '
         f'stroke-linecap="round" stroke-dasharray="{dash:.2f} {circ}" transform="rotate(-90 60 60)"/>'
         f'<text x="60" y="56" text-anchor="middle" class="kit-num" style="font-size:23px;fill:var(--text-strong)">{tools_lbl}</text>'
-        '<text x="60" y="76" text-anchor="middle" style="font-size:11px;fill:var(--text-dim);font-family:var(--font-sans);letter-spacing:.08em">ĐÃ CÀI</text>'
+        f'<text x="60" y="76" text-anchor="middle" style="font-size:11px;fill:var(--text-dim);font-family:var(--font-sans);letter-spacing:.08em">{t["tools_donut_caption"]}</text>'
         f'</svg><div class="meter meter--{"ok" if not tools_missing else "warn"}" style="width:100%">'
         f'<span class="meter__fill" style="width:{pct}%"></span></div>'
-        f'<span class="kpi__sub">{pct}% công cụ sẵn sàng</span></div><div>{right}</div></div></div></section>')
+        f'<span class="kpi__sub">{t["tools_pct_sub"].format(pct=pct)}</span></div><div>{right}</div></div></div></section>')
 
     # --- memory ------------------------------------------------------------ #
     if mem.get("present"):
@@ -550,45 +553,45 @@ def build(ctx: dict) -> dict[str, str]:
         free_kb = _vn_num(max(mem["budget"] - mem["used"], 0) / 1024)
         sev = "warn" if mem_pct >= 75 else "ok"
         dang = mem["dangling"]
-        mbadge = f'<span class="badge badge--{sev}"><span class="kit-num">{mem_pct}%</span>&nbsp;đã dùng</span>'
+        mbadge = f'<span class="badge badge--{sev}"><span class="kit-num">{mem_pct}%</span>&nbsp;{t["mem_badge_used"]}</span>'
         body = ('<div class="mem-grid"><div>'
             '<div class="row row--between row--baseline" style="margin-bottom:var(--sp-2)">'
             f'<span class="kpi__value"><span class="kit-num kit-num--xl kit-num--{sev}">{used_kb}</span>'
             f'<span class="kit-num__unit">/ {bud_kb} KB</span></span>'
             f'<span class="kit-num kit-num--lg">{mem_pct}<span class="kit-num__unit">%</span></span></div>'
-            f'<div class="meter meter--{sev}" aria-label="Đã dùng {mem_pct}% ngân sách">'
+            f'<div class="meter meter--{sev}" aria-label="{t["mem_meter_aria"].format(pct=mem_pct)}">'
             f'<span class="meter__fill" style="width:{mem_pct}%"></span></div>'
-            f'<p class="section-foot">Còn <strong>{free_kb} KB</strong> trống'
-            f'{". Trên ngưỡng 75% — gom/cắt fact trước khi thêm." if mem_pct>=75 else "."}</p></div>'
+            f'<p class="section-foot">{t["mem_free"].format(free=free_kb)}'
+            f'{t["mem_over"] if mem_pct>=75 else "."}</p></div>'
             '<div class="mem-stats">'
-            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">Số fact</span><span class="kit-num kit-num--lg">{mem["facts"]}</span></div>'
-            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">Liên kết hỏng</span><span class="kit-num kit-num--lg {"kit-num--accent" if dang else ""}">{dang}</span></div>'
-            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">Đã dùng</span><span class="kit-num kit-num--lg">{used_kb}<span class="kit-num__unit">KB</span></span></div>'
-            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">Ngân sách</span><span class="kit-num kit-num--lg">{bud_kb}<span class="kit-num__unit">KB</span></span></div>'
+            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_facts"]}</span><span class="kit-num kit-num--lg">{mem["facts"]}</span></div>'
+            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_dangling"]}</span><span class="kit-num kit-num--lg {"kit-num--accent" if dang else ""}">{dang}</span></div>'
+            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_used"]}</span><span class="kit-num kit-num--lg">{used_kb}<span class="kit-num__unit">KB</span></span></div>'
+            f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_budget"]}</span><span class="kit-num kit-num--lg">{bud_kb}<span class="kit-num__unit">KB</span></span></div>'
             '</div></div>')
     else:
         mbadge = '<span class="badge badge--warn">—</span>'
-        body = ('<div class="empty"><span class="empty__title">Không tìm thấy MEMORY.md</span>'
-            '<span class="empty__msg">Hệ bộ nhớ chưa được khởi tạo trong dự án này.</span></div>')
+        body = (f'<div class="empty"><span class="empty__title">{t["mem_empty_title"]}</span>'
+            f'<span class="empty__msg">{t["mem_empty_msg"]}</span></div>')
     f["memory"] = ('<section class="sec" id="memory" aria-labelledby="h-memory"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Hệ bộ nhớ</div><h2 id="h-memory">Ngân sách bộ nhớ</h2></div>'
+        f'<div class="sec__eyebrow">{t["mem_eyebrow"]}</div><h2 id="h-memory">{t["mem_h2"]}</h2></div>'
         f'{mbadge}</div><div class="surface panel">{body}</div></section>')
 
     # --- hooks ------------------------------------------------------------- #
     chips = "".join(f'<span class="hook-chip"><span class="hook-chip__dot"></span>{escape(e)}</span>' for e in events) \
-        or '<span class="muted">chưa nối hook nào</span>'
+        or f'<span class="muted">{t["hooks_empty"]}</span>'
     f["hooks"] = ('<section class="sec" id="hooks" aria-labelledby="h-hooks"><div class="sec__head"><div>'
-        '<div class="sec__eyebrow">Hook an toàn</div><h2 id="h-hooks">Hook đã nối</h2></div>'
-        f'<span class="badge badge--ok"><span class="kit-num">{n_hooks}</span>&nbsp;hook</span></div>'
+        f'<div class="sec__eyebrow">{t["hooks_eyebrow"]}</div><h2 id="h-hooks">{t["hooks_h2"]}</h2></div>'
+        f'<span class="badge badge--ok"><span class="kit-num">{n_hooks}</span>&nbsp;{t["hooks_badge"]}</span></div>'
         '<div class="surface panel"><div class="row wrap" style="gap:var(--sp-6)">'
-        f'<div class="kpi"><span class="kpi__label">Tổng hook</span><span class="kpi__value">'
+        f'<div class="kpi"><span class="kpi__label">{t["hooks_total_label"]}</span><span class="kpi__value">'
         f'<span class="kit-num kit-num--xl kit-num--ok">{n_hooks}</span></span>'
-        f'<span class="kpi__sub">{len(events)} loại sự kiện đã nối</span></div></div>'
+        f'<span class="kpi__sub">{t["hooks_events_sub"].format(n=len(events))}</span></div></div>'
         f'<div class="hook-events">{chips}</div></div></section>')
 
     # --- footer ------------------------------------------------------------ #
     f["footer"] = ('<footer class="rail__foot" style="text-align:center;padding:var(--sp-5) 0">'
-        f'Agent Workbench · báo cáo trạng thái kit · ảnh chụp cục bộ '
+        f'Agent Workbench · {t["footer_label"]} '
         f'<span class="mono">{escape(commit)}</span> · {today}</footer>')
     return f
 
@@ -625,9 +628,9 @@ def gather(proj: Path, days: int, gates_json: str | None, run_gates: bool = Fals
             "today": datetime.now().strftime("%d/%m/%Y"), "days": days}
 
 
-def render(ctx: dict) -> str:
+def render(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> str:
     tmpl = Template(TEMPLATE.read_text(encoding="utf-8"))
-    return tmpl.substitute(build(ctx))
+    return tmpl.substitute(build(ctx, lang))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -640,6 +643,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", action="store_true",
                     help="print gather()'s data as JSON to stdout (the data contract ui/web/ consumes); skips HTML")
     ap.add_argument("--project", help="project root (default: $CLAUDE_PROJECT_DIR or cwd)")
+    ap.add_argument("--lang", choices=list(i18n.LANGS), default=i18n.DEFAULT_LANG,
+                    help=f"report language (default: {i18n.DEFAULT_LANG}); a static file can't toggle "
+                         "in-page without doubling the DOM, so the language is a build-time choice")
     ap.add_argument("--open", action="store_true", help="open the report in the default browser")
     args = ap.parse_args(argv)
 
@@ -654,7 +660,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: template missing: {TEMPLATE}", file=sys.stderr)
         return 1
     out = Path(args.output)
-    out.write_text(render(ctx), encoding="utf-8")
+    out.write_text(render(ctx, args.lang), encoding="utf-8")
     print(f"wrote -> {out.resolve()}", file=sys.stderr)
     if not ctx["wired"]:
         print("tip: telemetry not wired — skill counts show 'chưa đo'. Add skill_usage_logger "
