@@ -52,6 +52,15 @@ never exposes the destructive buttons; only the read-only data is on the wire **
 admin password** — see *Password auth*.) Note: `ops/dashboard_ctl.py restart` reuses the
 last-started host, so a LAN bind survives a no-arg restart (it won't silently revert to localhost).
 
+**Verify the exposure from a *separate* device — not the host's self-report.** The host answering
+its own LAN IP only proves the *bind*, not that the inbound firewall actually admits LAN clients;
+so after enabling a LAN bind + the firewall rule, open the dashboard from another device on the same
+Wi-Fi (a phone) to confirm. If it fails, check the network's **Private vs Public** firewall profile
+(an inbound rule on the wrong profile is silently ineffective). A direct **public / Internet-routable**
+bind is refused at the `ops/` chokepoint (this is cleartext HTTP); to reach the dashboard from a
+domain, keep it on localhost/LAN behind a **reverse proxy or a Cloudflare Tunnel** that terminates
+TLS — never widen the bind itself.
+
 **Defaulting to a LAN bind (e.g. to view the dashboard from a phone on the same Wi-Fi):** set the
 environment variable `AWB_DASHBOARD_HOST=0.0.0.0` on your machine. The shipped default stays
 `127.0.0.1` (safe for everyone) — only your machine, with the env var set, defaults to a LAN bind,

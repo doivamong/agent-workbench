@@ -47,6 +47,12 @@ of these — catch them in review:
 - a tool ships without labeling SHIPS vs BLUEPRINT;
 - a business identifier, real machine path, PII, or secret re-enters;
 - `CLAUDE.md` grows past its short budget instead of linking out;
+- work done **for the non-programmer persona** ships as dashboard polish or "easy / safe for
+  non-coders" marketing, OR hides its caveat in a doc that persona will never read — instead of
+  being a silent **fail-closed** guard, or a caveat the agent **relays in plain language at the
+  moment of risk**. An honest "seatbelt" that the user reads as a "vault" betrays the very person
+  it claims to protect. (A *fail-open* guard is fine — the kit's own leak-scan is one — as long as
+  its hedge is relayed or stated, not buried.)
 - **this file grows into a manifesto** instead of a terse constraint.
 
 ## For a fresh-context agent editing this repo
