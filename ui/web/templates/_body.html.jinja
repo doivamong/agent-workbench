@@ -1,23 +1,20 @@
 {#- The DYNAMIC region of the dashboard (everything derived from gather()). Rendered
     standalone by GET /fragment (HTMX day-change / refresh, swapped into #dyn) and included
-    by dashboard.html.jinja for the initial page. Honesty model unchanged: a skill is
-    "chưa đo", never "chết", unless telemetry is wired AND has data. -#}
+    by dashboard.html.jinja for the initial page. UI text via the i18n catalog (`t`); the
+    honesty model is unchanged: a skill is "not measured", never "dead", unless telemetry is
+    wired AND has data. NOTE: the tier_dist loop uses `td` (not `t`) so it never shadows the
+    i18n catalog. -#}
 
 {#- ===== Honesty banner: 3 states (not-wired / wired-but-empty / measured) ===== -#}
 {% if not ctx.wired %}
 <div class="banner" role="status">
   <span class="banner__dot" aria-hidden="true"></span>
-  <span class="banner__txt"><strong>Telemetry chưa bật.</strong>
-    Số lượt gọi tên skill là <strong>chưa đo</strong>, không phải “chết”.
-    Bật bằng cách thêm <span class="mono">skill_usage_logger</span> vào
-    <span class="mono">.claude/settings.json</span>.</span>
+  <span class="banner__txt">{{ t.banner_notwired|safe }}</span>
 </div>
 {% elif not measured %}
 <div class="banner" role="status">
   <span class="banner__dot" aria-hidden="true"></span>
-  <span class="banner__txt"><strong>Telemetry vừa bật — chưa có dữ liệu.</strong>
-    Logger đã nối nhưng log còn trống; skill vẫn là <strong>chưa đo</strong>,
-    không phải “chết”. Dữ liệu tích lũy từ các phiên sau.</span>
+  <span class="banner__txt">{{ t.banner_empty|safe }}</span>
 </div>
 {%- elif measured and n_zero %}
 {#- MEASURED state: the only state that prints the 0-fire labels, so it must carry the
@@ -26,48 +23,44 @@
 <div class="banner" role="status"
      style="background:var(--surface-2);border-color:var(--border)">
   <span class="banner__dot" aria-hidden="true" style="background:var(--text-dim)"></span>
-  <span class="banner__txt"><strong style="color:var(--text-strong)">Đang đo theo tên trong prompt.</strong>
-    Chỉ số đếm lượt người dùng <strong style="color:var(--text-strong)">gõ tên</strong> skill
-    (<span class="mono">/tên</span> hoặc nhắc tên). Skill model tự gọi — nhất là skill bảo vệ/guard
-    (output-guard, config-guard) — <strong style="color:var(--text-strong)">không tính</strong>
-    ở đây; 0 nghĩa là chưa ai gõ tên trong cửa sổ này, không phải skill hỏng hay vô dụng.</span>
+  <span class="banner__txt">{{ t.banner_measured|safe }}</span>
 </div>
 {% endif %}
 
 {#- ===== KPI strip ===== -#}
-<section class="kpibar" aria-label="Chỉ số tóm tắt">
+<section class="kpibar" aria-label="{{ t.kpibar_aria }}">
   <div class="kpi">
-    <span class="kpi__label">Skill</span>
+    <span class="kpi__label">{{ t.kpi_skills }}</span>
     <span class="kpi__value"><span class="kit-num kit-num--xl">{{ n_skills }}</span></span>
     <span class="kpi__sub">
-      {%- if measured %}{{ dead }} chưa ai gọi tên{% else %}chưa đo lượt gọi tên{% endif -%}
+      {%- if measured %}{{ t.kpi_skills_sub_measured.format(dead=dead) }}{% else %}{{ t.kpi_skills_sub_unmeasured }}{% endif -%}
     </span>
   </div>
   <div class="kpi">
-    <span class="kpi__label">Lượt gọi tên · {{ days }} ngày</span>
+    <span class="kpi__label">{{ t.kpi_namecalls.format(days=days) }}</span>
     <span class="kpi__value">
-      {%- if measured %}<span class="kit-num kit-num--xl kit-num--accent">{{ ctx.total }}</span><span class="kit-num__unit">lượt</span>
-      {%- else %}<span class="kit-num kit-num--lg muted">chưa đo</span>{% endif -%}
+      {%- if measured %}<span class="kit-num kit-num--xl kit-num--accent">{{ ctx.total }}</span><span class="kit-num__unit">{{ t.unit_calls }}</span>
+      {%- else %}<span class="kit-num kit-num--lg muted">{{ t.kpi_namecalls_unmeasured }}</span>{% endif -%}
     </span>
-    <span class="kpi__sub">{% if measured %}trung bình {{ (ctx.total / days)|round(1) }}/ngày{% else %}bật telemetry để đo{% endif %}</span>
+    <span class="kpi__sub">{% if measured %}{{ t.kpi_namecalls_sub_measured.format(avg=(ctx.total / days)|round(1)) }}{% else %}{{ t.kpi_namecalls_sub_unmeasured }}{% endif %}</span>
   </div>
   <div class="kpi">
-    <span class="kpi__label">Công cụ</span>
+    <span class="kpi__label">{{ t.kpi_tools }}</span>
     <span class="kpi__value"><span class="kit-num kit-num--xl {{ 'kit-num--warn' if ctx.tools_missing else 'kit-num--ok' }}">{{ ctx.tools_present|length }}</span><span class="kit-num__unit">/ {{ n_tools_full }}</span></span>
-    <span class="kpi__sub">{% if ctx.tools_missing %}thiếu {{ ctx.tools_missing|length }}{% else %}đủ bộ{% endif %}</span>
+    <span class="kpi__sub">{% if ctx.tools_missing %}{{ t.kpi_tools_sub_missing.format(n=ctx.tools_missing|length) }}{% else %}{{ t.kpi_tools_sub_ok }}{% endif %}</span>
   </div>
   <div class="kpi">
-    <span class="kpi__label">Hook đã nối</span>
+    <span class="kpi__label">{{ t.kpi_hooks }}</span>
     <span class="kpi__value"><span class="kit-num kit-num--xl kit-num--ok">{{ ctx.n_hooks }}</span></span>
-    <span class="kpi__sub">{{ ctx.events|length }} loại sự kiện</span>
+    <span class="kpi__sub">{{ t.kpi_hooks_sub.format(n=ctx.events|length) }}</span>
   </div>
   <div class="kpi">
-    <span class="kpi__label">Bộ nhớ đã dùng</span>
+    <span class="kpi__label">{{ t.kpi_mem }}</span>
     <span class="kpi__value">
       {%- if mem_pct is not none %}<span class="kit-num kit-num--xl {{ 'kit-num--warn' if mem_pct >= 75 else '' }}">{{ mem_pct }}</span><span class="kit-num__unit">%</span>
       {%- else %}<span class="kit-num kit-num--lg muted">—</span>{% endif -%}
     </span>
-    <span class="kpi__sub">{% if ctx.mem.present %}{{ ctx.mem.facts }} fact{% else %}không có MEMORY.md{% endif %}</span>
+    <span class="kpi__sub">{% if ctx.mem.present %}{{ t.kpi_mem_sub_present.format(facts=ctx.mem.facts) }}{% else %}{{ t.kpi_mem_sub_absent }}{% endif %}</span>
   </div>
 </section>
 
@@ -77,27 +70,27 @@
   <section class="panel span-4" aria-labelledby="h-tele">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Telemetry</div>
-        <h2 id="h-tele">Lượt gọi tên skill</h2>
+        <div class="panel__eyebrow">{{ t.panel_telemetry_eyebrow }}</div>
+        <h2 id="h-tele">{{ t.panel_telemetry_h2 }}</h2>
       </div>
-      {% if measured %}<span class="badge"><span class="kit-num">{{ ctx.total }}</span>&nbsp;tổng</span>
-      {% else %}<span class="badge badge--warn">chưa đo</span>{% endif %}
+      {% if measured %}<span class="badge"><span class="kit-num">{{ ctx.total }}</span>&nbsp;{{ t.badge_total }}</span>
+      {% else %}<span class="badge badge--warn">{{ t.badge_unmeasured }}</span>{% endif %}
     </div>
     {% if measured %}
     <div class="chart-box">
       <canvas id="chart-timeseries" role="img"
-        aria-label="Biểu đồ đường: số lượt gọi tên skill mỗi ngày trong {{ days }} ngày"></canvas>
+        aria-label="{{ t.chart_ts_aria.format(days=days) }}"></canvas>
     </div>
-    <p class="section-foot">Dữ liệu thật từ <span class="mono">.claude/.logs/skill_usage.jsonl</span>, không nội suy.</p>
+    <p class="section-foot">{{ t.ts_foot|safe }}</p>
     {% else %}
     <div class="empty">
       <span class="empty__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
-      <span class="empty__title">Chưa có dữ liệu telemetry</span>
+      <span class="empty__title">{{ t.empty_ts_title }}</span>
       <span class="empty__msg">
-        {% if ctx.wired %}Logger đã nối nhưng log còn trống — biểu đồ sẽ hiện khi có dữ liệu từ các phiên sau.
-        {% else %}Nối <span class="mono">skill_usage_logger</span> vào <span class="mono">UserPromptSubmit</span> trong settings.json để bắt đầu đo.{% endif %}
+        {% if ctx.wired %}{{ t.empty_ts_wired }}
+        {% else %}{{ t.empty_ts_notwired|safe }}{% endif %}
       </span>
     </div>
     {% endif %}
@@ -107,16 +100,16 @@
   <section class="panel span-2" aria-labelledby="h-tiers">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Hệ skill</div>
-        <h2 id="h-tiers">Phân bố loại</h2>
+        <div class="panel__eyebrow">{{ t.panel_tiers_eyebrow }}</div>
+        <h2 id="h-tiers">{{ t.panel_tiers_h2 }}</h2>
       </div>
     </div>
     <div class="chart-box" style="height:200px">
-      <canvas id="chart-tiers" role="img" aria-label="Biểu đồ tròn phân bố skill theo loại"></canvas>
+      <canvas id="chart-tiers" role="img" aria-label="{{ t.chart_tiers_aria }}"></canvas>
     </div>
     <div class="chips" style="margin-top:var(--sp-4)">
-      {% for t in tier_dist %}
-      <span class="chip"><span class="dot dot--{{ t.tier }}"></span>{{ t.label }} <span class="kit-num">{{ t.count }}</span></span>
+      {% for td in tier_dist %}
+      <span class="chip"><span class="dot dot--{{ td.tier }}"></span>{{ td.label }} <span class="kit-num">{{ td.count }}</span></span>
       {% endfor %}
     </div>
   </section>
@@ -125,55 +118,55 @@
   <section class="panel span-6" aria-labelledby="h-skills">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Hệ skill</div>
-        <h2 id="h-skills">Skill &amp; trạng thái</h2>
+        <div class="panel__eyebrow">{{ t.panel_skills_eyebrow }}</div>
+        <h2 id="h-skills">{{ t.panel_skills_h2|safe }}</h2>
       </div>
       <div class="row wrap" style="gap:var(--sp-3)">
         <label class="control">
-          <span class="control__label">Lọc loại</span>
+          <span class="control__label">{{ t.filter_tier }}</span>
           <select name="tier" class="control__input"
                   hx-get="/fragment/skills" hx-target="#skills-region" hx-swap="innerHTML"
                   hx-include="[name='days']" hx-trigger="change">
-            {% for t in tiers_for_filter %}
-            <option value="{{ t.value }}" {{ 'selected' if t.value == active_tier else '' }}>{{ t.label }}</option>
+            {% for opt in tiers_for_filter %}
+            <option value="{{ opt.value }}" {{ 'selected' if opt.value == active_tier else '' }}>{{ opt.label }}</option>
             {% endfor %}
           </select>
         </label>
-        <span class="badge"><span class="kit-num">{{ n_skills }}</span>&nbsp;skill</span>
-        {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;chưa ai gọi tên</span>{% endif %}
+        <span class="badge"><span class="kit-num">{{ n_skills }}</span>&nbsp;{{ t.badge_n_skills }}</span>
+        {% if measured %}<span class="badge badge--dead"><span class="kit-num">{{ dead }}</span>&nbsp;{{ t.badge_dead }}</span>{% endif %}
       </div>
     </div>
     {#- Persistent scroll wrapper: the tier filter swaps only the <table> inside this
         div, so the .table-scroll box (and its mobile horizontal scroll) survives the
         swap and the fragment stays a pure <table> partial. -#}
     <div id="skills-region" class="table-scroll" tabindex="0" role="region"
-         aria-label="Bảng skill và trạng thái — cuộn ngang trên màn hình nhỏ">{% include "_skills.html.jinja" %}</div>
+         aria-label="{{ t.skills_region_aria }}">{% include "_skills.html.jinja" %}</div>
   </section>
 
   {#- ===== Tools ===== -#}
   <section class="panel span-3" aria-labelledby="h-tools">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Bộ công cụ</div>
-        <h2 id="h-tools">Công cụ có mặt</h2>
+        <div class="panel__eyebrow">{{ t.panel_tools_eyebrow }}</div>
+        <h2 id="h-tools">{{ t.panel_tools_h2 }}</h2>
       </div>
       <span class="badge {{ 'badge--warn' if ctx.tools_missing else 'badge--ok' }}">
         <span class="kit-num">{{ ctx.tools_present|length }}/{{ n_tools_full }}</span></span>
     </div>
     <div class="row row--baseline" style="margin-bottom:var(--sp-3)">
       <span class="kit-num kit-num--xl {{ 'kit-num--warn' if ctx.tools_missing else 'kit-num--ok' }}">{{ ctx.tools_present|length }}</span>
-      <span class="kit-num__unit">/ {{ n_tools_full }} có mặt</span>
+      <span class="kit-num__unit">/ {{ n_tools_full }} {{ t.tools_present_unit }}</span>
     </div>
     <div class="meter {{ 'meter--warn' if ctx.tools_missing else 'meter--ok' }}" aria-hidden="true">
       <span class="meter__fill" style="width:{{ (100 * ctx.tools_present|length / n_tools_full)|round|int if n_tools_full else 100 }}%"></span>
     </div>
     {% if ctx.tools_missing %}
-    <p class="section-foot">Còn thiếu {{ ctx.tools_missing|length }} công cụ:</p>
+    <p class="section-foot">{{ t.tools_foot_missing.format(n=ctx.tools_missing|length) }}</p>
     <div class="chips">
       {% for m in ctx.tools_missing %}<span class="chip chip--miss">{{ m }}</span>{% endfor %}
     </div>
     {% else %}
-    <p class="section-foot">Tất cả công cụ kit có mặt trong <span class="mono">tools/</span>.</p>
+    <p class="section-foot">{{ t.tools_foot_ok|safe }}</p>
     {% endif %}
   </section>
 
@@ -181,11 +174,11 @@
   <section class="panel span-3" aria-labelledby="h-mem">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Hệ bộ nhớ</div>
-        <h2 id="h-mem">Ngân sách bộ nhớ</h2>
+        <div class="panel__eyebrow">{{ t.panel_mem_eyebrow }}</div>
+        <h2 id="h-mem">{{ t.panel_mem_h2 }}</h2>
       </div>
       {% if mem_pct is not none %}
-      <span class="badge {{ 'badge--warn' if mem_pct >= 75 else 'badge--ok' }}"><span class="kit-num">{{ mem_pct }}%</span>&nbsp;đã dùng</span>
+      <span class="badge {{ 'badge--warn' if mem_pct >= 75 else 'badge--ok' }}"><span class="kit-num">{{ mem_pct }}%</span>&nbsp;{{ t.badge_mem_used }}</span>
       {% else %}<span class="badge badge--warn">—</span>{% endif %}
     </div>
     {% if ctx.mem.present %}
@@ -193,15 +186,14 @@
       <span><span class="kit-num kit-num--xl {{ 'kit-num--warn' if mem_pct >= 75 else '' }}">{{ (ctx.mem.used / 1024)|round(1) }}</span><span class="kit-num__unit">/ {{ (ctx.mem.budget / 1024)|round|int }} KB</span></span>
       <span class="kit-num kit-num--lg">{{ mem_pct }}<span class="kit-num__unit">%</span></span>
     </div>
-    <div class="meter {{ 'meter--warn' if mem_pct >= 75 else 'meter--ok' }}" aria-label="Đã dùng {{ mem_pct }}% ngân sách bộ nhớ">
+    <div class="meter {{ 'meter--warn' if mem_pct >= 75 else 'meter--ok' }}" aria-label="{{ t.mem_meter_aria.format(pct=mem_pct) }}">
       <span class="meter__fill" style="width:{{ mem_pct }}%"></span>
     </div>
-    <p class="section-foot">{{ ctx.mem.facts }} fact · {{ ctx.mem.dangling }} liên kết hỏng
-      {%- if mem_pct >= 75 %} · trên ngưỡng 75%, gom/cắt fact trước khi thêm{% endif %}.</p>
+    <p class="section-foot">{{ t.mem_foot_main.format(facts=ctx.mem.facts, dangling=ctx.mem.dangling) }}{% if mem_pct >= 75 %}{{ t.mem_foot_over }}{% endif %}.</p>
     {% else %}
     <div class="empty" style="padding:var(--sp-5)">
-      <span class="empty__title">Không tìm thấy MEMORY.md</span>
-      <span class="empty__msg">Hệ bộ nhớ chưa được khởi tạo trong dự án này.</span>
+      <span class="empty__title">{{ t.empty_mem_title }}</span>
+      <span class="empty__msg">{{ t.empty_mem_msg }}</span>
     </div>
     {% endif %}
   </section>
@@ -210,14 +202,14 @@
   <section class="panel span-6" aria-labelledby="h-hooks">
     <div class="panel__head">
       <div>
-        <div class="panel__eyebrow">Hook an toàn</div>
-        <h2 id="h-hooks">Hook đã nối</h2>
+        <div class="panel__eyebrow">{{ t.panel_hooks_eyebrow }}</div>
+        <h2 id="h-hooks">{{ t.panel_hooks_h2 }}</h2>
       </div>
-      <span class="badge badge--ok"><span class="kit-num">{{ ctx.n_hooks }}</span>&nbsp;hook</span>
+      <span class="badge badge--ok"><span class="kit-num">{{ ctx.n_hooks }}</span>&nbsp;{{ t.badge_hooks }}</span>
     </div>
     <div class="chips">
       {% for e in ctx.events %}<span class="chip"><span class="chip__dot"></span>{{ e }}</span>
-      {% else %}<span class="muted">chưa nối hook nào</span>{% endfor %}
+      {% else %}<span class="muted">{{ t.hooks_empty }}</span>{% endfor %}
     </div>
   </section>
 

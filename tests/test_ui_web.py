@@ -312,3 +312,73 @@ def test_fragments_have_no_external_refs(tmp_path):
         frag = _client(proj).get(path).get_data(as_text=True)
         assert not re.search(r'(?:src|href)="https?://', frag)
         assert "cdn" not in frag.lower()
+
+
+# --------------------------------------------------------------------------- #
+# Bilingual EN/VI (server-side catalog; VI default, EN via ?lang= + cookie)
+# --------------------------------------------------------------------------- #
+def test_default_language_is_vietnamese(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    html = _render(proj)                                   # no ?lang, no cookie
+    assert '<html lang="vi">' in html
+    assert "Bảng điều khiển kit" in html                   # VI heading
+    assert "Kit dashboard" not in html                     # not English
+
+
+def test_lang_en_query_renders_english(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    html = _client(proj).get("/?lang=en").get_data(as_text=True)
+    assert '<html lang="en">' in html
+    assert "Kit dashboard" in html and "Refresh" in html and "Admin login" in html
+    assert "Bảng điều khiển kit" not in html               # no VI leak
+    # no raw .format placeholders leaked into the page
+    assert "{n_skills}" not in html and "{days}" not in html
+
+
+def test_lang_query_sets_cookie_samesite_strict(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    r = _client(proj).get("/?lang=en")
+    setc = r.headers.get("Set-Cookie", "")
+    assert "awb_lang=en" in setc and "SameSite=Strict" in setc
+
+
+def test_cookie_keeps_fragment_in_english(tmp_path):
+    # The load-bearing claim: an HTMX fragment carries NO ?lang, so the cookie is what
+    # keeps it in the same language as the page.
+    proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"})
+    client = _client(proj)
+    client.set_cookie("awb_lang", "en")
+    frag = client.get("/fragment/skills").get_data(as_text=True)   # no ?lang
+    assert frag.lstrip().startswith("<table")
+    assert ">Tier<" in frag or "Name-calls" in frag               # English table headers
+    assert "Lượt gọi tên" not in frag                            # no VI header leak
+
+
+def test_bogus_lang_falls_back_to_vietnamese(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    html = _client(proj).get("/?lang=zz").get_data(as_text=True)
+    assert '<html lang="vi">' in html
+    assert "Bảng điều khiển kit" in html
+
+
+def test_language_switcher_present_both_options(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"})
+    html = _render(proj)
+    assert 'class="lang-switch"' in html
+    assert 'href="?lang=vi"' in html and 'href="?lang=en"' in html
+
+
+def test_en_preserves_honesty_model(tmp_path):
+    # The honesty model must survive translation: a measured 0-fire non-guard is "never
+    # name-called", a guard is "auto-fired", never "dead".
+    proj = _make_project(
+        tmp_path,
+        {"awb-review": "guard", "awb-output-guard": "guard", "awb-tdd": "workflow"},
+        wired=True, fired={"awb-review": 3})
+    html = _client(proj).get("/?lang=en").get_data(as_text=True)
+    assert "never name-called" in html        # awb-tdd: non-guard 0-fire
+    assert "auto-fired" in html               # awb-output-guard: guard 0-fire
+    assert "name-called" in html              # awb-review fired
+    # the death verdict never appears as VISIBLE TEXT (the `badge--dead` CSS class, a
+    # language-neutral style hook, is allowed — it lives in an attribute, not a text node).
+    assert not re.search(r">[^<]*\bdead\b", html, re.I)

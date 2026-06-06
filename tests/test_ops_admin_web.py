@@ -46,20 +46,6 @@ pytestmark = pytest.mark.skipif(
     not _HAS_FLASK, reason="ui/web/ is opt-in; install ui/web/requirements.txt (Flask) to run")
 
 
-@pytest.fixture(autouse=True)
-def _clean_git_env(monkeypatch):
-    """Strip inherited GIT_* from the env for every test.
-
-    Defends against the worktree GIT_DIR-leak trap: when the suite runs from a commit hook
-    in a linked worktree, GIT_DIR points at the worktree's .git, and tree_snapshot's git
-    subprocesses (run with cwd=<temp repo>) would otherwise honour GIT_DIR and read the
-    WRONG repo — and the tests' own ``git init/commit`` would corrupt the shared config.
-    Deleting these from the process env makes every child git auto-discover from its cwd.
-    """
-    for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
-        monkeypatch.delenv(k, raising=False)
-
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
@@ -859,3 +845,37 @@ def test_admin_page_has_change_password_form_when_auth_on(tmp_path):
     c = app.test_client()
     c.post("/admin/login", data={"csrf": _token(app), "password": "pw"})
     assert "/admin/password" in c.get("/admin").get_data(as_text=True)
+
+
+# --------------------------------------------------------------------------- #
+# Bilingual EN/VI — /admin is localized too (VI default, EN via ?lang= + cookie).
+# Server-rendered result messages come from admin.py via i18n.admin_msg(lang).
+# --------------------------------------------------------------------------- #
+def test_login_page_localized_vi_default_en_on_query(tmp_path):
+    app = _no_password_app(tmp_path / "r")
+    vi = app.test_client().get("/admin/login").get_data(as_text=True)
+    assert '<html lang="vi">' in vi and "Chưa bật admin" in vi
+    en = app.test_client().get("/admin/login?lang=en").get_data(as_text=True)
+    assert '<html lang="en">' in en and "Admin not enabled" in en
+    assert "AWB_ADMIN_PASSWORD" in en                  # bootstrap notice, not a setup form
+    assert 'name="password"' not in en                 # still NO password field (C1 contract)
+
+
+def test_admin_page_renders_english(tmp_path):
+    app = _admin_app(tmp_path / "r")
+    html = _authed_client(app).get("/admin?lang=en").get_data(as_text=True)
+    assert '<html lang="en">' in html
+    assert "Kit control" in html and "Restart" in html and "Change admin password" in html
+    assert "Điều khiển kit" not in html                # no VI leak
+
+
+def test_admin_result_message_localized_english(tmp_path):
+    # A server-rendered result message follows ?lang. Wrong old password → EN "Denied".
+    app = _admin_app(tmp_path / "r")
+    c = _authed_client(app)
+    r = c.post("/admin/password?lang=en",
+               data={"csrf": _token(app), "old": "wrong-old-pw", "new": "another-strong-pw"})
+    assert r.status_code == 400
+    body = r.get_data(as_text=True)
+    assert "Denied" in body and "old password is incorrect" in body
+    assert "Mật khẩu" not in body                      # no VI leak in the message

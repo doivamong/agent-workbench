@@ -52,6 +52,7 @@ sys.path.insert(0, str(HERE))
 _KIT_STATUS = HERE.parent / "kit_status"
 sys.path.insert(0, str(_KIT_STATUS))
 import generator as ksr  # noqa: E402
+import i18n  # noqa: E402 — the EN/VI string catalog (sibling module; stdlib-only)
 
 try:
     from flask import Flask, current_app, render_template, request
@@ -71,14 +72,9 @@ def _project_dir() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", str(_REPO_ROOT))).resolve()
 
 
-# Vietnamese tier labels (match the kit_status report's vocabulary).
-TIER_VI = {
-    "workflow": "quy trình",
-    "guard": "bảo vệ",
-    "feature": "tính năng",
-    "audit": "kiểm toán",
-    "meta": "điều phối",
-}
+# The five real tiers, in display order. Human labels are localized in ui/web/i18n.py
+# (TIER_LABELS) — match the kit_status report's vocabulary for Vietnamese.
+TIERS = ("workflow", "guard", "feature", "audit", "meta")
 # Tier accent colors — same palette as ui/kit_status/template.html (--cat-*).
 TIER_COLOR = {
     "workflow": "#5B8DC9",
@@ -90,13 +86,19 @@ TIER_COLOR = {
 
 # Selectable telemetry windows (the only day values the dashboard offers / accepts).
 DAY_OPTIONS = [7, 14, 30]
-# Tier filter values. "all" plus the five real tiers; ALL_TIERS is the validation set.
-TIERS_FOR_FILTER = [{"value": "all", "label": "Tất cả"}] + [
-    {"value": t, "label": TIER_VI[t]} for t in ("workflow", "guard", "feature", "audit", "meta")]
-ALL_TIERS = {t["value"] for t in TIERS_FOR_FILTER}
+# Tier filter values: "all" plus the five real tiers. ALL_TIERS is the validation set;
+# the human labels are built per-language in build_view (i18n.tier_labels / FILTER_ALL).
+ALL_TIERS = {"all", *TIERS}
 
 
-def build_view(ctx: dict, days: int, tier: str = "all") -> dict:
+def _tiers_for_filter(lang: str) -> list[dict]:
+    """The tier-filter <option>s for one language: 'all' + the five real tiers, localized."""
+    labels = i18n.tier_labels(lang)
+    return [{"value": "all", "label": i18n.FILTER_ALL[i18n.normalize_lang(lang)]}] + [
+        {"value": t, "label": labels[t]} for t in TIERS]
+
+
+def build_view(ctx: dict, days: int, tier: str = "all", lang: str = i18n.DEFAULT_LANG) -> dict:
     """Shape gather()'s raw dict into what the template + charts need.
 
     Adds nothing the data doesn't support — every derived value is computed from ctx.
@@ -115,8 +117,9 @@ def build_view(ctx: dict, days: int, tier: str = "all") -> dict:
     for s in ctx["skills"]:
         tier_counts[s["tier"]] = tier_counts.get(s["tier"], 0) + 1
     tiers = sorted(tier_counts, key=lambda t: (-tier_counts[t], t))
+    tier_labels = i18n.tier_labels(lang)
     tier_dist = [
-        {"tier": t, "label": TIER_VI.get(t, t), "count": tier_counts[t],
+        {"tier": t, "label": tier_labels.get(t, t), "count": tier_counts[t],
          "color": TIER_COLOR.get(t, "#5B8DC9")}
         for t in tiers
     ]
@@ -140,7 +143,7 @@ def build_view(ctx: dict, days: int, tier: str = "all") -> dict:
         "ctx": ctx,
         "days": days,
         "day_options": DAY_OPTIONS,
-        "tiers_for_filter": TIERS_FOR_FILTER,
+        "tiers_for_filter": _tiers_for_filter(lang),
         "active_tier": tier,
         "measured": measured,
         "tier_dist": tier_dist,
@@ -176,9 +179,10 @@ def _view(days_raw: str | None = None, tier_raw: str | None = None) -> dict:
     cfg = current_app.config
     days = _parse_days(days_raw, int(cfg.get("DAYS", 14)))
     tier = tier_raw if tier_raw in ALL_TIERS else "all"
+    lang = i18n.resolve_lang(request.args.get("lang"), request.cookies.get("awb_lang"))
     proj = Path(cfg.get("PROJECT", _project_dir()))
     ctx = ksr.gather(proj, days, gates_json=None, run_gates=False)
-    return build_view(ctx, days, tier)
+    return build_view(ctx, days, tier, lang)
 
 
 def _resolve_admin_password_hash() -> str:
@@ -218,6 +222,26 @@ def create_app(*, host: str = "127.0.0.1", port: int = 5151,
     app = Flask(__name__)
     app.config["DAYS"] = 14
     app.config["PROJECT"] = _project_dir()
+
+    @app.context_processor
+    def _inject_i18n():
+        """Make the resolved language + its string catalog available to EVERY template (the
+        read-only pages, the HTMX fragments, and the /admin blueprint), so a template just uses
+        ``{{ t.key }}`` / ``{{ lang }}`` with no per-render plumbing. ``js_i18n`` is the small
+        blob dashboard.js reads for its one runtime string (the chart axis label)."""
+        lang = i18n.resolve_lang(request.args.get("lang"), request.cookies.get("awb_lang"))
+        return {"t": i18n.catalog(lang), "lang": lang,
+                "js_i18n": json.dumps(i18n.js_strings(lang), ensure_ascii=False)}
+
+    @app.after_request
+    def _persist_lang(resp):
+        """When a request carries an explicit ``?lang=`` (the EN/VI switcher), remember it in the
+        ``awb_lang`` cookie so later HTMX fragments — which don't resend the query — stay in the
+        same language. SameSite=Strict; not HttpOnly (no secret), so it's a pure UI preference."""
+        q = request.args.get("lang")
+        if q in i18n.LANGS and request.cookies.get("awb_lang") != q:
+            resp.set_cookie("awb_lang", q, max_age=60 * 60 * 24 * 365, samesite="Strict")
+        return resp
 
     @app.route("/health")
     def health():

@@ -64,6 +64,7 @@ if str(HERE) not in sys.path:
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 import passwords                     # noqa: E402  — shared stdlib hashing (no Flask), see passwords.py
+import i18n                          # noqa: E402  — EN/VI catalog for server-rendered result messages
 import ops.autostart as autos      # noqa: E402  — read-only status; enable/disable may need admin
 import ops.dashboard_ctl as dctl   # noqa: E402  — reused engine (process control)
 import ops.lan_setup as lans       # noqa: E402  — read-only status; enable/disable (setx, no admin)
@@ -344,6 +345,13 @@ def _token() -> str:
     return current_app.config.get("ADMIN_TOKEN", "")
 
 
+def _m() -> dict:
+    """The /admin result-message catalog for the current request's language (?lang → cookie →
+    default). Mirrors app._inject_i18n's resolution so a server-rendered message matches the
+    language the operator is viewing the page in."""
+    return i18n.admin_msg(i18n.resolve_lang(request.args.get("lang"), request.cookies.get("awb_lang")))
+
+
 # --------------------------------------------------------------------------- #
 # Routes
 # --------------------------------------------------------------------------- #
@@ -361,7 +369,7 @@ def login():
         if _is_locked(ip):
             _audit("login", "locked-out")
             return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
-                                   error="Tạm khoá do nhập sai quá nhiều lần. Thử lại sau."), 429
+                                   error=_m()["login_locked"]), 429
         stored = _effective_password_hash()
         if stored and verify_password(request.form.get("password", ""), stored):
             _login_failures().pop(ip, None)  # clear the counter on success
@@ -373,7 +381,7 @@ def login():
         _record_login_failure(ip)
         _audit("login", "failed")
         return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
-                               error="Sai mật khẩu."), 401
+                               error=_m()["login_wrong"]), 401
     return render_template("admin_login.html.jinja", token=_token(), no_password=no_password,
                            error=None)
 
@@ -397,19 +405,19 @@ def change_password():
     never stored; on HTTP/LAN it still travels in cleartext (documented honest limit)."""
     old = request.form.get("old", "")
     new = request.form.get("new", "")
+    m = _m()
     if not verify_password(old, _effective_password_hash()):
         _audit("password-change", "wrong-old")
-        return _result("password", "Bị từ chối", "Mật khẩu cũ không đúng.", ok=False), 400
+        return _result("password", m["pw_denied_title"], m["pw_wrong_old"], ok=False), 400
     if len(new) < _MIN_PASSWORD_LEN:
         _audit("password-change", "too-short")
-        return _result("password", "Bị từ chối",
-                       f"Mật khẩu mới phải tối thiểu {_MIN_PASSWORD_LEN} ký tự.", ok=False), 400
+        return _result("password", m["pw_denied_title"],
+                       m["pw_too_short"].format(min=_MIN_PASSWORD_LEN), ok=False), 400
     store = _pw_store_path()
     store.parent.mkdir(parents=True, exist_ok=True)
     store.write_text(hash_password(new), encoding="utf-8")
     _audit("password-change", "ok")
-    return _result("password", "Đã đổi mật khẩu",
-                   "Mật khẩu admin đã đổi. Các đăng nhập mới dùng mật khẩu này.", ok=True), 200
+    return _result("password", m["pw_changed_title"], m["pw_changed_msg"], ok=True), 200
 
 
 @admin_bp.route("/", methods=["GET"], strict_slashes=False)
@@ -433,40 +441,40 @@ def admin_page():
 def action_restart():
     host = current_app.config.get("HOST", "127.0.0.1")
     port = int(current_app.config.get("PORT", 5151))
+    m = _m()
     try:
         pid = _launch_restart(host, port)
     except OSError as exc:  # surface the spawn failure, don't swallow it
         _audit("restart", "error", error=str(exc))
-        return _result("restart", "Lỗi", f"Không khởi động lại được: {exc}", ok=False), 500
+        return _result("restart", m["err_title"], m["restart_err"].format(exc=exc), ok=False), 500
     _audit("restart", "spawned", helper_pid=pid, host=host, port=port)
-    return _result("restart", "Đang khởi động lại",
-                   f"Đã sinh tiến trình khởi động lại tách rời (PID {pid}). "
-                   "Trang sẽ tự kết nối lại khi dashboard sống lại.",
+    return _result("restart", m["restart_title"], m["restart_msg"].format(pid=pid),
                    ok=True, poll_health=True), 202
 
 
 @admin_bp.route("/action/snapshot", methods=["POST"])
 def action_snapshot():
+    m = _m()
     rc, data, err = _run_engine(_TS, [*_root_args(), "--json", "snapshot", "--label", "admin"])
     if rc != 0 or not data:
         _audit("snapshot", "error", rc=rc, stderr=err)
-        return _result("snapshot", "Lỗi", f"Chụp ảnh thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("snapshot", m["err_title"], m["snap_err"].format(rc=rc, err=err), ok=False), 500
     name = Path(data.get("path", "")).name
     _audit("snapshot", "created", name=name, rc=rc)
-    return _result("snapshot", "Đã chụp ảnh cây làm việc",
-                   f"Ảnh chụp đã lưu: {name}", ok=True), 200
+    return _result("snapshot", m["snap_title"], m["snap_msg"].format(name=name), ok=True), 200
 
 
 @admin_bp.route("/action/pack", methods=["POST"])
 def action_pack():
+    m = _m()
     rc, data, err = _run_engine(_RP, ["--rel-dir", str(_rel_dir()), "--json", "pack"])
     if rc != 0 or not data:
         _audit("pack", "error", rc=rc, stderr=err)
-        return _result("pack", "Lỗi", f"Đóng gói thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("pack", m["err_title"], m["pack_err"].format(rc=rc, err=err), ok=False), 500
     name = Path(data.get("path", "")).name
     _audit("pack", "created", name=name, files=data.get("files"), rc=rc)
-    return _result("pack", "Đã đóng gói bản phát hành",
-                   f"Bản phát hành: {name} ({data.get('files')} tệp payload).", ok=True), 200
+    return _result("pack", m["pack_title"],
+                   m["pack_msg"].format(name=name, files=data.get("files")), ok=True), 200
 
 
 @admin_bp.route("/action/verify", methods=["POST"])
@@ -478,37 +486,39 @@ def action_verify():
         abort(400)
     # verify exits 0 clean / 1 on problems — so judge by the JSON, not the exit code; a None
     # payload (couldn't parse output) is the real failure.
+    m = _m()
     rc, data, err = _run_engine(_RP, ["--json", "verify", str(path)])
     if data is None:
         _audit("verify", "error", rc=rc, stderr=err, name=name)
-        return _result("verify", "Lỗi", f"Kiểm tra thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("verify", m["err_title"], m["verify_err"].format(rc=rc, err=err), ok=False), 500
     problems = data.get("problems") or []
     _audit("verify", data.get("result"), name=name, problems=problems)
     if not problems:
-        return _result("verify", "Kiểm tra toàn vẹn",
-                       f"Bản phát hành {name} nguyên vẹn — mọi sha256 khớp manifest.",
-                       ok=True), 200
-    return _result("verify", "Phát hiện vấn đề toàn vẹn",
-                   f"{len(problems)} vấn đề trong {name}.", ok=False, detail=problems), 200
+        return _result("verify", m["verify_ok_title"],
+                       m["verify_ok_msg"].format(name=name), ok=True), 200
+    return _result("verify", m["verify_bad_title"],
+                   m["verify_bad_msg"].format(n=len(problems), name=name), ok=False, detail=problems), 200
 
 
 def _lan_action(cmd: str):
     """Run ``lan_setup.py <enable|disable>`` — sets AWB_DASHBOARD_HOST via setx (no admin
     needed) and applies the start-state. Surfaces the engine's result + the phone URLs."""
+    m = _m()
     port = int(current_app.config.get("PORT", 5151))
     rc, data, err = _run_engine(_LAN, [cmd, "--port", str(port), "--json"])
     if rc != 0 or not data:
         _audit(f"lan-{cmd}", "error", rc=rc, stderr=err)
-        return _result("lan", "Lỗi", f"Lệnh LAN thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("lan", m["err_title"], m["lan_err"].format(rc=rc, err=err), ok=False), 500
     _audit(f"lan-{cmd}", data.get("action", cmd))
     urls = data.get("lan_urls") or []
     if cmd == "enable":
-        msg = "Đã bật mặc định LAN. Khởi động lại dashboard để áp dụng."
+        msg = m["lan_enable_msg"]
         if urls:
-            msg += " Mở từ điện thoại: " + ", ".join(urls)
+            msg += m["lan_phone_prefix"] + ", ".join(urls)
     else:
-        msg = "Đã tắt mặc định LAN — quay về localhost-only."
-    return _result("lan", "LAN " + ("BẬT" if cmd == "enable" else "TẮT"), msg, ok=True), 200
+        msg = m["lan_disable_msg"]
+    return _result("lan", "LAN " + (m["lan_on_word"] if cmd == "enable" else m["lan_off_word"]),
+                   msg, ok=True), 200
 
 
 @admin_bp.route("/action/lan-enable", methods=["POST"])
@@ -527,44 +537,44 @@ def action_firewall_open():
     do it, so a failure is surfaced honestly (run the command elevated / the self-elevating
     win/lan_on.bat) rather than pretending it worked."""
     port = int(current_app.config.get("PORT", 5151))
+    m = _m()
     rc, data, err = _run_engine(_LAN, ["firewall", "--port", str(port), "--json"])
     if data is None:
         _audit("firewall", "error", rc=rc, stderr=err)
-        return _result("firewall", "Lỗi", f"Mở firewall thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("firewall", m["err_title"], m["fw_err"].format(rc=rc, err=err), ok=False), 500
     result = data.get("result")
     _audit("firewall", result)
     ok = result == "opened"
     msg = {
-        "opened": "Đã mở cổng inbound cho LAN (chỉ local subnet).",
-        "failed": "Không mở được — cần quyền admin. Chạy lệnh dưới trong PowerShell "
-                  "(Run as administrator), hoặc bấm đúp win/lan_on.bat (tự nâng quyền UAC).",
-        "manual": "Trên hệ này hãy chạy lệnh dưới thủ công.",
-        "dry-run": "(dry-run) lệnh sẽ chạy:",
+        "opened": m["fw_opened"],
+        "failed": m["fw_failed"],
+        "manual": m["fw_manual"],
+        "dry-run": m["fw_dryrun"],
     }.get(result, str(result))
     detail = [d for d in (data.get("detail"), data.get("command")) if d]
-    return _result("firewall", "Firewall LAN", msg, ok=ok, detail=detail or None), 200
+    return _result("firewall", m["fw_title"], msg, ok=ok, detail=detail or None), 200
 
 
 def _autostart_action(cmd: str):
     """Run ``autostart.py <enable|disable>`` (schtasks). May need admin; an access-denied is
     surfaced with the self-elevating win/autostart_on.bat, not swallowed."""
+    m = _m()
     rc, data, err = _run_engine(_AS, [cmd, "--json"])
     if data is None:
         _audit(f"autostart-{cmd}", "error", rc=rc, stderr=err)
-        return _result("autostart", "Lỗi", f"Lệnh autostart thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("autostart", m["err_title"], m["as_err"].format(rc=rc, err=err), ok=False), 500
     result = data.get("result")
     _audit(f"autostart-{cmd}", result)
     ok = result in ("enabled", "removed")
     msg = {
-        "enabled": "Đã bật tự khởi động lúc đăng nhập (chạy ẩn).",
-        "removed": "Đã tắt tự khởi động.",
-        "failed": "Không tạo được tác vụ — cần quyền admin. Bấm đúp "
-                  "win/autostart_on.bat (tự nâng quyền UAC).",
-        "not-found": "Không có tác vụ tự khởi động để xoá.",
-        "manual": "Trên hệ này hãy cấu hình systemd thủ công (xem chi tiết).",
+        "enabled": m["as_enabled"],
+        "removed": m["as_removed"],
+        "failed": m["as_failed"],
+        "not-found": m["as_notfound"],
+        "manual": m["as_manual"],
     }.get(result, str(result))
     detail = [d for d in (data.get("detail"), data.get("systemd_unit"), data.get("hint")) if d]
-    return _result("autostart", "Tự khởi động", msg, ok=ok, detail=detail or None), 200
+    return _result("autostart", m["as_title"], msg, ok=ok, detail=detail or None), 200
 
 
 @admin_bp.route("/action/autostart-enable", methods=["POST"])
@@ -588,7 +598,7 @@ def restore_preview():
     rc, plan, err = _run_engine(_TS, [*_root_args(), "--json", "restore", str(path)])
     if rc != 0 or not plan or "plan_hash" not in plan:
         _audit("restore-preview", "error", rc=rc, stderr=err, name=name)
-        return _result("restore", "Lỗi", f"Xem trước thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("restore", _m()["err_title"], _m()["restore_preview_err"].format(rc=rc, err=err), ok=False), 500
     dirty = _tree_dirty(_ops_root())
     _audit("restore-preview", "ok", name=name, plan_hash=plan["plan_hash"],
            create=len(plan["will_create"]), modify=len(plan["will_modify"]))
@@ -608,28 +618,26 @@ def restore_apply():
 
     # Dirty-tree refusal is an admin policy (the engine doesn't check it) — enforce before
     # spawning the apply.
+    m = _m()
     if _tree_dirty(_ops_root()) and not allow_dirty:
         _audit("restore-apply", "refused-dirty", name=name)
-        return _result("restore", "Bị từ chối — cây chưa commit",
-                       "Cây làm việc có thay đổi chưa commit. Commit/stash trước, hoặc tick "
-                       "“allow_dirty” để ghi đè có chủ đích.", ok=False), 409
+        return _result("restore", m["restore_refused_title"], m["restore_refused_msg"], ok=False), 409
 
     # The CLI apply re-validates the plan-hash (TOCTOU) and auto-backs-up before writing.
     rc, res, err = _run_engine(
         _TS, [*_root_args(), "--json", "restore", str(path), "--confirm", confirm_hash, "--yes"])
     if res is None:
         _audit("restore-apply", "error", rc=rc, stderr=err, name=name)
-        return _result("restore", "Lỗi", f"Khôi phục thất bại (mã {rc}). {err}", ok=False), 500
+        return _result("restore", m["err_title"], m["restore_apply_err"].format(rc=rc, err=err), ok=False), 500
     _audit("restore-apply", res.get("result"), name=name,
            backup=res.get("backup"), written=res.get("written"))
 
     if res.get("result") == "aborted-stale":
-        return _result("restore", "Bị hủy — kế hoạch đã lệch [aborted-stale]",
-                       "Cây đã thay đổi kể từ lúc xem trước nên plan-hash bị lệch; không ghi "
-                       "gì cả. Xem trước lại để lấy hash mới.", ok=False,
-                       detail=[f"expected {res.get('expected')}", f"actual {res.get('actual')}"]), 409
+        return _result("restore", m["restore_stale_title"], m["restore_stale_msg"], ok=False,
+                       detail=[m["restore_expected"].format(expected=res.get('expected')),
+                               m["restore_actual"].format(actual=res.get('actual'))]), 409
 
-    backup_name = Path(res["backup"]).name if res.get("backup") else "không có"
-    return _result("restore", "Đã khôi phục",
-                   f"Đã ghi {res.get('written')} tệp từ {name}. "
-                   f"Tự sao lưu trước khi ghi: {backup_name}.", ok=True), 200
+    backup_name = Path(res["backup"]).name if res.get("backup") else m["restore_backup_none"]
+    return _result("restore", m["restore_done_title"],
+                   m["restore_done_msg"].format(written=res.get('written'), name=name,
+                                                backup=backup_name), ok=True), 200
