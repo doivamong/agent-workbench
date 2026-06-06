@@ -215,9 +215,14 @@ def test_non_numeric_kpi_is_muted_not_a_giant_number(tmp_path):
     assert "kit-num--display" in ksr._kpi_display(42, "lần")
 
 
-@pytest.mark.parametrize("val,expected", [(5, "5"), (5.9, "5,9"), (10.0, "10"), (0.0, "0")])
-def test_vn_num(val, expected):
-    assert ksr._vn_num(val) == expected
+@pytest.mark.parametrize("val,lang,expected", [
+    # VI uses a comma decimal; integers stay bare in both languages.
+    (5, "vi", "5"), (5.9, "vi", "5,9"), (10.0, "vi", "10"), (0.0, "vi", "0"),
+    # EN keeps the period decimal (the bug _fmt_num fixes: the EN report showed "5,9").
+    (5.9, "en", "5.9"), (19.2, "en", "19.2"), (10.0, "en", "10"), (5, "en", "5"),
+])
+def test_fmt_num(val, lang, expected):
+    assert ksr._fmt_num(val, lang) == expected
 
 
 def test_json_flag_emits_gather_data(tmp_path, capsys):
@@ -289,6 +294,18 @@ def test_en_preserves_honesty_model(tmp_path):
     # report inlines its CSS, whose `.badge--dead` selector would otherwise false-match.
     body = html.split("</style>", 1)[1]
     assert not re.search(r">[^<]*\bdead\b", body, re.I)
+
+
+def test_decimal_separator_is_locale_aware(tmp_path):
+    # Regression: the EN report must use a PERIOD decimal for the memory-KB / avg figures
+    # (e.g. "19.2 KB"), not the Vietnamese comma. Pre-fix, _vn_num forced a comma in BOTH
+    # languages, so the EN report read "19,2 KB" / "5,8" avg/day. VI keeps the comma.
+    proj = _make_project(tmp_path, {"awb-review": "guard"})   # memory=True → a KB decimal renders
+    en = ksr.render(ksr.gather(proj, 14, None), "en")
+    vi = ksr.render(ksr.gather(proj, 14, None), "vi")
+    assert re.search(r">\d+\.\d+ KB<", en), "EN report should use a period decimal for KB"
+    assert not re.search(r">\d+,\d+ KB<", en), "EN report must not use a VI comma decimal"
+    assert re.search(r">\d+,\d+ KB<", vi), "VI report should keep the comma decimal"
 
 
 def test_bogus_lang_falls_back_to_vietnamese(tmp_path):
