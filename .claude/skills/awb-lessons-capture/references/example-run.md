@@ -70,14 +70,15 @@ correct, complete outcome.)
 ```
 ## Lessons to capture (awaiting approval — NOTHING is written yet)
 
-| Lesson (one sentence) | value_score | Verdict | Proposed frontmatter | Proposed filename |
-|---|---|---|---|---|
-| A feature that reads as "off" can be a nested config key read at the wrong level returning None silently. | 11 | GEM | name: feedback-nested-config-silent-none, metadata.type: feedback | feedback-nested-config-silent-none.md |
+| # | Lesson (one sentence) | value_score | Verdict | Proposed frontmatter | Proposed filename |
+|---|---|---|---|---|---|
+| 1 | A feature that reads as "off" can be a nested config key read at the wrong level returning None silently. | 11 | GEM | name: feedback-nested-config-silent-none, metadata.type: feedback | feedback-nested-config-silent-none.md |
 
-Approve which rows to write (all / a subset / none).
+**Recommended pick:** write the GEM/KEEP rows (here: row 1) — these cleared the bar outright.
+Reply `all recommended` / a subset of #s / `none`.
 ```
 
-The human approves the single row.
+The human approves the single row (`all recommended`).
 
 ## P5 — Write (to the live dir from the recall-doctor)
 

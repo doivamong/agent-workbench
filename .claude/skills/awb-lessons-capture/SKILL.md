@@ -134,18 +134,28 @@ session that yields zero gems is the normal case, not a failure of the retro. **
 do not let "report zero" become cover for dodging the uncomfortable lesson about your *own* process
 (P0) — a comfortable technical finding does not discharge a real self-lesson you would rather not write.
 
-### P4 — HARD GATE: present, then wait
+### P4 — HARD GATE: present (ranked, with a recommended pick), then wait
 
-Present every surviving candidate as a table and **write nothing until the human approves.**
+Present every surviving candidate as a table, **sorted by `value_score` descending** — `value_score`
+(plus the severity-rescue floor) is the skill's recall-ROI proxy, so the highest-leverage lesson is
+row 1 and the human decides top-down. A severity-rescue **KEEP** sorts to the top regardless of its
+score — it is the must-not-lose class. Then state a **recommended pick** so approval is one reply.
+**Write nothing until the human approves.**
+
+The recommendation is a default to speed the choice, **not** a nudge to rubber-stamp: `none` is always
+a valid, complete outcome, and a **MAYBE** is opt-in — never pre-selected into the recommended set.
 
 ```
 ## Lessons to capture (awaiting approval — NOTHING is written yet)
 
-| Lesson (one sentence) | value_score | Verdict | Proposed frontmatter (name + type) | Proposed filename |
-|---|---|---|---|---|
-| ... | 9 | GEM | name: <slug>, metadata.type: feedback | <slug>.md |
+| # | Lesson (one sentence) | value_score | Verdict | Proposed frontmatter (name + type) | Proposed filename |
+|---|---|---|---|---|---|
+| 1 | ... | 11 | GEM | name: <slug>, metadata.type: feedback | <slug>.md |
+| 2 | ... | 5 | MAYBE | name: <slug>, metadata.type: feedback | <slug>.md |
 
-Approve which rows to write (all / a subset / none). I will not touch memory until you do.
+**Recommended pick:** write the GEM/KEEP rows (here: row 1) — these cleared the bar outright.
+The MAYBE rows default to drop; name one to include it.
+Reply `all recommended` / a subset of #s / `none`. I will not touch memory until you do.
 ```
 
 If the human approves none, that is a valid outcome — stop without writing.
