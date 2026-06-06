@@ -6,9 +6,10 @@ A ~10-minute walkthrough: run the demos (seconds each), then wire the tools into
 
 ## 0. Prerequisites
 
-🇻🇳 *Yêu cầu — Python 3.10+ (lõi chỉ dùng stdlib; `pytest` chỉ cho bộ test). Git. Tuỳ chọn: Claude Code (hoặc agent khác) để dùng hooks và skills.*
+🇻🇳 *Yêu cầu — Python ≥ 3.10 (lõi chỉ dùng stdlib; `pytest` chỉ cho bộ test). Git. Tuỳ chọn: Claude Code (hoặc agent khác) để dùng hooks và skills.*
 
-- Python 3.10+ (the reusable core is stdlib-only; `pytest` is only for the test suite).
+- **Python ≥ 3.10** (the reusable core is stdlib-only; `pytest` is only for the test suite — the
+  CI matrix is 3.10 / 3.11 / 3.12).
 - Git. Optional: [Claude Code](https://claude.com/claude-code) (or another agent) to use the
   hooks and skills.
 
@@ -16,6 +17,23 @@ A ~10-minute walkthrough: run the demos (seconds each), then wire the tools into
 git clone https://github.com/doivamong/agent-workbench
 cd agent-workbench
 python -m pip install -r requirements.txt
+```
+
+**Optional extras** — the stdlib-only core needs neither:
+
+- To run *this repo's own* commit gates locally (the leak scan + invariants in
+  [`.pre-commit-config.yaml`](../.pre-commit-config.yaml)):
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+- To run the **opt-in web dashboard** — its Flask + Jinja2 are the kit's *only* runtime
+  dependency, isolated in `ui/web/` so the core stays stdlib-only
+  (see [`ui/web/README.md`](../ui/web/README.md)):
+
+```bash
+pip install -r ui/web/requirements.txt
 ```
 
 ## 1. See it work (each runs in seconds)
