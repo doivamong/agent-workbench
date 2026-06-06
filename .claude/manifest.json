@@ -114,6 +114,11 @@
       "lines": 52,
       "bytes": 3433
     },
+    ".claude/rules/lessons-verify-ground-truth.md": {
+      "category": ".claude/rules",
+      "lines": 73,
+      "bytes": 4320
+    },
     ".claude/rules/measurement-honesty.md": {
       "category": ".claude/rules",
       "lines": 71,
@@ -166,8 +171,8 @@
     },
     ".claude/skills/awb-lessons-capture/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 226,
-      "bytes": 13924
+      "lines": 236,
+      "bytes": 14768
     },
     ".claude/skills/awb-optimize/SKILL.md": {
       "category": ".claude/skills",
@@ -261,8 +266,8 @@
     },
     "tools/memory_audit.py": {
       "category": "tools",
-      "lines": 255,
-      "bytes": 13100
+      "lines": 276,
+      "bytes": 14649
     },
     "tools/memory_budget.py": {
       "category": "tools",
@@ -292,7 +297,7 @@
     "tools/pre_push_check.py": {
       "category": "tools",
       "lines": 147,
-      "bytes": 6568
+      "bytes": 6714
     },
     "tools/precommit_present.py": {
       "category": "tools",

@@ -12,7 +12,7 @@ rots. This tool is the missing tripwire. It flags, against a memory/ directory:
   WARN   - a fact whose name does not match its filename under kebab/underscore folding
   WARN   - a [[wiki-link]] that resolves to no known memory name
   WARN   - a fact file not referenced from the index (orphan / cold storage)
-  WARN   - the index over its line-count OR byte-size budget (it is loaded every session)
+  WARN   - the index over its line-count OR byte-size budget, or in the early margin nearing it
   WARN   - an index entry over the per-line char budget, or facts over a total-KB budget
   WARN   - two facts whose descriptions look near-duplicate (detect-only; you decide to merge)
 
@@ -46,6 +46,9 @@ SKIP = {INDEX_NAME, "README.md"}
 # INDEX_MAX_BYTES / INDEX_MAX_LINES come from memory_budget (shared with memory_recall_doctor, so the
 # two can never drift). The rest are tunable starting points, not measured truths — adjust per project.
 INDEX_LINE_MAX_CHARS = 200   # a single index entry this long bloats recall (distinct from line COUNT)
+INDEX_SOFT_RATIO = 0.8       # early-margin: WARN once the index reaches this fraction of the byte
+                             # budget — a margin to act BEFORE the 100% truncation boundary, derived
+                             # from the imported INDEX_MAX_BYTES (never a re-declared budget)
 TOTAL_FACTS_MAX_KB = 128     # total on-disk size of all fact files (on-demand, but a bloat signal)
 NEAR_DUP_JACCARD = 0.7       # description token overlap above which two facts look like duplicates
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
@@ -160,17 +163,35 @@ def audit(mem_dir: Path) -> list[tuple[str, str, str]]:
         out.append(("warn", INDEX_NAME,
                     f"index is {index_lines} lines (> {INDEX_MAX_LINES}); it loads every session"))
 
+    # Per-entry char budget — distinct from the line COUNT above: one overlong line bloats recall.
+    # Computed first so the byte-pressure WARN below can name the over-cap entries as the lever.
+    long_entries = [ln for ln in index_text.splitlines() if len(ln) > INDEX_LINE_MAX_CHARS]
+
     # Byte size — distinct from line count: a short index of long lines can still blow the load
-    # budget. This is the truncation that silently drops later entries from recall.
+    # budget. This is the truncation that silently drops later entries from recall. Graduated: a
+    # hard WARN once the boundary is crossed, and ONE aggregate early-margin WARN before it, so the
+    # pressure surfaces while there is still room to act — not only after recall has truncated. (Not
+    # a third independent byte-check: it is the same byte gate, reported earlier; see governance §7.)
     index_bytes = len(index_text.encode("utf-8"))
+    budget_pct = index_bytes / INDEX_MAX_BYTES * 100
     if index_bytes > INDEX_MAX_BYTES:
         out.append(("warn", INDEX_NAME,
                     f"index is {index_bytes / 1024:.0f} KB (> {INDEX_MAX_BYTES / 1024:.0f} KB); the "
                     "session-start load truncates near here, silently dropping later entries; "
                     "archive stale project facts to recover budget (governance section 7)"))
+    elif budget_pct >= INDEX_SOFT_RATIO * 100:
+        if long_entries:
+            lever = (f"{len(long_entries)} over-cap "
+                     f"{'entry is' if len(long_entries) == 1 else 'entries are'} the lever - "
+                     "tighten those hooks (or archive a cold fact)")
+        else:
+            lever = "tighten the longest hooks or archive a cold fact"
+        out.append(("warn", INDEX_NAME,
+                    f"index is at {budget_pct:.0f}% of the {INDEX_MAX_BYTES / 1024:.0f} KB load "
+                    "budget - an early margin, NOT the truncation boundary (that is 100%, where "
+                    f"later entries silently drop from recall); {lever} to recover headroom now "
+                    "(governance section 7)"))
 
-    # Per-entry char budget — distinct from the line COUNT above: one overlong line bloats recall.
-    long_entries = [ln for ln in index_text.splitlines() if len(ln) > INDEX_LINE_MAX_CHARS]
     if long_entries:
         word = "entry" if len(long_entries) == 1 else "entries"
         out.append(("warn", INDEX_NAME,
