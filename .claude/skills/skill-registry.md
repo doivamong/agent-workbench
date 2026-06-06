@@ -44,6 +44,7 @@ When more than one skill could match a request:
 | `awb-external-ref` | workflow | about to copy/adapt outside code (GitHub/snippet/blog/LLM), "can we use this / port this / adopt this approach" | writing original code; a vetted dependency via the normal process; a licensing question with no code in play |
 | `awb-lessons-capture` | workflow | end of a session, "capture the lessons / memory retro / what's worth remembering", after a surprising bug, a correction, or a counter-intuitive trap | a quick mid-session note; packaging unfinished work for next session (handover); promoting a recurring lesson to a rule (a human call); a session where nothing surprising happened (the honest output is zero) |
 | `awb-install-and-verify` | workflow | "install the workbench / set up the hooks", "are my guards actually on?", "did the install work?" — wiring + verifying the kit's guards via `install.py --merge-settings` then `--doctor` | building a new feature/hook (plan-then-code); editing settings.json by hand; a general code review (awb-review) |
+| `awb-uninstall` | workflow | "remove agent-workbench / uninstall the kit / take the hooks out / undo the install" — dry-run `uninstall.py` first, confirm, then `--yes`; keeps files you edited | installing or verifying guards (awb-install-and-verify); hand-deleting files by yourself; a general code review (awb-review) |
 | _your-ui-guide_ | feature | designing or editing the UI | backend performance work |
 
 Replace the placeholder rows with your real skills. The non-placeholder rows correspond to the

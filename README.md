@@ -146,7 +146,7 @@ deferred to the linked paths and the [deep-dives below](#how-it-fits-together).
 | When you need to… | What this gives you | Path |
 |---|---|---|
 | **Configure the agent itself** | Drop-in `CLAUDE.md` + `AGENTS.md` templates and path-scoped rules — short, high-signal, loaded every session, portable across AI tools | [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) · [`.claude/rules/`](.claude/rules/) |
-| **Encode reusable workflows** | A skill system with tiers, a registry, and seventeen runnable skills (plan-then-code, research, review, debug, tdd, …) the agent invokes by intent | [`.claude/skills/`](.claude/skills/) |
+| **Encode reusable workflows** | A skill system with tiers, a registry, and eighteen runnable skills (plan-then-code, research, review, debug, tdd, …) the agent invokes by intent | [`.claude/skills/`](.claude/skills/) |
 | **Catch footguns at runtime** | Fail-open hooks that block common destructive shell commands (a *seatbelt*, **not a security boundary**), flag vague prompts, and nudge a simplify pass — a crash logs and exits clean, never halting you | [`.claude/hooks/`](.claude/hooks/) |
 | **Carry memory across sessions** | A file-based memory scaffold (example facts to replace; live recall reads a per-project path, **not** this repo's `memory/`) plus tools to keep it honest, snapshot/restore it, check it reaches the agent, and publish a public-safe slice (**fail-closed**) | [`memory/`](memory/) · [`tools/`](tools/) |
 | **Gate commits & CI honestly** | A leak/identifier scanner (a commit-time *seatbelt* with an opt-in entropy sweep), an invariant framework, an AST test-selector, a README-count gate, and a file-set manifest — plus a ready [`.pre-commit-config.yaml`](.pre-commit-config.yaml) | [`tools/`](tools/) |
@@ -215,7 +215,7 @@ flowchart TB
 <summary><b>Deep-dive: the skill system (tiers, registry & skills)</b></summary>
 
 Skills are intent-triggered playbooks. The registry classifies each into a **tier** so the
-agent knows which takes precedence when several match. Seventeen runnable skills ship as
+agent knows which takes precedence when several match. Eighteen runnable skills ship as
 working references:
 
 | Skill | Tier | Fires when | Role |
@@ -236,6 +236,8 @@ working references:
 | `awb-optimize` | feature | "it's too slow / optimize / cut latency" with a measurable goal | Baseline → measure → fix the top bottleneck → re-measure → before/after table |
 | `awb-dead-code-audit` | audit | "find unused / dead code", a post-refactor prune | Calls a symbol dead only when every independent cross-check is empty; never auto-deletes |
 | `awb-lessons-capture` | workflow | end of a session, "capture the lessons / memory retro", after a surprising bug or correction | Mines the session for durable lessons, scores each, writes only the approved ones to live memory |
+| `awb-install-and-verify` | workflow | "install the workbench / set up the hooks", "are my guards actually on?" | Wires the hooks via `install.py`, runs `--doctor`, and relays honestly what's PROVEN vs only INSTALLED |
+| `awb-uninstall` | workflow | "remove agent-workbench / uninstall the kit / take the hooks out" | Dry-runs `uninstall.py` first, confirms, then `--yes`; states plainly that files you edited are KEPT |
 
 The registry ([`.claude/skills/skill-registry.md`](.claude/skills/skill-registry.md)) is the
 single grep-able index of trigger / do-not-trigger boundaries; the
@@ -295,7 +297,7 @@ what's transferable and what was intentionally left behind:
 | Reusable core dependencies | **0** (stdlib-only) |
 | Tests | **773**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **28** (`examples/`) |
-| Skills | **17** (10 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
+| Skills | **18** (11 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Standalone tools | **20** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`) |
 
 <!-- END GENERATED:metrics -->
