@@ -1,0 +1,10 @@
+{#- EN/VI language switcher. A plain link to ?lang=<code> reloads the whole page in that
+    language; app.after_request persists the choice to the awb_lang cookie so later HTMX
+    fragments (which do not resend ?lang) stay in the same language. No JS needed. The
+    current language is marked aria-current and styled .is-active. -#}
+<span class="lang-switch" role="group" aria-label="{{ t.lang_aria }}">
+  {%- for code, label in [('vi', 'VI'), ('en', 'EN')] %}
+  <a class="lang-switch__opt{{ ' is-active' if lang == code else '' }}"
+     href="?lang={{ code }}"{{ ' aria-current="true"' if lang == code else '' }}>{{ label }}</a>
+  {%- endfor %}
+</span>

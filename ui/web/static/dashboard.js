@@ -50,6 +50,14 @@
       return; // malformed payload: leave the server-rendered fallbacks in place
     }
 
+    // Localized strings for the JS-only labels (chart axis), embedded server-side in
+    // #i18n-data so the one runtime string follows the page language. Falls back to a
+    // sensible default if the blob is absent/malformed.
+    var i18n = {};
+    var iel = document.getElementById("i18n-data");
+    if (iel) { try { i18n = JSON.parse(iel.textContent); } catch (e) { i18n = {}; } }
+    var L_CHART_AXIS = i18n.chart_axis || "Name-calls/day";
+
     Chart.defaults.font.family =
       '"Segoe UI", system-ui, -apple-system, "Be Vietnam Pro", "Inter", sans-serif';
     Chart.defaults.color = COL.dim;
@@ -64,7 +72,7 @@
         data: {
           labels: data.timeseries.labels,
           datasets: [{
-            label: "Lượt gọi tên/ngày",
+            label: L_CHART_AXIS,
             data: data.timeseries.values,
             borderColor: COL.accent,
             backgroundColor: "rgba(204,41,41,0.12)",

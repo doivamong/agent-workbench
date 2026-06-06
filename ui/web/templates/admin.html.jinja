@@ -1,19 +1,20 @@
 {#- Agent Workbench — /admin action surface (opt-in; always mounted, inert until a password is set — login is the gate).
     Same design language / tokens as the read-only dashboard. Fully offline (vendored htmx +
     css, no external refs). Every action is a POST form carrying the per-process CSRF token;
-    results are HTMX-swapped into #admin-result. All copy is Vietnamese with diacritics. -#}
+    results are HTMX-swapped into #admin-result. UI copy via the i18n catalog (`t`) — VI by
+    default, EN via the switcher; server-rendered result messages are localized in admin.py. -#}
 <!doctype html>
-<html lang="vi">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Agent Workbench — /admin · điều khiển kit</title>
+  <title>{{ t.admin_meta_title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
   <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
   <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
 </head>
 <body>
-<a class="skip" href="#admin-actions">Bỏ qua tới các thao tác</a>
+<a class="skip" href="#admin-actions">{{ t.admin_skip_to_actions }}</a>
 
 <div class="shell">
 
@@ -25,18 +26,19 @@
           <path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
         <div>
-          <div class="panel__eyebrow">Agent Workbench · /admin</div>
-          <h1>Điều khiển kit</h1>
+          <div class="panel__eyebrow">{{ t.admin_eyebrow }}</div>
+          <h1>{{ t.admin_h1 }}</h1>
         </div>
       </div>
       <div class="topbar__meta">
-        <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> CỤC BỘ</span>
+        <span class="env-pill"><span class="env-pill__live" aria-hidden="true"></span> {{ t.pill_local }}</span>
         <span class="env-pill kit-num">{{ host }}:{{ port }}</span>
-        <a class="btn" href="/">← Bảng điều khiển (chỉ đọc)</a>
+        {% include "_lang_switch.html.jinja" %}
+        <a class="btn" href="/">{{ t.admin_back_dashboard }}</a>
         {% if auth_enabled %}
         <form method="post" action="/admin/logout" style="display:inline">
           <input type="hidden" name="csrf" value="{{ token }}">
-          <button class="btn" type="submit">Đăng xuất</button>
+          <button class="btn" type="submit">{{ t.admin_logout }}</button>
         </form>
         {% endif %}
       </div>
@@ -46,10 +48,7 @@
         login (password mode), so the relevant limit is cleartext-over-HTTP, not local trust. -#}
     <div class="banner" role="alert" style="background:var(--danger-dim);border-color:var(--accent-deep)">
       <span class="banner__dot" aria-hidden="true" style="background:var(--accent)"></span>
-      <span class="banner__txt"><strong style="color:var(--accent-fg)">/admin đã đăng nhập.</strong>
-        Đây là cổng <strong>HTTP</strong> — mật khẩu và cookie phiên đi <strong>cleartext</strong>
-        trên LAN, có thể bị nghe lén. Chỉ bật trong <strong>mạng tin cậy</strong>, không hướng ra
-        Internet. CSRF chặn giả mạo từ trình duyệt khác nguồn.</span>
+      <span class="banner__txt">{{ t.admin_banner|safe }}</span>
     </div>
   </header>
 
@@ -63,120 +62,119 @@
       {#- Restart -#}
       <section class="panel span-2" aria-labelledby="a-restart">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Tiến trình</div>
-          <h2 id="a-restart">Khởi động lại</h2>
+          <div class="panel__eyebrow">{{ t.admin_restart_eyebrow }}</div>
+          <h2 id="a-restart">{{ t.admin_restart_h2 }}</h2>
         </div></div>
-        <p class="section-foot">Dừng tiến trình dashboard này (qua pidfile) và sinh một tiến trình mới — tách rời.</p>
+        <p class="section-foot">{{ t.admin_restart_foot }}</p>
         <form hx-post="/admin/action/restart" hx-target="#admin-result" hx-swap="innerHTML"
-              hx-confirm="Khởi động lại dashboard? Trang sẽ tự kết nối lại." class="admin-form">
+              hx-confirm="{{ t.admin_restart_confirm }}" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
-          <button type="submit" class="btn">Khởi động lại dashboard</button>
+          <button type="submit" class="btn">{{ t.admin_restart_btn }}</button>
         </form>
       </section>
 
       {#- Snapshot -#}
       <section class="panel span-2" aria-labelledby="a-snap">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">An toàn</div>
-          <h2 id="a-snap">Chụp ảnh cây</h2>
+          <div class="panel__eyebrow">{{ t.admin_snap_eyebrow }}</div>
+          <h2 id="a-snap">{{ t.admin_snap_h2 }}</h2>
         </div></div>
-        <p class="section-foot">Lưu ảnh chụp cây làm việc (tôn trọng .gitignore) vào <span class="mono">.ops/snapshots/</span>.</p>
+        <p class="section-foot">{{ t.admin_snap_foot|safe }}</p>
         <form hx-post="/admin/action/snapshot" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
-          <button type="submit" class="btn">Chụp ảnh ngay</button>
+          <button type="submit" class="btn">{{ t.admin_snap_btn }}</button>
         </form>
       </section>
 
       {#- Pack -#}
       <section class="panel span-2" aria-labelledby="a-pack">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Phát hành</div>
-          <h2 id="a-pack">Đóng gói</h2>
+          <div class="panel__eyebrow">{{ t.admin_pack_eyebrow }}</div>
+          <h2 id="a-pack">{{ t.admin_pack_h2 }}</h2>
         </div></div>
-        <p class="section-foot">Đóng gói đúng payload <span class="mono">install.py</span> thành zip có manifest sha256.</p>
+        <p class="section-foot">{{ t.admin_pack_foot|safe }}</p>
         <form hx-post="/admin/action/pack" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
-          <button type="submit" class="btn">Đóng gói bản phát hành</button>
+          <button type="submit" class="btn">{{ t.admin_pack_btn }}</button>
         </form>
       </section>
 
       {#- Verify -#}
       <section class="panel span-3" aria-labelledby="a-verify">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Toàn vẹn</div>
-          <h2 id="a-verify">Kiểm tra bản phát hành</h2>
+          <div class="panel__eyebrow">{{ t.admin_verify_eyebrow }}</div>
+          <h2 id="a-verify">{{ t.admin_verify_h2 }}</h2>
         </div></div>
         {% if releases %}
         <form hx-post="/admin/action/verify" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
           <label class="control">
-            <span class="control__label">Chọn bản phát hành (do máy chủ liệt kê)</span>
+            <span class="control__label">{{ t.admin_verify_label }}</span>
             <select name="release" class="control__input" required>
               {% for r in releases %}<option value="{{ r.name }}">{{ r.name }} · {{ r.mtime }}</option>{% endfor %}
             </select>
           </label>
-          <button type="submit" class="btn">Kiểm tra sha256 vs manifest</button>
+          <button type="submit" class="btn">{{ t.admin_verify_btn }}</button>
         </form>
         {% else %}
-        <p class="section-foot muted">Chưa có bản phát hành nào trong <span class="mono">.ops/releases/</span> — đóng gói một bản trước.</p>
+        <p class="section-foot muted">{{ t.admin_verify_empty|safe }}</p>
         {% endif %}
       </section>
 
       {#- Restore (guarded) -#}
       <section class="panel span-3" aria-labelledby="a-restore">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Khôi phục (có bảo vệ)</div>
-          <h2 id="a-restore">Khôi phục cây từ ảnh chụp</h2>
+          <div class="panel__eyebrow">{{ t.admin_restore_eyebrow }}</div>
+          <h2 id="a-restore">{{ t.admin_restore_h2 }}</h2>
         </div>
-        {% if dirty %}<span class="badge badge--warn">cây chưa commit</span>{% endif %}</div>
+        {% if dirty %}<span class="badge badge--warn">{{ t.admin_restore_dirty_badge }}</span>{% endif %}</div>
         {% if snapshots %}
-        <p class="section-foot">Bước 1 — xem trước (dry-run) sinh plan-hash; bước 2 — khôi phục re-kiểm hash (chống TOCTOU), tự sao lưu trước, từ chối cây bẩn trừ khi cho phép.</p>
+        <p class="section-foot">{{ t.admin_restore_foot }}</p>
         <form hx-post="/admin/restore/preview" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
           <label class="control">
-            <span class="control__label">Chọn ảnh chụp (do máy chủ liệt kê)</span>
+            <span class="control__label">{{ t.admin_restore_label }}</span>
             <select name="snapshot" class="control__input" required>
               {% for s in snapshots %}<option value="{{ s.name }}">{{ s.name }} · {{ s.mtime }}</option>{% endfor %}
             </select>
           </label>
-          <button type="submit" class="btn">Xem trước khôi phục →</button>
+          <button type="submit" class="btn">{{ t.admin_restore_btn }}</button>
         </form>
         {% else %}
-        <p class="section-foot muted">Chưa có ảnh chụp nào trong <span class="mono">.ops/snapshots/</span> — chụp một ảnh trước.</p>
+        <p class="section-foot muted">{{ t.admin_restore_empty|safe }}</p>
         {% endif %}
       </section>
 
       {#- System / LAN (read-only panel; actions added per slice) -#}
       <section class="panel span-3" aria-labelledby="a-system">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Hệ thống</div>
-          <h2 id="a-system">Mạng LAN &amp; tự khởi động</h2>
+          <div class="panel__eyebrow">{{ t.admin_sys_eyebrow }}</div>
+          <h2 id="a-system">{{ t.admin_sys_h2|safe }}</h2>
         </div></div>
         {% set lan = system.lan %}{% set au = system.autostart %}
         <p class="section-foot">
-          Bind hiện hành: <span class="mono">{{ lan.effective_bind or "?" }}</span> ·
-          mặc định LAN: <strong>{{ "BẬT" if lan.lan_default else "TẮT" }}</strong> ·
-          tự khởi động: <strong>{% if au.registered %}đã bật{% elif au.error %}lỗi{% else %}chưa bật{% endif %}</strong>
+          {{ t.admin_sys_bind }} <span class="mono">{{ lan.effective_bind or "?" }}</span> ·
+          {{ t.admin_sys_lan_default }} <strong>{{ t.admin_sys_on if lan.lan_default else t.admin_sys_off }}</strong> ·
+          {{ t.admin_sys_autostart }} <strong>{% if au.registered %}{{ t.admin_sys_as_on }}{% elif au.error %}{{ t.admin_sys_as_err }}{% else %}{{ t.admin_sys_as_off }}{% endif %}</strong>
         </p>
         {% if lan.lan_urls %}
-        <p class="section-foot">Mở từ điện thoại cùng Wi-Fi:
+        <p class="section-foot">{{ t.admin_sys_phone }}
           {% for u in lan.lan_urls %}<span class="mono">{{ u }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
         </p>
         {% endif %}
         {% if lan.firewall_command %}
-        <p class="section-foot muted">Mở firewall (cần quyền admin — chạy lệnh này trong PowerShell
-          <em>Run as administrator</em>, hoặc bấm đúp <span class="mono">win/lan_on.bat</span>):</p>
+        <p class="section-foot muted">{{ t.admin_sys_firewall_hint|safe }}</p>
         <p class="mono" style="word-break:break-all;font-size:.85em">{{ lan.firewall_command }}</p>
         {% endif %}
 
-        <p class="section-foot">Thao tác (LAN bật/tắt không cần admin; firewall &amp; tự khởi động cần admin — sẽ báo nếu thiếu quyền):</p>
+        <p class="section-foot">{{ t.admin_sys_actions_hint|safe }}</p>
         <div class="admin-form" style="display:flex;flex-wrap:wrap;gap:.5rem">
           {% set acts = [
-            ("/admin/action/lan-enable",  "Bật mặc định LAN", "Đặt AWB_DASHBOARD_HOST=0.0.0.0 (setx) và áp dụng. Khởi động lại để có hiệu lực?"),
-            ("/admin/action/lan-disable", "Tắt mặc định LAN", "Quay về localhost-only?"),
-            ("/admin/action/firewall-open", "Mở firewall LAN", "Tạo rule inbound (cần quyền admin)?"),
-            ("/admin/action/autostart-enable", "Bật tự khởi động", "Tạo tác vụ chạy lúc đăng nhập (có thể cần admin)?"),
-            ("/admin/action/autostart-disable", "Tắt tự khởi động", "Xoá tác vụ tự khởi động?"),
+            ("/admin/action/lan-enable",  t.admin_lan_enable_label, t.admin_lan_enable_confirm),
+            ("/admin/action/lan-disable", t.admin_lan_disable_label, t.admin_lan_disable_confirm),
+            ("/admin/action/firewall-open", t.admin_fw_open_label, t.admin_fw_open_confirm),
+            ("/admin/action/autostart-enable", t.admin_as_enable_label, t.admin_as_enable_confirm),
+            ("/admin/action/autostart-disable", t.admin_as_disable_label, t.admin_as_disable_confirm),
           ] %}
           {% for url, label, confirm in acts %}
           <form hx-post="{{ url }}" hx-target="#admin-result" hx-swap="innerHTML"
@@ -192,19 +190,17 @@
       {% if auth_enabled %}
       <section class="panel span-3" aria-labelledby="a-passwd">
         <div class="panel__head"><div>
-          <div class="panel__eyebrow">Bảo mật</div>
-          <h2 id="a-passwd">Đổi mật khẩu admin</h2>
+          <div class="panel__eyebrow">{{ t.admin_pw_eyebrow }}</div>
+          <h2 id="a-passwd">{{ t.admin_pw_h2 }}</h2>
         </div></div>
-        <p class="section-foot">Mật khẩu mới lưu bền vào <span class="mono">.ops/admin.hash</span>
-          (không commit) và thay mật khẩu env ngay — không cần khởi động lại. Tối thiểu 8 ký tự.
-          Lưu ý: trên HTTP/LAN mật khẩu đi cleartext — chỉ đổi trong mạng tin cậy.</p>
+        <p class="section-foot">{{ t.admin_pw_foot|safe }}</p>
         <form hx-post="/admin/password" hx-target="#admin-result" hx-swap="innerHTML" class="admin-form">
           <input type="hidden" name="csrf" value="{{ token }}">
-          <label class="control"><span class="control__label">Mật khẩu cũ</span>
+          <label class="control"><span class="control__label">{{ t.admin_pw_old }}</span>
             <input name="old" type="password" autocomplete="current-password" required class="control__input"></label>
-          <label class="control"><span class="control__label">Mật khẩu mới (≥8 ký tự)</span>
+          <label class="control"><span class="control__label">{{ t.admin_pw_new }}</span>
             <input name="new" type="password" autocomplete="new-password" minlength="8" required class="control__input"></label>
-          <button type="submit" class="btn">Đổi mật khẩu</button>
+          <button type="submit" class="btn">{{ t.admin_pw_btn }}</button>
         </form>
       </section>
       {% endif %}
@@ -213,7 +209,7 @@
   </main>
 
   <footer class="foot">
-    Agent Workbench · /admin · điều khiển cục bộ · mọi thao tác ghi nhật ký vào <span class="mono">.ops/ops.log</span>
+    {{ t.admin_footer|safe }}
   </footer>
 </div>
 </body>

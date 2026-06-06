@@ -73,6 +73,19 @@ the served page makes **no external network request**, so it renders with the ne
   Source: `https://cdn.jsdelivr.net/npm/htmx.org@2.0.3/dist/htmx.min.js` (0BSD / MIT licence).
   Drives the in-place controls by fetching server-rendered HTML fragments (same-origin only).
 
+## Bilingual (EN/VI)
+
+The dashboard and `/admin` render in **Vietnamese (default) or English**, chosen **server-side**
+from a single string catalog ([`i18n.py`](i18n.py)) — one language per request, so there is no
+doubled DOM and the two can't drift on screen. The **EN/VI switcher** in the topbar is a plain
+`?lang=` link (works with no JS); `app.after_request` persists the choice to the `awb_lang`
+cookie, which is what keeps the **HTMX fragments** (they don't resend `?lang`) in the same
+language as the page. An unknown `?lang=` falls back to Vietnamese. Server-rendered `/admin`
+result messages are localized too (via `i18n.admin_msg(lang)` in [`admin.py`](admin.py)); the one
+JS string (the chart axis label) is shipped to the page in a small `#i18n-data` JSON blob. The
+stdlib report at [`ui/kit_status/`](../kit_status/) is **not** bilingual yet (a static file has no
+place for an in-page toggle without doubling the DOM) — see the kit's roadmap for a `--lang` flag.
+
 ## Dynamic controls (HTMX)
 
 The controls fetch **server-rendered fragments** (no client-side data logic, no JSON API) so
@@ -198,8 +211,9 @@ The tier-distribution doughnut is a *static* property of the skill set, so it is
 Held to the same discipline as the rest of the kit's UI: semantic design tokens (shared with
 `ui/kit_status/template.html`), every transition wrapped in `@media (prefers-reduced-motion:
 reduce)` (Chart.js animation is disabled when reduced too), AA-contrast badges (no invisible
-white-on-light status chips), ≥44px targets, all UI text in **Vietnamese with diacritics**, and
-no AI-fingerprint tells (data-first layout, no centered hero, no generic three-equal-card grid).
+white-on-light status chips), ≥44px targets, **bilingual UI text — Vietnamese (default, with
+diacritics) or English** via the server-side catalog (see *Bilingual (EN/VI)* above), and no
+AI-fingerprint tells (data-first layout, no centered hero, no generic three-equal-card grid).
 
 ## What this does NOT do
 
