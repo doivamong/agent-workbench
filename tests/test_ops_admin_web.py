@@ -271,12 +271,19 @@ def test_C3b_cli_refuses_public_bind():
         webapp.main(["--host", "8.8.8.8"])        # a public IP → clean SystemExit, no traceback
 
 
-def test_admin_page_reachability_badge_reflects_real_bind():
+def test_admin_page_reachability_badge_reflects_real_bind(tmp_path):
     """opt-2 UI honesty: the /admin page shows a badge driven by the REAL bind host — 'reachable
-    on LAN' for a 0.0.0.0 bind, 'this machine only' for loopback."""
-    lan_html = _authed_client(_admin_app(host="0.0.0.0")).get("/admin?lang=en").get_data(as_text=True)
+    on LAN' for a 0.0.0.0 bind, 'this machine only' for loopback.
+
+    Uses an isolated ops_root: without it, _effective_password_hash() reads the REAL repo
+    .ops/admin.hash (a web-set password persists there, gitignored) and that overrides the test's
+    configured password — so login fails on any machine that has one, while a fresh CI checkout
+    (no .ops/admin.hash) stays green. The other admin tests isolate the same way."""
+    lan = _admin_app(tmp_path / "lan", host="0.0.0.0")
+    lan_html = _authed_client(lan).get("/admin?lang=en").get_data(as_text=True)
     assert "reachable on LAN" in lan_html
-    local_html = _authed_client(_admin_app(host="127.0.0.1")).get("/admin?lang=en").get_data(as_text=True)
+    loc = _admin_app(tmp_path / "loc", host="127.0.0.1")
+    local_html = _authed_client(loc).get("/admin?lang=en").get_data(as_text=True)
     assert "this machine only" in local_html
 
 
