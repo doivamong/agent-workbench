@@ -304,10 +304,15 @@
       "lines": 55,
       "bytes": 3182
     },
+    "ui/bind_policy.py": {
+      "category": "ui",
+      "lines": 67,
+      "bytes": 3600
+    },
     "ui/i18n.py": {
       "category": "ui",
-      "lines": 990,
-      "bytes": 61284
+      "lines": 996,
+      "bytes": 62512
     },
     "ui/kit_status/generator.py": {
       "category": "ui",

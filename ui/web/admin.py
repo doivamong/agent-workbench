@@ -67,6 +67,7 @@ if str(HERE.parent) not in sys.path:   # ui/ — the shared EN/VI catalog (ui/i1
     sys.path.insert(0, str(HERE.parent))
 import passwords                     # noqa: E402  — shared stdlib hashing (no Flask), see passwords.py
 import i18n                          # noqa: E402  — shared EN/VI catalog (ui/i18n.py)
+import bind_policy                   # noqa: E402  — bind-host classifier for the reachability badge
 import ops.autostart as autos      # noqa: E402  — read-only status; enable/disable may need admin
 import ops.dashboard_ctl as dctl   # noqa: E402  — reused engine (process control)
 import ops.lan_setup as lans       # noqa: E402  — read-only status; enable/disable (setx, no admin)
@@ -433,6 +434,7 @@ def admin_page():
         releases=rpack.list_releases(_rel_dir()),
         host=current_app.config.get("HOST", "127.0.0.1"),
         port=current_app.config.get("PORT", 5151),
+        bind_scope=bind_policy.bind_scope(current_app.config.get("HOST", "127.0.0.1")),
         dirty=_tree_dirty(_ops_root()),
         auth_enabled=_auth_enabled(),
         system=_system_status(),
