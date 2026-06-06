@@ -51,6 +51,31 @@ These are enforced inside the skills above; collected here so the whole-flow vie
 3. **Tests green, with evidence** — run them and read the output; a claim isn't a result.
 4. **Leak / dangerous-command guards** — clear the [leak scanner](../tools/leak_scan.py) and the command guard before a commit lands.
 
+## Verifying a push before you merge
+
+After `git push` + `gh pr create`, GitHub's state is **eventually consistent**, and `gh` surfaces it
+at face value — so a post-push read can lie in two opposite directions, both from the same lag:
+
+- **False green:** `gh pr checks <pr> --watch` finds *zero* checks in the window before CI registers,
+  prints `no checks reported`, and **exits 0** — which reads exactly like "all passed." A background
+  watcher can return success and a PR can merge while its run is still `in_progress`.
+- **False conflict:** `gh pr view <pr> --json mergeable` can return `CONFLICTING` before GitHub
+  recomputes mergeability, even when the branch merges cleanly.
+
+Confirm against ground truth, not the PR indirection:
+
+1. **CI result — watch the concrete run by id, not the PR.** `gh run list --branch <branch>` for the
+   id, then `gh run watch <run-id> --exit-status`, and `gh run view <run-id> --json conclusion` must
+   read `success`. Never merge on a watcher that exited without seeing at least one check.
+2. **Mergeability — trust git, not the just-pushed `mergeable` field.** `git log HEAD..origin/main`
+   empty (branch contains all of main) **and** `git merge-tree $(git merge-base HEAD origin/main) HEAD
+   origin/main` showing no "changed in both" means it merges cleanly.
+
+This is **discipline, not yet an enforced gate.** Until branch protection with required checks is in
+place, nothing on the platform stops a red or stale merge — the loop above is the agent's
+responsibility. Once required checks land, GitHub enforces the green-before-merge half for you; the
+git-side mergeability check stays useful regardless.
+
 ## When several skills could fire
 
 Precedence (**Workflow > Guard > Feature > Audit**) and "a domain-specific rule beats a general

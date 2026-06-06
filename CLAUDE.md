@@ -53,6 +53,11 @@ path-scoped rule files (see `.claude/rules/`).*
 - **When a safety hook blocks an action, relay it in plain language** — tell the user what was
   stopped and why, and offer a safe next step; never suggest re-running it outside the guard (to
   them or to yourself). A hook's deny reason is shown to the agent, not directly to the user.
+- **Verify a push against ground truth before merging** — `gh`'s post-push reads lag the real state
+  (a `--watch` false-greens before CI registers; `mergeable` false-conflicts before GitHub recomputes).
+  Watch the run by id (`gh run watch <id> --exit-status`, conclusion `success`) and confirm
+  mergeability via `git log HEAD..origin/main` + `git merge-tree` — not the just-pushed PR fields.
+  Detail in [`docs/workflow.md`](docs/workflow.md#verifying-a-push-before-you-merge).
 - **Match the surrounding code's style** rather than importing your own conventions.
 
 ## Project map
