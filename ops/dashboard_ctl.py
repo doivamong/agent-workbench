@@ -495,6 +495,12 @@ def restart(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = A
     process can't import a stale ``.pyc``. ``force`` (opt-in) escalates when the port is still
     held by something the pidfile path couldn't stop: it kills whatever holds the port (see
     ``force_free_port``) instead of giving up with 'not-restarted'."""
+    # Refuse a public bind BEFORE stopping the running server — otherwise we'd tear the live
+    # dashboard down for a restart that start() will then refuse, AND the top-level result must
+    # say 'refused' (not fall through to 'restarted'): a guard that fired must never report success.
+    if bind_policy.is_public_bind_host(host):
+        return {"action": "restart", "result": "refused-public-bind",
+                "bind_host": host, "reason": bind_policy.public_bind_refusal(host)}
     stop_res = stop()
     # If the port is still held (e.g. started outside our pidfile), don't pile a second
     # process on top — report so the caller can act (see memory: restart-didnt-work).

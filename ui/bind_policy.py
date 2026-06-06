@@ -42,7 +42,12 @@ def bind_scope(host: str) -> str:
 
 
 def is_public_bind_host(host: str) -> bool:
-    """True only when ``host`` is a literal, globally-routable IP (a public / WAN address)."""
+    """True only when ``host`` is a literal, globally-routable IP (a public / WAN address).
+
+    NOTE — literal IPs only. A DNS *hostname* that resolves to a public address is reported
+    ``'hostname'`` (allowed), so this guard does not catch binding to a name. An accepted limit,
+    not an oversight: the safe Internet path (reverse proxy / Cloudflare Tunnel) binds the app to
+    localhost, never to a public name."""
     return bind_scope(host) == "public"
 
 
@@ -56,5 +61,6 @@ def public_bind_refusal(host: str) -> str:
         "directly to the Internet is unsafe. For your home LAN, bind 0.0.0.0 with the firewall "
         "scoped to the local subnet. To reach it from a domain, keep the app on localhost/LAN "
         "and put a reverse proxy or a Cloudflare Tunnel (which terminates TLS and connects to "
-        "the app locally) in front — never a direct public bind."
+        "the app locally) in front — never a direct public bind. (This check covers literal IP "
+        "addresses; it does not resolve a hostname, so don't rely on it to catch a public DNS name.)"
     )

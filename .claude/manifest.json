@@ -301,8 +301,8 @@
     },
     "ui/bind_policy.py": {
       "category": "ui",
-      "lines": 61,
-      "bytes": 3072
+      "lines": 67,
+      "bytes": 3600
     },
     "ui/i18n.py": {
       "category": "ui",

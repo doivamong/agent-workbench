@@ -354,6 +354,17 @@ def test_start_refuses_public_bind_without_spawning():
     assert "cleartext" in res["reason"].lower()
 
 
+def test_restart_refuses_public_bind_without_touching_server():
+    """opt-2: restart() must refuse a public host BEFORE stop() — otherwise it tears the live
+    server down for a doomed restart — and the top-level result must say 'refused', never fall
+    through to 'restarted' (a guard that fired reporting success is the kit's worst failure)."""
+    res = dc.restart("8.8.8.8", _free_port())
+    assert res["result"] == "refused-public-bind"
+    assert res["action"] == "restart"
+    assert "stop" not in res                          # the running server was not touched
+    assert "cleartext" in res["reason"].lower()
+
+
 def test_start_allows_lan_and_loopback_hosts(monkeypatch):
     """The sanctioned modes must pass the public-bind pre-flight. We stub port_listening to True
     so start() short-circuits to 'already-running' WITHOUT spawning a real server — the point is

@@ -308,7 +308,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--host", default=os.environ.get("AWB_DASHBOARD_HOST") or "127.0.0.1",
                     help="bind host (default: 127.0.0.1, localhost-only; set env AWB_DASHBOARD_HOST"
                          "=0.0.0.0 for a LAN bind so a phone on the same subnet can reach the read-only "
-                         "dashboard. A public/Internet-routable IP is REFUSED — this is cleartext HTTP; "
+                         "dashboard. A public/Internet-routable IP literal is REFUSED (literal IPs "
+                         "only — a public DNS hostname is not checked) — this is cleartext HTTP; "
                          "use a reverse proxy / Cloudflare Tunnel for domain access)")
     ap.add_argument("--port", type=int, default=5151,
                     help="bind port (default: 5151 — 5000 collides with common dev servers / macOS AirPlay)")
