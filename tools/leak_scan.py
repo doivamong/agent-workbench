@@ -71,7 +71,10 @@ GENERIC_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("gitlab_pat", re.compile(r"\bglpat-(?=[A-Za-z0-9_-]*[A-Z0-9])[A-Za-z0-9_-]{20,}\b")),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,}\b")),
     ("bearer_token", re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{20,}")),
-    ("windows_user_path", re.compile(r"[A-Za-z]:\\Users\\[^\\\s'\"]+")),
+    # {1,2} backslashes: a raw Windows user path uses single backslashes; the SAME path
+    # serialized into JSON (e.g. a settings.json hook command) doubles each — without {1,2}
+    # the JSON-escaped form silently slips past the gate (a real machine-path leak to catch).
+    ("windows_user_path", re.compile(r"[A-Za-z]:\\{1,2}Users\\{1,2}[^\\\s'\"]+")),
     ("unix_home_path", re.compile(r"/home/[A-Za-z0-9._-]+|/Users/[A-Za-z0-9._-]+")),
     ("email_address", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
 ]
