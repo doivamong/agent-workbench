@@ -177,6 +177,36 @@ def test_small_index_no_byte_warn(tmp_path):
     assert not any("truncat" in msg for _, _, msg in memory_audit.audit(tmp_path))
 
 
+def test_index_early_margin_warn_fires_at_80pct(tmp_path, monkeypatch):
+    # make-it-go-red for the early-margin guardrail: an index >=80% of the byte budget (but still
+    # UNDER 100%) must surface the aggregate pressure WARN BEFORE the hard truncation boundary, so
+    # there is room to act. 204-byte index against a 220-byte budget == ~93%.
+    monkeypatch.setattr(memory_audit, "INDEX_MAX_BYTES", 220)
+    _mem(tmp_path, "- [a.md](a.md) - " + "x" * 170 + "\n", {"a.md": _fact("alpha", "d")})
+    findings = memory_audit.audit(tmp_path)
+    assert any(sev == "warn" and "early margin" in msg for sev, _, msg in findings)
+    # it is the EARLY warn, not the hard 100% truncation warn (whose distinctive phrase is absent)
+    assert not any("truncates near here" in msg for _, _, msg in findings)
+
+
+def test_index_early_margin_warn_is_honest_about_being_a_margin(tmp_path, monkeypatch):
+    # Copy must say it is an early margin (not the boundary), report the % of budget, and name the
+    # §7 remedy — without overclaiming that recall has already truncated (ui-label-overclaim trap).
+    monkeypatch.setattr(memory_audit, "INDEX_MAX_BYTES", 220)
+    _mem(tmp_path, "- [a.md](a.md) - " + "x" * 170 + "\n", {"a.md": _fact("alpha", "d")})
+    msg = next(m for sev, _, m in memory_audit.audit(tmp_path) if "early margin" in m)
+    assert "NOT the truncation boundary" in msg and "section 7" in msg and "%" in msg
+
+
+def test_index_below_soft_ratio_no_early_warn(tmp_path, monkeypatch):
+    # Comfortably under the 80% margin: neither the early nor the hard byte WARN fires.
+    monkeypatch.setattr(memory_audit, "INDEX_MAX_BYTES", 2000)
+    _mem(tmp_path, "- [a.md](a.md) - " + "x" * 150 + "\n", {"a.md": _fact("alpha", "d")})
+    findings = memory_audit.audit(tmp_path)
+    assert not any("early margin" in msg for _, _, msg in findings)
+    assert not any("truncat" in msg for _, _, msg in findings)
+
+
 def test_index_line_count_warn(tmp_path, monkeypatch):
     # make-it-go-red for the 200-line index budget (mirrors the byte-gate test's discipline).
     monkeypatch.setattr(memory_audit, "INDEX_MAX_LINES", 1)

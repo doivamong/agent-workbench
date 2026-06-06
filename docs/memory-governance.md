@@ -66,6 +66,11 @@ system's cost control rests on keeping that index small, so this is the one rule
   Code v2.1.59+). Entries past that are silently **truncated** — recall lost, with no error;
   `python tools/memory_recall_doctor.py` flags an over-budget index.
 - Detail belongs in the topic file body. Trust that a future session follows the link.
+- **Curation cadence — tie it to a recurring event, not a remembered intention.** At every
+  `awb-lessons-capture` / end-of-session retro, run `python tools/memory_audit.py <live-dir>`
+  against the live per-project dir (see §1) and act on its byte-budget WARNs — trim the longest
+  hooks back toward the per-line target. Anchoring curation to that event is what stops the index
+  drifting silently up to the truncation boundary between deliberate clean-ups.
 
 ```markdown
 # GOOD — punchy hook + one key tag
@@ -191,12 +196,22 @@ surfacing is read-only; building the capability is a human decision (see §5, §
 | Capability (deferred — do NOT build yet) | Why deferred (+ the alternative in use) | Trigger to revisit (concrete, falsifiable) | Self-surface channel | Recorded |
 |---|---|---|---|---|
 | **Query / recall CLI** | the reference implementation built one and left it wired into none of its skills — unused even at a multi-hundred-fact corpus; the agent's Grep/Read *is* recall at this scale | a real recall-miss incident: the agent fails to find a fact that exists on disk | this register (incident — noticed in the moment) | 2026-06-04 |
-| **Decay / archival lister** (read-only `--list`, never `--apply`) | automated age-sweep is a documented wreck (git-log invalidation flagged the majority of files, §6); archiving today is the manual one-line index edit (§3) | the live index repeatedly trips the ~25 KB / 200-line load budget | `memory_audit` index byte-size / line-count WARN (now names this remedy + §7) | 2026-06-04 |
+| **Decay / archival lister** (read-only `--list`, never `--apply`) | automated age-sweep is a documented wreck (git-log invalidation flagged the majority of files, §6); archiving today is the manual one-line index edit (§3) | **the early-margin (~80%) byte WARN fires** — authorizes the manual trim (redefined 2026-06-07; see note ‡) | `memory_audit` early-margin (~80%) + hard byte-size / line-count WARN (names this remedy + §7) | 2026-06-04; trigger redefined 2026-06-07 |
 | **Consolidation / merge organ** | the external `anthropic-skills:consolidate-memory` plugin already merges duplicates — re-building it is feature-to-look-bigger | two+ facts trip the near-duplicate WARN (descriptions ≥ 70% token overlap) | `memory_audit` near-duplicate WARN (now names the external pass + §7) | 2026-06-04 |
 | **MEMORY.md index generator** | hand-maintaining the small index is cheap, and a generator is a *write* tool (writes need a human, §5) | the hand-edited index repeatedly drifts from the facts on disk (recurring dangling-index-link ERRORs) | `memory_audit` dangling-index-link ERROR (already fires loudly) + this register | 2026-06-04 |
 | **`[[wiki-link]]` resolver** | the links are a human-readable convention with no consumer — the capture skill does not follow resolved links | a built workflow/skill step actually consumes resolved links | this register (the dangling-wiki-link WARN flags broken links, but not "a consumer was built") | 2026-06-04 |
 | **Importable snapshot precondition** (the code half of "snapshot before any mutation") | only one mutator exists — the manual `memory_snapshot.py`; the doc + snapshot + recall-doctor halves already shipped | a real third-party mutator of the live memory dir appears (anything but `memory_snapshot` writes there) | this register + the `defer-discipline` rule (fires when a memory tool is added) | 2026-06-04 |
 | **`tools/memory/` package** (restructure the flat `memory_*.py` into a package) | **⚠ TRIGGER REACHED (2026-06-04), now SIX memory tools** (`audit`, `recall_doctor`, `snapshot`, `budget`, `sync`, `eval`) — each addition past five deepens the case; restructuring into a package is a live human call (§5/§6), deferred until someone takes it, the flat dir still holds | ≥ ~5 memory tools live under `tools/` | this register + the `defer-discipline` rule (its `paths:` covers `tools/memory_*.py`) | 2026-06-04 (eval added 2026-06-06) |
+
+> ‡ **Trigger redefinition — Decay/archival lister (2026-06-07).** The original trigger, "the live
+> index *repeatedly* trips the ~25 KB / 200-line budget", could only fire *after* the budget was
+> already blown — i.e. after recall had begun silently truncating — and "repeatedly" made the durable
+> fix wait on repeated data loss. It is deliberately redefined to fire on the **early-margin (~80%)
+> byte WARN** added to `memory_audit` this session, so the manual trim is authorized while there is
+> still headroom to act. The deferred capability is unchanged (still no automated `--apply`); only the
+> surfacing threshold moved earlier. This is a genuine **trigger move** — an early-margin WARN neither
+> "trips the budget" nor "repeats" — recorded here with date + rationale per
+> [`defer-discipline.md`](../.claude/rules/defer-discipline.md), not slipped in as incidental copy.
 
 > Recording a defer is a **human/agent judgment write**, not an auto-generated row — the kit never
 > writes this table for you (writes need a human, §5). To revisit an item, build it only *after* its
