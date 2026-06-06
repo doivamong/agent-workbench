@@ -26,6 +26,9 @@ Conventions:
   * **The Vietnamese values are verbatim the strings the templates shipped before i18n** — the
     default language is Vietnamese, so the existing tests (which assert the VI render) stay green
     and the VI experience is byte-identical.
+  * The EN/VI switcher's option labels (``VI`` / ``EN`` in ``_lang_switch.html.jinja``) are
+    deliberately NOT in this catalog: they are language-CODE identifiers, identical in both
+    languages and not translatable, so cataloging them would be empty ceremony.
 """
 from __future__ import annotations
 
