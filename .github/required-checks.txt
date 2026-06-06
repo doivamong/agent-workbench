@@ -1,0 +1,17 @@
+# Required status checks for branch protection on `main` — the single source of truth.
+#
+# These names are copied VERBATIM from a real PR run (`gh pr checks <pr> --json name`), not
+# typed by hand: a one-character mismatch with the actual GitHub check name deadlocks every
+# merge (the required context never reports). Phase 4 reads this file, sets these as the
+# required contexts, then reads the protection back and asserts it equals these lines.
+#
+# Parsing rule (for the setup tooling): ignore blank lines and lines starting with `#`; each
+# remaining line is one required check name, used exactly as written.
+#
+# Why this subset (decision D3): `lint` + the Ubuntu 3.12 leg + the Windows 3.12 leg (the
+# Windows-only regression guard) + the Flask admin suite. The extra Ubuntu legs (3.10, 3.11)
+# run on every PR but are not required; `smoke` runs only post-merge and is never required.
+lint
+test (ubuntu-latest, 3.12)
+test (windows-latest, 3.12)
+ui-web
