@@ -72,11 +72,13 @@ def _project_dir() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
 
 
-def _vn_num(x: float) -> str:
-    """Vietnamese decimal: 5.9 -> '5,9'. Integers stay bare."""
+def _fmt_num(x: float, lang: str = "vi") -> str:
+    """Locale-aware decimal: VI uses a comma (5.9 -> '5,9'), EN keeps the period (5.9 -> '5.9').
+    Integers stay bare. Without this the EN report showed VI-style '19,2 KB' / '5,8' avg/day."""
     if isinstance(x, int) or float(x).is_integer():
         return str(int(x))
-    return f"{x:.1f}".replace(".", ",")
+    s = f"{x:.1f}"
+    return s.replace(".", ",") if lang == "vi" else s
 
 
 def _kpi_display(value, unit: str = "", extra: str = "") -> str:
@@ -370,14 +372,14 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
 
     # --- hero -------------------------------------------------------------- #
     tele_kpi = _kpi_display(total, t["unit_times"], "kit-num--accent") if wired else _kpi_display(t["state_unmeasured"])
-    tele_sub = (t["hero_tele_sub_measured"].format(avg=_vn_num(total / max(ctx["days"], 1)))
+    tele_sub = (t["hero_tele_sub_measured"].format(avg=_fmt_num(total / max(ctx["days"], 1), lang))
                 if wired else t["hero_tele_sub_unmeasured"])
     gates_val = _kpi_display(gates_lbl, "PASS" if gates else "",
                              "kit-num--ok" if gates and all(gates.values()) else "")
     mem_hero = _kpi_display(mem_pct, "%") if mem.get("present") else _kpi_display("—")
     tele_phrase = (t["tele_phrase_measured"].format(total=total, days=ctx["days"]) if wired
                    else t["tele_phrase_empty"] if cfg_wired else t["tele_phrase_notwired"])
-    mem_sub = (t["hero_mem_sub_present"].format(used=_vn_num(mem["used"] / 1024),
+    mem_sub = (t["hero_mem_sub_present"].format(used=_fmt_num(mem["used"] / 1024, lang),
                                                 budget=round(mem["budget"] / 1024), facts=mem["facts"])
                if mem.get("present") else t["hero_mem_sub_absent"])
     f["hero"] = (
@@ -494,7 +496,7 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
             f'<path class="viz-area" d="{area}"/><path class="viz-line" d="{line}"/>{dots}'
             f'<text class="viz-peak-label" x="{xs[peak_i]:.1f}" y="{ys[peak_i]-8:.1f}" text-anchor="middle">{mx} · {labels[peak_i]}</text>'
             f'{xlabels}</svg>')
-        avg = _vn_num(total / max(n, 1))
+        avg = _fmt_num(total / max(n, 1), lang)
         kpis = (f'<div class="kpi"><span class="kpi__label">{t["tele_total_label"].format(n=n)}</span><span class="kpi__value">'
             f'<span class="kit-num kit-num--xl kit-num--accent">{total}</span><span class="kit-num__unit">{t["unit_times"]}</span></span></div>'
             f'<div class="kpi"><span class="kpi__label">{t["tele_avg_label"]}</span><span class="kpi__value">'
@@ -548,9 +550,9 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
 
     # --- memory ------------------------------------------------------------ #
     if mem.get("present"):
-        used_kb = _vn_num(mem["used"] / 1024)
+        used_kb = _fmt_num(mem["used"] / 1024, lang)
         bud_kb = round(mem["budget"] / 1024)
-        free_kb = _vn_num(max(mem["budget"] - mem["used"], 0) / 1024)
+        free_kb = _fmt_num(max(mem["budget"] - mem["used"], 0) / 1024, lang)
         sev = "warn" if mem_pct >= 75 else "ok"
         dang = mem["dangling"]
         mbadge = f'<span class="badge badge--{sev}"><span class="kit-num">{mem_pct}%</span>&nbsp;{t["mem_badge_used"]}</span>'
