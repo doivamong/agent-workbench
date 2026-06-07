@@ -71,14 +71,16 @@ Confirm against ground truth, not the PR indirection:
    empty (branch contains all of main) **and** `git merge-tree $(git merge-base HEAD origin/main) HEAD
    origin/main` showing no "changed in both" means it merges cleanly.
 
-This is **discipline, not yet an enforced gate.** Until branch protection with required checks is in
-place, nothing on the platform stops a red or stale merge — the loop above is the agent's
-responsibility. Once required checks land, GitHub enforces the green-before-merge half for you; the
-git-side mergeability check stays useful regardless.
+Branch protection on `main` now **enforces the green half**: the required status checks (lint, the
+test matrix, and `ui-web`) must pass before GitHub will merge, so the platform stops a red merge for
+you. The loop above is still the agent's job — it catches a red or stale state *before* you enqueue,
+rather than letting GitHub refuse the merge after the fact. The git-side mergeability check stays
+useful regardless: `strict` is off, so a branch need not be up to date with `main`, only
+conflict-free.
 
 ## Auto-merge: enqueue, don't wait
 
-Once branch protection requires the CI checks, the safety of a merge lives in the **required
+Because branch protection requires the CI checks, the safety of a merge lives in the **required
 checks**, not in a human watching the run. So after verifying a push (above), enqueue the merge
 and move on instead of babysitting CI:
 
