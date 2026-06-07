@@ -234,6 +234,53 @@ def test_memory_panel_omits_audit_summary_when_unmeasured(tmp_path):
     assert "cảnh báo" not in frags["memory"]
 
 
+# --- day-1-empty signal (UI consistency with recall_doctor) ---
+
+def test_memory_health_marks_live_false_on_template_fallback(tmp_path):
+    # No live per-project dir (derived path absent) -> memory_health falls back to the repo
+    # template and must record live=False so the panel can flag the day-1-empty state.
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    mh = ksr.memory_health(proj)
+    assert mh["present"] is True
+    assert mh["live"] is False
+
+
+def test_memory_health_marks_live_true_when_live_dir_found(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    live = tmp_path / "live_mem"
+    live.mkdir()
+    (live / "MEMORY.md").write_text("# live\n- [[fact-x]] one\n", encoding="utf-8")
+    (live / "fact-x.md").write_text("x", encoding="utf-8")
+    settings_path = proj / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["autoMemoryDirectory"] = str(live)
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    mh = ksr.memory_health(proj)
+    assert mh["live"] is True
+
+
+def test_memory_panel_shows_day1_empty_on_template_fallback(tmp_path):
+    # The UI false-green fix: when the live recall is the template fallback (live=False), the panel
+    # must say so plainly instead of reading as a healthy memory.
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    frags = ksr.build(ksr.gather(proj, 14, None))
+    assert "capture the lessons" in frags["memory"]
+
+
+def test_memory_panel_hides_day1_empty_when_live_has_facts(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    live = tmp_path / "live_mem"
+    live.mkdir()
+    (live / "MEMORY.md").write_text("# live\n- [[fact-x]] one\n", encoding="utf-8")
+    (live / "fact-x.md").write_text("x", encoding="utf-8")
+    settings_path = proj / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["autoMemoryDirectory"] = str(live)
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    frags = ksr.build(ksr.gather(proj, 14, None))
+    assert "capture the lessons" not in frags["memory"]
+
+
 def test_run_gates_skips_absent_tools(tmp_path):
     proj = _make_project(tmp_path, {"awb-review": "guard"})
     res = ksr.run_readonly_gates(proj)

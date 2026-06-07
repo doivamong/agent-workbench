@@ -190,6 +190,8 @@
       <span class="meter__fill" style="width:{{ mem_pct }}%"></span>
     </div>
     <p class="section-foot">{{ t.mem_foot_main.format(facts=ctx.mem.facts, dangling=ctx.mem.dangling) }}{% if mem_pct >= 75 %}{{ t.mem_foot_over }}{% endif %}.</p>
+    {# Day-1-empty signal: live recall empty (fresh clone) or fell back to the repo template — say so plainly so the panel can't read as a green "memory works" (mirrors recall_doctor) #}
+    {% if not ctx.mem.live or ctx.mem.facts == 0 %}<p class="section-foot">{{ t.mem_day1_empty }}</p>{% endif %}
     {# Fuller hygiene line — only when memory_audit actually ran (key present); absent => budget-only, no fabricated 0 (measurement-honesty) #}
     {% if ctx.mem.warns is defined %}<p class="section-foot">{{ t.mem_audit_summary.format(errors=ctx.mem.errors, warns=ctx.mem.warns) }}</p>{% endif %}
     {% else %}

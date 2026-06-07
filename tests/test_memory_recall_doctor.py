@@ -147,3 +147,64 @@ def test_doctor_output_is_ascii_safe(tmp_path):
     report, _ = doc.doctor(tmp_path, live, tmp_path / "repo")
     for line in report:
         line.encode("ascii")  # raises UnicodeEncodeError if any non-ASCII slipped in
+
+
+# --- day-1-empty honesty (council-approved DOCS-ONLY hardening) ---
+
+def test_missing_live_dir_says_empty_with_capture_hint(tmp_path, capsys):
+    # The false-green fix: a missing live dir must say loudly that memory is EMPTY (not just
+    # advisory text a non-programmer reads as 'fine'), and point at the capture path.
+    rc = doc.main(["--dir", str(tmp_path / "nope"), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 0  # still advisory, never red on day-1-empty
+    assert "MEMORY IS EMPTY" in out
+    assert "capture the lessons" in out
+
+
+def test_empty_live_dir_warns_loudly_not_red(tmp_path, capsys):
+    # Live dir exists with a MEMORY.md but zero facts -> the same loud EMPTY message, still exit 0.
+    live = _seed(tmp_path / "live", facts=0)
+    rc = doc.main(["--dir", str(live), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "MEMORY IS EMPTY" in out and "capture the lessons" in out
+
+
+def test_autoMemoryDirectory_resolution_prints_honoring_caveat(tmp_path, capsys):
+    # When resolved via autoMemoryDirectory, the report must say the harness HONORING is unverified
+    # (the tool only READS the setting) -- otherwise a green report is theater.
+    auto = _seed(tmp_path / "auto", facts=1)
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        '{"autoMemoryDirectory": "' + str(auto).replace("\\", "/") + '"}', encoding="utf-8")
+    rc = doc.main(["--project", str(tmp_path), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "autoMemoryDirectory" in out and "HONORS" in out
+
+
+def test_example_placeholders_are_flagged_as_noise(tmp_path, capsys):
+    # *_example_* template placeholders copied into the live dir are classified as noise to remove.
+    live = _seed(tmp_path / "live", facts=1)
+    (live / "feedback_example_validate_at_boundary.md").write_text(
+        _fact("feedback-example"), encoding="utf-8")
+    rc = doc.main(["--dir", str(live), "--template", str(tmp_path / "repo")])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "*_example_*" in out and "remove them" in out
+
+
+def test_new_advisory_lines_are_ascii_safe(tmp_path):
+    # The new empty-guidance / autoMemoryDirectory-note / example-classification lines stay ASCII.
+    live = _seed(tmp_path / "live", facts=1)
+    (live / "user_example_preferences.md").write_text(_fact("user-example"), encoding="utf-8")
+    claude = tmp_path / ".claude"
+    claude.mkdir()
+    (claude / "settings.json").write_text(
+        '{"autoMemoryDirectory": "' + str(live).replace("\\", "/") + '"}', encoding="utf-8")
+    report, _ = doc.doctor(tmp_path, None, tmp_path / "repo")
+    joined = "\n".join(report)
+    assert "*_example_*" in joined and "HONORS" in joined  # exercised the new branches
+    for line in report:
+        line.encode("ascii")

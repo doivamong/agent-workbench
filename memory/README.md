@@ -31,6 +31,22 @@ memory/
 This index-gating is what keeps memory cheap: you pay for the index always, and for a fact
 only when you reach for it.
 
+## Day-1 on a fresh clone: it starts empty — by design
+
+If you just cloned this repo, the agent recalls **nothing** about your project yet — and that is
+the *correct* state, not a bug. The live store the harness loads is **per-project and per-machine**
+(`~/.claude/projects/<id>/memory/`, see above), so on a fresh clone it is empty. The facts in
+*this* repo's `memory/` are a **read-once template** to learn the format from; nothing here is your
+live recall.
+
+- **It fills with what *your* agent learns about *your* project.** Pre-loading a stranger's facts
+  would just add overload (see [`../docs/memory-governance.md`](../docs/memory-governance.md) §8) —
+  the value is *earned*, session-specific facts.
+- **To start filling it,** say **"capture the lessons"** at the end of a session (the
+  `awb-lessons-capture` skill writes surviving lessons to the live path for you).
+- **To verify the wiring** (which dir the harness loads, whether it is empty, budget):
+  `python tools/memory_recall_doctor.py`.
+
 ## One fact per file
 
 Each memory file is a single, self-contained fact with frontmatter:

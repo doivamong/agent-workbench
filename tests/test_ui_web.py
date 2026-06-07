@@ -127,6 +127,28 @@ def test_memory_panel_shows_audit_summary(tmp_path):
     assert "cảnh báo" in html         # VI default render of mem_audit_summary
 
 
+def test_memory_panel_shows_day1_empty_on_template_fallback(tmp_path):
+    # The web mirror of the recall_doctor day-1-empty fix: when the live recall is the template
+    # fallback (no live per-project dir), the panel must say so, not read as healthy memory.
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    html = _render(proj)
+    assert "capture the lessons" in html
+
+
+def test_memory_panel_hides_day1_empty_when_live_has_facts(tmp_path):
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    live = tmp_path / "live_mem"
+    live.mkdir()
+    (live / "MEMORY.md").write_text("# live\n- [[fact-x]] one\n", encoding="utf-8")
+    (live / "fact-x.md").write_text("x", encoding="utf-8")
+    settings_path = proj / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["autoMemoryDirectory"] = str(live)
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    html = _render(proj)
+    assert "capture the lessons" not in html
+
+
 def test_honest_when_telemetry_not_wired(tmp_path):
     proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"}, wired=False)
     html = _render(proj)

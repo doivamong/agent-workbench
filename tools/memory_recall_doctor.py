@@ -8,7 +8,12 @@ curate in the repo dir is never recalled unless you also place it at the path th
 (see ``docs/memory-governance.md``). This read-only doctor makes that wiring visible:
 
   - which directory the harness most likely loads, and whether it exists;
-  - how many facts live there vs in the repo template (a big mismatch = curating the wrong dir);
+  - whether the live store is EMPTY — a fresh clone recalls *nothing* yet. This is surfaced
+    loudly (so it is not mistaken for a green pass), but it is NOT a failure: an empty per-project
+    store is the honest day-1 state, filled over time via the ``capture the lessons`` skill;
+  - how many facts live there vs in the repo template (a big mismatch = curating the wrong dir),
+    and how many of the live facts are ``*_example_*`` template placeholders (noise that should
+    not reach recall);
   - whether the live ``MEMORY.md`` is over the ~25 KB / 200-line load budget (entries past it
     truncate silently from recall).
 
@@ -16,9 +21,12 @@ Live-dir resolution order: ``--dir`` > ``autoMemoryDirectory`` in ``.claude/sett
 derived ``~/.claude/projects/<mangled-cwd>/memory``. The derived path is harness-specific and
 version-fragile, so it is ALWAYS stat-verified — the doctor never asserts a path it did not
 stat, and never reports a missing dir as a failure (your Claude Code may simply predate v2.1.59).
+NOTE: this tool only READS ``autoMemoryDirectory``; whether the harness HONORS that override for
+auto-load is not verified here — so when it is the resolution source, the report says so plainly.
 
 Exit code: 1 ONLY when a located live ``MEMORY.md`` is over budget (truncation is certain).
-Every other case — missing dir, unresolved path, healthy index — exits 0 (advisory).
+Every other case — missing dir, unresolved path, EMPTY store, healthy index — exits 0 (advisory):
+an empty day-1 store is loud in the text but not an error.
 
 Does NOT: read or query fact contents, follow ``[[wiki-links]]``, verify your Claude Code
 version, or write anything. It is a read-only wiring trip-wire, not a recall engine. Stdlib only.
@@ -82,6 +90,27 @@ def _fact_count(d: Path) -> int:
     return sum(1 for p in d.glob("*.md") if p.name not in SKIP)
 
 
+def _example_count(d: Path) -> int:
+    """Count ``*_example_*`` template placeholders (made-up scaffold facts) living in ``d``.
+
+    A clean, name-based signal — these files are pure noise if they reach recall. We classify
+    only this; we do NOT guess which real facts are 'kit-specific' (no clean signal for that —
+    guessing would be the false-confidence trap measurement-honesty.md warns against).
+    """
+    return sum(1 for p in d.glob("*_example_*.md") if p.name not in SKIP)
+
+
+def _empty_guidance() -> "list[str]":
+    """The loud, plain-language day-1-empty message — shared by the missing-dir and zero-fact
+    branches so a fresh-clone user cannot read the (exit-0) advisory as a green 'memory works'."""
+    return [
+        "  WARN: MEMORY IS EMPTY - the agent recalls NOTHING about this project yet.",
+        "        This is EXPECTED on a fresh clone: the live store is per-project and starts empty.",
+        "        It fills with what your agent learns about YOUR project - to start, say",
+        "        'capture the lessons' at the end of a session (the awb-lessons-capture skill).",
+    ]
+
+
 def doctor(project: Path, explicit_dir: "Path | None", template: Path) -> "tuple[list[str], int]":
     """Return (report_lines, exit_code). Read-only. exit 1 only on a certain over-budget index."""
     lines: "list[str]" = []
@@ -89,10 +118,15 @@ def doctor(project: Path, explicit_dir: "Path | None", template: Path) -> "tuple
     template_facts = _fact_count(template) if template.is_dir() else 0
     lines.append(f"Live (harness-loaded) memory dir: {live}")
     lines.append(f"  resolved via: {how}")
+    if how.startswith("autoMemoryDirectory"):
+        lines.append("  NOTE: this tool only READS autoMemoryDirectory; whether your Claude Code HONORS")
+        lines.append("        it for auto-load is NOT verified here - confirm via a real session's loaded")
+        lines.append("        context, not this tool.")
     lines.append(f"Repo template dir: {template}  ({template_facts} fact file(s))")
 
     if not live.is_dir():
         lines.append("  STATUS: live dir NOT found at the path above.")
+        lines.extend(_empty_guidance())
         lines.append("  -> Facts curated only in the repo template are never recalled by the agent.")
         lines.append("     Copy your scaffold to the live path (or set autoMemoryDirectory), then re-run.")
         lines.append("     If you expected it to exist, pass --dir <path>; your Claude Code may also "
@@ -101,6 +135,12 @@ def doctor(project: Path, explicit_dir: "Path | None", template: Path) -> "tuple
 
     live_facts = _fact_count(live)
     lines.append(f"  STATUS: live dir found, {live_facts} fact file(s).")
+    if live_facts == 0:
+        lines.extend(_empty_guidance())
+    example_facts = _example_count(live)
+    if example_facts:
+        lines.append(f"  WARN: {example_facts} of these are *_example_* template placeholders - "
+                     "made-up noise that should not reach recall; remove them.")
     if template_facts > live_facts:
         lines.append(f"  NOTE: the repo template holds more facts ({template_facts}) than the live dir "
                      f"({live_facts}) - if you curated facts in the repo dir, they are not being recalled.")

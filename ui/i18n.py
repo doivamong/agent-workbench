@@ -192,6 +192,7 @@ _UI = {
         "mem_foot_main": "{facts} fact · {dangling} liên kết hỏng",
         "mem_foot_over": " · trên ngưỡng 75%, gom/cắt fact trước khi thêm",
         "mem_audit_summary": "audit: {errors} lỗi · {warns} cảnh báo — chạy memory_audit để xem chi tiết",
+        "mem_day1_empty": "Recall sống đang TRỐNG (bản mới clone) — đang hiển thị template của repo. Agent chưa nhớ gì về dự án; gõ “capture the lessons” để bắt đầu.",
         "empty_mem_title": "Không tìm thấy MEMORY.md",
         "empty_mem_msg": "Hệ bộ nhớ chưa được khởi tạo trong dự án này.",
         # --- hooks panel ---
@@ -418,6 +419,7 @@ _UI = {
         "mem_foot_main": "{facts} facts · {dangling} broken links",
         "mem_foot_over": " · over the 75% threshold, consolidate/trim facts before adding",
         "mem_audit_summary": "audit: {errors} error(s) · {warns} warning(s) — run memory_audit for detail",
+        "mem_day1_empty": "Live recall is EMPTY (fresh clone) — showing the repo template. The agent recalls nothing about your project yet; say “capture the lessons” to start.",
         "empty_mem_title": "MEMORY.md not found",
         "empty_mem_msg": "The memory system isn't initialised in this project.",
         # --- hooks panel ---
@@ -831,6 +833,7 @@ _REPORT = {
         "mem_free": "Còn <strong>{free} KB</strong> trống",
         "mem_over": ". Trên ngưỡng 75% — gom/cắt fact trước khi thêm.",
         "mem_audit_summary": "audit: {errors} lỗi · {warns} cảnh báo — chạy memory_audit để xem chi tiết",
+        "mem_day1_empty": "Recall sống đang TRỐNG (bản mới clone) — đang hiển thị template của repo. Agent chưa nhớ gì về dự án; gõ “capture the lessons” để bắt đầu.",
         "mem_meter_aria": "Đã dùng {pct}% ngân sách",
         "mem_stat_facts": "Số fact",
         "mem_stat_dangling": "Liên kết hỏng",
@@ -974,6 +977,7 @@ _REPORT = {
         "mem_free": "<strong>{free} KB</strong> free",
         "mem_over": ". Over the 75% threshold — consolidate/trim facts before adding.",
         "mem_audit_summary": "audit: {errors} error(s) · {warns} warning(s) — run memory_audit for detail",
+        "mem_day1_empty": "Live recall is EMPTY (fresh clone) — showing the repo template. The agent recalls nothing about your project yet; say “capture the lessons” to start.",
         "mem_meter_aria": "Used {pct}% of the budget",
         "mem_stat_facts": "Facts",
         "mem_stat_dangling": "Broken links",
