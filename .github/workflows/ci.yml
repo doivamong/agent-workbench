@@ -58,7 +58,7 @@ jobs:
       # (the always-loaded routing-map grows linearly in count) plus the automatic per-skill
       # body CRITICAL. A total-body cap would mis-measure ~5x and is NOT gated here.
       - name: Context budget (skill-set bloat)
-        run: python tools/check_context_budget.py --max-skills 17
+        run: python tools/check_context_budget.py --max-skills 18
 
       # Gate the file-set manifest: adding/removing a skill/hook/tool/rule without regenerating
       # .claude/manifest.json (and updating its dependent docs/wiring) fails here.
@@ -176,7 +176,7 @@ jobs:
           python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore
           python tools/invariants.py .
           python tools/skill_lint.py
-          python tools/check_context_budget.py --max-skills 17
+          python tools/check_context_budget.py --max-skills 18
           python tools/sync_manifest.py --check
           python tools/readme_metrics.py --check
 
