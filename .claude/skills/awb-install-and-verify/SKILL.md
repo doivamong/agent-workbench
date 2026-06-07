@@ -77,3 +77,9 @@ that doesn't exist.
 | "The summary said all passed, I'll just say you're protected" | Read the per-hook lines. Most are INSTALLED, not PROVEN — saying "protected" oversells what was tested. |
 | "Close enough to call this hook working" | INSTALLED ≠ working. The honest word is "wired"; only `--doctor`'s PROVEN earns "working". |
 | "I'll skip the restart note" | Without a restart the user's live session may not have the hooks at all — the guards look on but aren't. |
+
+## See also
+
+The plain-language, user-facing walkthrough — install, uninstall (safety model), and a
+troubleshooting guide — is the single source in [`docs/getting-started.md`](../../../docs/getting-started.md).
+Point the user there for the full prose; this skill is the agent's playbook for *driving* the installer.

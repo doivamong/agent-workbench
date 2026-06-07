@@ -4,7 +4,7 @@
 > **khối lệnh** bên dưới được giữ y hệt bản tiếng Anh [`getting-started.md`](getting-started.md)
 > (một test CI canh để chúng không bao giờ lệch nhau); chỉ phần văn xung quanh là tiếng Việt.
 
-<!-- en-sha256: a6011ac92b3d7c7c75dfa6553e17767371199d53d4de5b5dab7fc845cd0db755 leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: b11210ac65eced6305acfd46eb013cd9809040dc11938582faf8d94e24aec7f9 leak-scan: ignore[high_entropy_hex] -->
 
 <kbd>[🇬🇧 English](getting-started.md)</kbd> · <kbd>[README (VI)](README.vi.md)</kbd> · <kbd>[Thuật ngữ](README.vi.md#thuật-ngữ-nhanh)</kbd>
 
@@ -133,3 +133,45 @@ Sáu cái đầu chạy ở mỗi commit local và lặp lại trong CI; cái th
 bắt bạn đọc traceback — chỉ cần nói với agent "commit bị từ chối" và nó sẽ chẩn đoán rồi sửa nguyên
 nhân. Registry [pre-commit-failure-modes.md](pre-commit-failure-modes.md) giải thích các gate này học
 từ bất cứ thứ gì lọt qua chúng như thế nào.
+
+## 7. Gỡ cài đặt
+
+Gỡ kit là đối xứng với cài, và **an toàn theo mặc định**: `uninstall.py` **chỉ chạy thử trừ khi bạn
+thêm `--yes`**, nên nó cho bạn xem kế hoạch trước khi thay đổi bất cứ gì.
+
+```bash
+python uninstall.py /path/to/your/project          # dry run — prints the plan, changes nothing
+python uninstall.py /path/to/your/project --yes    # apply: reverse the install
+```
+
+- **Chạy thử trước.** Không có `--yes` thì nó chỉ in ra cái gì *sẽ* bị gỡ, giữ lại, hay hoàn nguyên —
+  không gì trên đĩa thay đổi cho tới khi bạn xác nhận.
+- **Nó giữ lại file bạn đã sửa.** Một file đã chép mà bạn thay đổi sau khi cài (bytes không còn khớp
+  với kit) sẽ được **GIỮ LẠI, không xoá** — uninstall không bao giờ phá việc của bạn.
+- **Nó hoàn nguyên settings chính xác.** Chỉ các lệnh hook mà install đã thêm bị gỡ khỏi
+  `.claude/settings.json`; mọi hook bạn tự thêm vẫn còn.
+- **Cài → gỡ trên cây sạch để git sạch.** Trên một dự án mới bạn chưa sửa gì, gỡ kit khôi phục cây y
+  như cũ. `uninstall.py` chạy **từ thư mục kit** (nó không bao giờ được chép vào dự án của bạn).
+- **Thích chỉ trò chuyện với Claude Code?** Nói *"gỡ agent-workbench khỏi `<đường-dẫn-dự-án>`"* —
+  agent (skill `awb-uninstall`) chạy thử trước, thuật lại kế hoạch bằng lời thường, hỏi bạn xác nhận,
+  rồi mới áp dụng.
+
+## 8. Gỡ rối
+
+- **"`python` không được nhận diện" (Windows).** Hooks được wire bằng interpreter nào resolve được lúc
+  cài. Nếu sau đó `python` thôi resolve (Store alias, bản cài bị dời), **chạy lại**
+  `install.py <project> --merge-settings` — nó dò lại `py`/`python3` chạy được và wire lại.
+- **Guard có vẻ chưa bật.** Khởi động lại Claude Code (hoặc mở phiên mới) sau khi cài hay wire lại —
+  hooks nạp lúc phiên bắt đầu, không phải giữa một phiên đang chạy.
+- **"Guard của tôi bật thật chưa?"** Chạy doctor — nó khởi động các guard đã wire và báo cáo, không
+  ghi gì vào dự án của bạn:
+
+```bash
+python install.py /path/to/your/project --doctor   # from the kit folder (always works)
+python tools/doctor.py                             # from inside your project (after install)
+```
+
+- **Lần đầu cần có sẵn nền tảng.** Kit giả định Python ≥ 3.10, Git, và — cho hooks và skills — Claude
+  Code đã được cài; nó không tự bootstrap những thứ đó cho bạn (xem mục 0).
+- **Một commit bị từ chối.** Đó là một guard đang làm việc, không phải lỗi của bạn — xem mục 6. Nói
+  với agent "commit bị từ chối" và nó chẩn đoán rồi sửa nguyên nhân.

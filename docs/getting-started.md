@@ -152,3 +152,52 @@ The first six run on every local commit and again in CI; the seventh runs only i
 ask you to read a traceback — tell the agent "the commit was refused" and it diagnoses and fixes the
 cause. The [pre-commit-failure-modes.md](pre-commit-failure-modes.md) registry explains how these
 gates learn from anything that slips past them.
+
+## 7. Uninstall
+
+🇻🇳 *Gỡ cài — `uninstall.py` mặc định chỉ chạy thử (dry-run): in kế hoạch, không đụng gì; thêm `--yes` mới thực sự gỡ. Nó **giữ lại** file bạn đã sửa (không xoá việc của bạn). Bản tiếng Việt: [getting-started.vi.md](getting-started.vi.md).*
+
+Removing the kit is symmetric to installing it, and **safe by default**: `uninstall.py` is a
+**dry run unless you pass `--yes`**, so it shows you the plan before changing anything.
+
+```bash
+python uninstall.py /path/to/your/project          # dry run — prints the plan, changes nothing
+python uninstall.py /path/to/your/project --yes    # apply: reverse the install
+```
+
+- **Dry run first.** With no `--yes` it only prints what *would* be removed, kept, or reverted —
+  nothing on disk changes until you confirm.
+- **It keeps files you edited.** A copied file you changed since install (its bytes no longer match
+  the kit's) is **KEPT, not deleted** — uninstall never destroys your work.
+- **It reverts settings precisely.** Only the hook commands install added are stripped from
+  `.claude/settings.json`; any hooks you added yourself stay.
+- **A clean install → uninstall leaves git clean.** On a fresh project you didn't edit, removing the
+  kit restores the tree exactly. `uninstall.py` runs **from the kit folder** (it is never copied into
+  your project).
+- **Prefer to just talk to Claude Code?** Say *"uninstall agent-workbench from `<path-to-my-project>`"*
+  — the agent (skill `awb-uninstall`) dry-runs it, relays the plan in plain language, asks you to
+  confirm, then applies it.
+
+## 8. Troubleshooting
+
+🇻🇳 *Gỡ rối — vài vấp thường gặp: `python` không chạy trên Windows → cài lại; guard chưa bật → khởi động lại Claude Code; "guard của tôi bật chưa?" → chạy doctor (read-only). Bản tiếng Việt: [getting-started.vi.md](getting-started.vi.md).*
+
+- **"`python` is not recognized" (Windows).** The hooks are wired with whatever interpreter resolved
+  at install time. If `python` later stops resolving (a Store alias, a moved install), **re-run**
+  `install.py <project> --merge-settings` — it re-detects a working `py`/`python3` and re-wires.
+- **The guards don't seem to be on.** Restart Claude Code (or start a new session) after installing or
+  re-wiring — hooks load at session start, not in the middle of a running session.
+- **"Are my guards actually on?"** Run the doctor — it launches the wired guards and reports, writing
+  nothing into your project:
+
+```bash
+python install.py /path/to/your/project --doctor   # from the kit folder (always works)
+python tools/doctor.py                             # from inside your project (after install)
+```
+
+- **First-time setup needs the basics.** The kit assumes Python ≥ 3.10, Git, and — for the hooks and
+  skills — Claude Code are already installed; it can't bootstrap those for you (see
+  [section 0](#0-prerequisites)).
+- **A commit was refused.** That's a guard doing its job, not your mistake — see
+  [section 6](#6-when-a-commit-is-refused-and-who-fixes-it). Tell the agent "the commit was refused"
+  and it diagnoses and fixes the cause.
