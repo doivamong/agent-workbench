@@ -50,7 +50,7 @@ guard-tier skill states what it does **not** do (the honesty contract `skill_lin
 | Advanced build — graduated oversight + multi-perspective planning, orchestrating the guards | workflow | LIVE | [`awb-cook`](.claude/skills/awb-cook/) · enforces nothing; a heavier exemplar for higher-stakes builds |
 | Responsibly reuse outside code — license decision, idea/expression split, injection + supply-chain checks | workflow | LIVE | [`awb-external-ref`](.claude/skills/awb-external-ref/) · a classification seatbelt, **not legal advice** |
 | Mine a finished session for durable lessons — score against a fixed bar, write only approved survivors to live memory | workflow | LIVE | [`awb-lessons-capture`](.claude/skills/awb-lessons-capture/) · an honesty overlay on auto-memory; the honest output can be zero |
-| Wire the kit's guards into a project and prove they run — `install.py --merge-settings` then `--doctor` | workflow | LIVE | [`awb-install-and-verify`](.claude/skills/awb-install-and-verify/) · relays only what `--doctor` proves (PROVEN vs INSTALLED); narrates, does not edit settings by hand |
+| Wire the kit's guards into a project and prove they run — `install.py --merge-settings` then `--doctor` | workflow | LIVE | [`awb-install-and-verify`](.claude/skills/awb-install-and-verify/) · relays only what `--doctor` proves (PROVEN vs INSTALLED); narrates, does not edit settings by hand. The verifier is also copied in as [`tools/doctor.py`](tools/doctor.py) so you can re-check from inside your own repo |
 
 ### Guard (4)
 

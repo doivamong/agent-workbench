@@ -40,7 +40,10 @@ never narrate protection it hasn't proven.
    itself, so do **not** use `.` here — only `--doctor` (step 2) accepts `.`.
 2. **Verify — run the real doctor.** Run `python install.py <project-path> --doctor` (here `.`
    *is* allowed, to verify the kit's own wiring). Read-only; it launches the wired guards and
-   reports.
+   reports. **Inside an adopter project** (the kit was installed there, you're not in the kit
+   folder), prefer `python tools/doctor.py` — the same verifier, copied in with the kit, so the
+   user can re-check "are my guards still on?" from their own repo. Fall back to
+   `install.py <project-path> --doctor` from the kit folder if `tools/` wasn't installed.
 3. **HARD GATE: doctor must exit 0.** If it prints any `FAIL`, the guards are **not**
    protecting the user yet — relay the doctor's own `Fix:` line in plain language and stop.
    Do **not** tell the user they're protected. A green-looking summary you didn't read is
