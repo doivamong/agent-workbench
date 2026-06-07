@@ -214,11 +214,13 @@ def memory_health(proj: Path) -> dict:
     """MEMORY.md bytes vs budget, fact count, dangling [[links]]. Honest if absent."""
     # Prefer the live per-project dir; fall back to the repo memory/ folder.
     mem_dir = None
+    used_live = False  # True only when the harness-loaded live dir was found (not the template)
     try:
         import memory_recall_doctor as mrd  # type: ignore
         live, _how = mrd.resolve_live_dir(proj, None)
         if live.is_dir():
             mem_dir = live
+            used_live = True
     except (ImportError, OSError):
         mem_dir = None
     if mem_dir is None and (proj / "memory").is_dir():
@@ -234,7 +236,7 @@ def memory_health(proj: Path) -> dict:
                    if p.name not in ("MEMORY.md", "README.md"))
     targets = set(facts)
     dangling = sorted({m for m in re.findall(r"\[\[([^\]]+)\]\]", raw) if m not in targets})
-    health = {"present": True, "used": used, "budget": INDEX_MAX_BYTES,
+    health = {"present": True, "live": used_live, "used": used, "budget": INDEX_MAX_BYTES,
               "facts": len(facts), "dangling": len(dangling)}
     # Enrich with the fuller hygiene summary (orphans, near-dups, frontmatter errors) the panel
     # would otherwise miss — it sees only `dangling`. Reused from memory_audit, not re-derived.
@@ -575,6 +577,11 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
         # the panel stays budget-only rather than printing a fabricated "0 errors" (measurement-honesty).
         audit_foot = (f'<p class="section-foot">{t["mem_audit_summary"].format(errors=mem["errors"], warns=mem["warns"])}</p>'
                       if "warns" in mem else "")
+        # Day-1-empty signal: the live recall is empty (fresh clone) or we fell back to the repo
+        # template — say so plainly so the panel can't read as a green "memory works" (mirrors the
+        # recall_doctor day-1-empty WARN).
+        day1_foot = (f'<p class="section-foot">{t["mem_day1_empty"]}</p>'
+                     if (not mem.get("live") or mem["facts"] == 0) else "")
         mbadge = f'<span class="badge badge--{sev}"><span class="kit-num">{mem_pct}%</span>&nbsp;{t["mem_badge_used"]}</span>'
         body = ('<div class="mem-grid"><div>'
             '<div class="row row--between row--baseline" style="margin-bottom:var(--sp-2)">'
@@ -585,7 +592,7 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
             f'<span class="meter__fill" style="width:{mem_pct}%"></span></div>'
             f'<p class="section-foot">{t["mem_free"].format(free=free_kb)}'
             f'{t["mem_over"] if mem_pct>=75 else "."}</p>'
-            + audit_foot + '</div>'
+            + day1_foot + audit_foot + '</div>'
             '<div class="mem-stats">'
             f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_facts"]}</span><span class="kit-num kit-num--lg">{mem["facts"]}</span></div>'
             f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_dangling"]}</span><span class="kit-num kit-num--lg {"kit-num--accent" if dang else ""}">{dang}</span></div>'
