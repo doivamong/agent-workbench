@@ -27,7 +27,7 @@ When more than one skill could match a request:
 
 | Skill | Tier | Fires when (triggers) | Does NOT fire when |
 |-------|------|------------------------|--------------------|
-| `awb-plan-then-code` | workflow | "implement X", "add feature", anything multi-file that needs a plan first | a one-line fix; a pure question; a code review |
+| `awb-plan-then-code` | workflow | "implement X", "add feature", anything multi-file that needs a plan first, where the approach is already chosen | a one-line fix; a pure question; a code review; a checkpointed or multi-angle build (use awb-cook); an approach not yet decided (use awb-research first); a spike with an unknown interface |
 | `awb-review` | guard | "review my changes", before a commit/merge of a non-trivial change | general "is my whole codebase good?" audits; research questions |
 | `awb-debug` | guard | "it's broken / erroring / wrong / crashing" with an unknown cause | a known one-line fix; a feature; a code review |
 | `prompt-refiner` | workflow | a vague, multi-part request (the `prompt-refiner-inject.py` hook flags these) | an already-specific request; a trivial one-liner |
