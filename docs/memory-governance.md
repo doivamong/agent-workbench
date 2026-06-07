@@ -202,6 +202,7 @@ surfacing is read-only; building the capability is a human decision (see §5, §
 | **`[[wiki-link]]` resolver** | the links are a human-readable convention with no consumer — the capture skill does not follow resolved links | a built workflow/skill step actually consumes resolved links | this register (the dangling-wiki-link WARN flags broken links, but not "a consumer was built") | 2026-06-04 |
 | **Importable snapshot precondition** (the code half of "snapshot before any mutation") | only one mutator exists — the manual `memory_snapshot.py`; the doc + snapshot + recall-doctor halves already shipped | a real third-party mutator of the live memory dir appears (anything but `memory_snapshot` writes there) | this register + the `defer-discipline` rule (fires when a memory tool is added) | 2026-06-04 |
 | **`tools/memory/` package** (restructure the flat `memory_*.py` into a package) | **⚠ TRIGGER REACHED (2026-06-04), now SIX memory tools** (`audit`, `recall_doctor`, `snapshot`, `budget`, `sync`, `eval`) — each addition past five deepens the case; restructuring into a package is a live human call (§5/§6), deferred until someone takes it, the flat dir still holds | ≥ ~5 memory tools live under `tools/` | this register + the `defer-discipline` rule (its `paths:` covers `tools/memory_*.py`) | 2026-06-04 (eval added 2026-06-06) |
+| **Supersession / stale-fact lifecycle frontmatter** (`superseded_by` / `supersedes` / a `status` lifecycle) | §4 defers lifecycle frontmatter until the corpus *demands* it ("the design you'd add at scale … not before"); §6 records that a status-lifecycle/decay layer backfired. The only present signal — hand-rolled "— RESOLVED" / superseded markers in index hooks — is **sparse and mixed**: a fact tagged "RESOLVED" usually keeps a lesson that is *still* valuable, so the marker is not a clean "this fact is dead" signal. Alternative in use: the manual one-line index edit (§3) drops a genuinely-dead fact from recall; supersession is noted by hand in the hook text. | an **incident** — a retro finds hand-rolled supersession markers genuinely causing recall noise, or a human repeatedly needs the field across sessions; **or** a clean, low-false-positive "superseded" signal emerges | this register (incident — noticed in the moment). **No audit WARN added on purpose**: a marker-text detector would be noisy, and a noisy detector is the false-confidence trap `measurement-honesty.md` warns against | 2026-06-07 |
 
 > ‡ **Trigger redefinition — Decay/archival lister (2026-06-07).** The original trigger, "the live
 > index *repeatedly* trips the ~25 KB / 200-line budget", could only fire *after* the budget was
@@ -216,6 +217,28 @@ surfacing is read-only; building the capability is a human decision (see §5, §
 > Recording a defer is a **human/agent judgment write**, not an auto-generated row — the kit never
 > writes this table for you (writes need a human, §5). To revisit an item, build it only *after* its
 > trigger has actually fired, then delete its row.
+
+---
+
+## 8. The four forms of memory overload (reference frame)
+
+The failure this whole system fights is **overload**: too much memory loaded makes Claude *worse*,
+not better — a large vault is not a useful prompt. Overload is not one thing; it has **four distinct
+forms**, and the kit guards each to a different degree. Naming them gives the tooling a shared
+vocabulary and — honestly — shows where the coverage is thin.
+
+| Form | What it is | What guards it here | Coverage |
+|------|------------|---------------------|----------|
+| **Size** | the loaded index outgrows the session-start budget, silently truncating later entries | `memory_budget` constants + `memory_audit` byte/line WARNs (incl. the ~80% early margin) + `memory_recall_doctor` | **strong** — measured, with an early-margin warning before truncation |
+| **Redundancy** | two facts say the same thing, so recall spends budget twice | `memory_audit` near-duplicate WARN (description ≥ 70% token overlap) → the external `consolidate-memory` pass | **moderate** — detect-only; merging is a human call |
+| **Staleness** | a fact is no longer true, but still loads and may mislead | nothing automatic — staleness is a **human call** (§6: automated decay backfired). The manual one-line index edit (§3) is the remedy; supersession is deferred (§7) | **thin — by design** |
+| **Relevance** | a fact is true but irrelevant to *this* task, yet loads anyway | nothing — the harness loads `MEMORY.md` **flat**, with no task-aware ranking. The only lever is keeping the index small (the Size guards) so the flat load stays cheap | **none — out of scope** |
+
+The honest read: the kit covers **size** well and **redundancy** moderately; **staleness** is
+deliberately left to human judgement (the §6 lessons explain why automation here is dangerous), and
+**relevance** filtering is out of scope (it would need a retrieval engine and a datastore the
+file-first core intentionally does not have). When you feel "memory overload," identify *which* form
+it is — the remedy differs, and two of the four are a manual edit, not a tool.
 
 ---
 
