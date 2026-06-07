@@ -1,4 +1,4 @@
-<!-- en-sha256: f11e14b67dcbc432ac809afc070e63d7ea0b33ee28b0ee60db2a8910555c776f leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: 5868f663e0cf93c4642311ed2c36a584932270f135e58fd761994154a62722d2 leak-scan: ignore[high_entropy_hex] -->
 <div align="center">
 
 # Agent Workbench — Bản tiếng Việt
@@ -257,10 +257,10 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **773**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
-| Demo chạy được | **28** (`examples/`) |
+| Tests | **783**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Demo chạy được | **29** (`examples/`) |
 | Skills | **18** (11 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Tool độc lập | **20** (16 trong `tools/` + `secrets_guard` ở `scripts/`) |
+| Tool độc lập | **21** (20 trong `tools/` + `secrets_guard` ở `scripts/`) |
 
 ## Quickstart (5 phút)
 
@@ -285,14 +285,14 @@ python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt fi
 python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 773 tests
+python -m pytest -q                 # 783 tests
 ```
 
 ## Cài vào dự án của bạn
 
 Đây là phần biến bộ kit thành thứ dùng được thật, chứ không chỉ để tra cứu. Trỏ installer vào dự án bất kỳ và nó chép
-hooks, skills, rules, các tool phục vụ dự án (8 trong số 16 ở `tools/` — 8 cái còn lại là tool
-bảo trì repo ở lại trong kit), `secrets_guard` (cái tool độc lập thứ 17 đếm ở "At a glance" — nó
+hooks, skills, rules, các tool phục vụ dự án (9 trong số 20 ở `tools/` — 11 cái còn lại là tool
+bảo trì repo ở lại trong kit), `secrets_guard` (cái tool độc lập thứ 21 đếm ở "At a glance" — nó
 nằm ở `scripts/`, không phải `tools/`), và scaffold memory vào, rồi wire hooks cho bạn:
 
 ```bash
@@ -394,7 +394,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 773 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 783 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 

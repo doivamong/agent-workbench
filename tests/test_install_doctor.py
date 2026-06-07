@@ -13,6 +13,7 @@ import subprocess
 
 import pytest
 
+import doctor
 import install
 import uninstall
 
@@ -66,28 +67,28 @@ def _completed(stdout, rc=0):
 
 
 def test_interpreter_ok_requires_printed_version(monkeypatch):
-    monkeypatch.setattr(install.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 11\n"))
+    monkeypatch.setattr(doctor.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 11\n"))
     assert install._interpreter_ok("any")
     # Store-alias banner: rc 0 but no sentinel printed → rejected.
-    monkeypatch.setattr(install.subprocess, "run", lambda *a, **k: _completed("Try the Store\n"))
+    monkeypatch.setattr(doctor.subprocess, "run", lambda *a, **k: _completed("Try the Store\n"))
     assert not install._interpreter_ok("any")
     # too old
-    monkeypatch.setattr(install.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 9\n"))
+    monkeypatch.setattr(doctor.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 9\n"))
     assert not install._interpreter_ok("any")
     # non-zero rc
-    monkeypatch.setattr(install.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 11\n", rc=9))
+    monkeypatch.setattr(doctor.subprocess, "run", lambda *a, **k: _completed("AWBPY 3 11\n", rc=9))
     assert not install._interpreter_ok("any")
 
 
 def test_interpreter_ok_survives_timeout_and_missing(monkeypatch):
     def boom(*a, **k):
         raise subprocess.TimeoutExpired(cmd="x", timeout=5)
-    monkeypatch.setattr(install.subprocess, "run", boom)
+    monkeypatch.setattr(doctor.subprocess, "run", boom)
     assert not install._interpreter_ok("any")
 
     def missing(*a, **k):
         raise OSError("no such file")
-    monkeypatch.setattr(install.subprocess, "run", missing)
+    monkeypatch.setattr(doctor.subprocess, "run", missing)
     assert not install._interpreter_ok("any")
 
 

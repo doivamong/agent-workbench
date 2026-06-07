@@ -166,8 +166,8 @@
     },
     ".claude/skills/awb-install-and-verify/SKILL.md": {
       "category": ".claude/skills",
-      "lines": 77,
-      "bytes": 4683
+      "lines": 80,
+      "bytes": 5037
     },
     ".claude/skills/awb-lessons-capture/SKILL.md": {
       "category": ".claude/skills",
@@ -212,7 +212,7 @@
     ".claude/skills/awb-uninstall/SKILL.md": {
       "category": ".claude/skills",
       "lines": 80,
-      "bytes": 4920
+      "bytes": 4999
     },
     ".claude/skills/awb-using-skills/SKILL.md": {
       "category": ".claude/skills",
@@ -253,6 +253,11 @@
       "category": "tools",
       "lines": 98,
       "bytes": 3964
+    },
+    "tools/doctor.py": {
+      "category": "tools",
+      "lines": 258,
+      "bytes": 12436
     },
     "tools/invariants.py": {
       "category": "tools",
