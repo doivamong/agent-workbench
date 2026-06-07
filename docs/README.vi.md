@@ -1,4 +1,4 @@
-<!-- en-sha256: cc377bff4ece2b9459c04c41b2983e2ba3aef46788148b5e06b3500ba3fc74dd leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: 65aded15f1e320cac653d4c379a8ba6f8bea1ce6505519311d90c031a6202de7 leak-scan: ignore[high_entropy_hex] -->
 <div align="center">
 
 # Agent Workbench — Bản tiếng Việt
@@ -13,7 +13,7 @@
 > Lưu ý kỹ thuật: chỉ các **con số** (tests/skills/tools) ở [`README.md`](../README.md) được CI gate;
 > trang này bảo trì bằng tay. Nếu con số lệch nhau, lấy `README.md` làm chuẩn kỹ thuật cuối cùng.
 
-<kbd>[🇬🇧 English](../README.md)</kbd> · <kbd>[Bắt đầu (10 phút)](getting-started.md)</kbd> · <kbd>[Thuật ngữ](#thuật-ngữ-nhanh)</kbd>
+<kbd>[🇬🇧 English](../README.md)</kbd> · <kbd>[Bắt đầu (10 phút)](getting-started.vi.md)</kbd> · <kbd>[Thuật ngữ](#thuật-ngữ-nhanh)</kbd>
 
 ---
 
@@ -33,12 +33,19 @@
 <details>
 <summary><b>Người mới? Bắt đầu bằng hướng dẫn có dẫn dắt →</b></summary>
 
-Đọc [`docs/getting-started.md`](getting-started.md) để có một lượt đi có dẫn dắt: clone, chạy vài
+Đọc [`docs/getting-started.vi.md`](getting-started.vi.md) để có một lượt đi có dẫn dắt: clone, chạy vài
 demo, rồi trỏ installer vào một dự án của bạn. Phần còn lại của trang này là bản đồ tra cứu — lướt
 bảng [Bên trong có gì](#bên-trong-có-gì), rồi chỉ đào sâu vào các khối `<details>` cho cơ chế bạn
 quan tâm.
 
 </details>
+
+> **Nếu bạn không lập trình, kit này vẫn dành cho bạn.** Bạn điều khiển nó bằng cách *nói chuyện*
+> với Claude Code — không phải tự sửa settings hay đọc traceback. Mở thư mục `agent-workbench` trong
+> Claude Code và nói: *"cài agent-workbench vào `<dự án của tôi>` và xác nhận guard đã bật."* Agent
+> chạy installer + kiểm tra `--doctor`, rồi giải thích bằng lời thường cái gì được bảo vệ, cái gì
+> không. Hướng dẫn không-dùng-terminal từng bước:
+> [getting-started.vi](getting-started.vi.md#2-cài-vào-dự-án-của-bạn).
 
 ---
 
@@ -96,6 +103,11 @@ tiết kỹ thuật được dời sang các đường dẫn liên kết và cá
 | scaffold | khung mẫu (để bạn thay bằng cái thật) |
 | blueprint | bản thiết kế (mô tả cách làm, không chạy được) |
 | adopter-fills | phần người dùng tự điền |
+| skill | kỹ năng / playbook — một quy trình có thể "chạy" được mà bạn gọi bằng ý định (vd: "review giúp tôi") |
+| hook | chốt tự động — chạy ngay khi một sự kiện xảy ra (vd: trước khi chạy lệnh Bash), bạn không phải gọi |
+| memory | bộ nhớ — fact dạng file giữ lại context qua các phiên làm việc |
+| rule | quy tắc gắn theo đường dẫn — tự nạp khi bạn sửa một file khớp đường dẫn đó |
+| workflow | quy trình — một chuỗi skill/hook/tool phối hợp cho một loại việc |
 
 | Khi bạn cần… | Cái này cho bạn | Đường dẫn |
 |---|---|---|
@@ -323,7 +335,7 @@ python uninstall.py /path/to/your/project --yes                 # đảo ngượ
 
 `uninstall.py` mặc định chỉ chạy thử (dry-run) và **giữ lại mọi file bạn đã sửa** — mô hình an toàn
 đầy đủ (kèm hướng dẫn gỡ rối) nằm ở
-**[getting-started](getting-started.md#7-uninstall)**, nguồn duy nhất cho cài/gỡ.
+**[getting-started.vi](getting-started.vi.md#7-gỡ-cài-đặt)**, nguồn duy nhất cho cài/gỡ.
 
 Với `--merge-settings`, các hook của installer hoạt động ngay — mọi hook trong bảng trên trừ
 `sync_guard` chỉ dành cho maintainer và `skill_usage_logger` opt-in; không có nó thì bạn tự dán đoạn snippet
@@ -342,9 +354,13 @@ deny-list riêng cho [`tools/leak_scan.py`](../tools/leak_scan.py).
 
 ## Tài liệu
 
+> 🇻🇳 **Lưu ý ngôn ngữ:** trừ ba file có đuôi `.vi` (README, getting-started, PHILOSOPHY), các file
+> bên dưới **hiện chỉ có tiếng Anh**. Nếu bạn chưa thoải mái với tiếng Anh, cứ hỏi Claude Code bằng
+> tiếng Việt — agent đọc giúp và giải thích lại cho bạn.
+
 | Nhóm | File chính | Khi nào đọc |
 |---|---|---|
-| **Bắt đầu ở đây** | [`docs/getting-started.md`](getting-started.md) | Lần clone đầu — hướng dẫn có dẫn dắt |
+| **Bắt đầu ở đây** | [`docs/getting-started.vi.md`](getting-started.vi.md) | Lần clone đầu — hướng dẫn có dẫn dắt (bản tiếng Việt) |
 | **Bản đồ** | [`SKILL_CATALOG.md`](../SKILL_CATALOG.md) | Toàn bộ cây phân loại năng lực — mỗi skill/hook/doc/placeholder gắn nhãn LIVE / BLUEPRINT / ADOPTER-FILLS / REJECTED |
 | **Bảo mật** | [`docs/SECURITY.md`](SECURITY.md) | Mỗi guard bảo vệ / KHÔNG bảo vệ điều gì |
 | **Blueprint** | [`docs/memory-governance.md`](memory-governance.md) | Thiết kế tham chiếu cho memory xuyên phiên — repo ship scaffold `memory/`; tooling governance là một mô hình bạn tự dựng |
