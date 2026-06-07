@@ -1,4 +1,4 @@
-<!-- en-sha256: 293ff003a668546a681e051e655dfbe92c849aad4ff14535b8d734d65725de1b leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: 5bf4752de91142103c4383136117e904f1b3c0480c1d38fc5960a450f07bf05a leak-scan: ignore[high_entropy_hex] -->
 <div align="center">
 
 # Agent Workbench — Bản tiếng Việt
