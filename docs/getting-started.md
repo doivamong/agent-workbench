@@ -6,12 +6,15 @@ A ~10-minute walkthrough: run the demos (seconds each), then wire the tools into
 
 ## 0. Prerequisites
 
-🇻🇳 *Yêu cầu — Python ≥ 3.10 (lõi chỉ dùng stdlib; `pytest` chỉ cho bộ test). Git. Tuỳ chọn: Claude Code (hoặc agent khác) để dùng hooks và skills.*
+🇻🇳 *Yêu cầu — Python ≥ 3.10 (kiểm tra bằng `python --version`; thiếu thì cài từ python.org) và Git (`git --version`; thiếu thì cài từ git-scm.com). Tuỳ chọn: Claude Code để dùng hooks và skills — đây là cách điều khiển kit nếu bạn không muốn tự gõ lệnh.*
 
-- **Python ≥ 3.10** (the reusable core is stdlib-only; `pytest` is only for the test suite — the
-  CI matrix is 3.10 / 3.11 / 3.12).
-- Git. Optional: [Claude Code](https://claude.com/claude-code) (or another agent) to use the
-  hooks and skills.
+- **Python ≥ 3.10.** Check with `python --version` (on Windows, also try `py --version`); if it is
+  missing or older, install it from [python.org](https://www.python.org/downloads/). The reusable
+  core is stdlib-only; `pytest` is only for the test suite (CI runs 3.10 / 3.11 / 3.12).
+- **Git** — check with `git --version`; if it is missing, get it from
+  [git-scm.com](https://git-scm.com/downloads). **Optional:** [Claude Code](https://claude.com/claude-code)
+  (or another agent) to use the hooks and skills — this is what drives the kit if you would rather
+  not type commands yourself.
 
 ```bash
 git clone https://github.com/doivamong/agent-workbench
@@ -61,29 +64,38 @@ python tools/leak_scan.py . --entropy --fail-on-find --respect-gitignore   # thi
 
 ## 2. Install into your project
 
-🇻🇳 *Cài vào dự án — `install.py` chép hooks/skills/rules/tool/`secrets_guard`/scaffold memory, tuỳ chọn cài git pre-commit gate, rồi in đoạn `settings.json` để bạn merge.*
+🇻🇳 *Cài vào dự án — `install.py … --merge-settings` chép hooks/skills/rules/tool/`secrets_guard`/scaffold memory rồi tự wire hooks (guard bật ngay trong một lệnh, không phải sửa file); bỏ cờ đó thì nó in đoạn `settings.json` để bạn tự dán. Thêm `--with-git-hook` cho git pre-commit gate.*
 
-> **Prefer to just talk to Claude Code?** Clone agent-workbench and **open that folder** in Claude
-> Code first, then say: *"install agent-workbench into `<path-to-my-project>` and confirm the guards
-> are on."* The agent (skill `awb-install-and-verify`) runs the install below against your project,
-> then `install.py … --doctor` to prove the guards actually fire — and tells you honestly what's
-> protected and what isn't. It runs **from the kit folder**, not from inside your empty project (the
-> tools aren't there yet).
+> **Prefer not to use a terminal? Drive it by talking to Claude Code — the intended path if you
+> don't code.** No editing settings, no reading tracebacks:
+> - Get the kit onto your machine: on GitHub click **Code ▾ → Download ZIP** and unzip it (or
+>   `git clone` it if you know how).
+> - Open that unzipped `agent-workbench` folder in Claude Code.
+> - Say: *"install agent-workbench into `<path-to-my-project>` and confirm the guards are on."*
+>   Not sure of the path? First say *"help me find my project folder."*
+> - The agent (skill `awb-install-and-verify`) runs the install below, then `install.py … --doctor`
+>   to prove the guards fire, and tells you honestly what's protected and what isn't. It runs **from
+>   the kit folder**, not from inside your empty project (the tools aren't there yet).
 >
-> 🇻🇳 *Thích chỉ trò chuyện với Claude Code? Trước hết clone agent-workbench và **mở thư mục đó**
-> trong Claude Code, rồi nói: "cài agent-workbench vào `<đường-dẫn-dự-án>` và xác nhận guard đã bật."
-> Agent (skill `awb-install-and-verify`) chạy lệnh cài bên dưới rồi `--doctor` để chứng minh guard
-> thực sự chạy, và nói thật cái gì được bảo vệ. Chạy **từ thư mục kit**, không phải từ trong dự án trống.*
+> 🇻🇳 *Không muốn dùng terminal? Điều khiển bằng cách nói chuyện với Claude Code — đây là đường dành
+> cho người không lập trình. Không sửa settings, không đọc traceback: (1) tải kit về máy — trên
+> GitHub bấm **Code ▾ → Download ZIP** rồi giải nén (hoặc `git clone` nếu bạn biết); (2) mở thư mục
+> `agent-workbench` đó trong Claude Code; (3) nói: "cài agent-workbench vào `<đường-dẫn-dự-án>` và
+> xác nhận guard đã bật" (chưa rõ đường dẫn? nói "giúp tôi tìm thư mục dự án"); (4) agent (skill
+> `awb-install-and-verify`) chạy lệnh cài rồi `--doctor` để chứng minh guard chạy, và nói thật cái
+> gì được bảo vệ. Chạy **từ thư mục kit**, không phải từ trong dự án trống.*
 
 ```bash
-python install.py /path/to/your/project --with-git-hook
+python install.py /path/to/your/project --merge-settings
 python install.py /path/to/your/project --doctor   # then verify the wired guards actually fire
-# --dry-run to preview; --force to overwrite existing files
+# add --with-git-hook for a commit-time leak gate; --dry-run to preview; --force to overwrite
 ```
 
-This copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold into
-your project, optionally installs a git pre-commit leak gate, and prints the `settings.json`
-snippet you need. Merge that snippet into `your-project/.claude/settings.json`.
+This copies the hooks, skills, rules, tools, `secrets_guard`, and the memory scaffold into your
+project and — with `--merge-settings` — wires the hooks for you automatically, so the guards are
+active in one command (no file editing). Without that flag it instead prints a `settings.json`
+snippet for you to paste into `your-project/.claude/settings.json`; `--merge-settings` is the
+simpler path. Add `--with-git-hook` to also install a git pre-commit leak gate.
 
 ## 3. What you now have
 

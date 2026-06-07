@@ -25,11 +25,18 @@ guard tools, installed in one command.
 - **What it is (and isn't)** — the generic, reusable layer pulled from one real private codebase: a
   copy-pasteable kit of small, independent, opt-in pieces. **Not a framework, not a security
   product** — and the guards state what they do **not** defend against.
-- **What you get** — skills + rules + hooks + stdlib guard tools, wired in by one command.
+- **What you get** — skills + rules + hooks + stdlib guard tools, wired in by one command (use
+  `--merge-settings`; without it the installer prints a settings snippet for you to paste).
 - **Why trust it** — the command blocker and leak scanner are *seatbelts, not security boundaries*;
   every guard says what it does not do. ([Honest by design ↓](#honest-by-design))
 
 New here? **[See it work in 30 seconds — no install ↓](#fastest-proof)** — or pick your path:
+
+> **If you don't code, this kit is still for you.** You drive it by *talking to* Claude Code — not by
+> editing settings or reading tracebacks. Open the `agent-workbench` folder in Claude Code and say
+> *"install agent-workbench into `<my project>` and confirm the guards are on."* The agent runs the
+> installer and the `--doctor` check, then explains in plain language what's protected and what isn't.
+> Step-by-step, no-terminal walkthrough: [getting-started](docs/getting-started.md#2-install-into-your-project).
 
 ## Choose your path
 
@@ -38,7 +45,7 @@ New here? **[See it work in 30 seconds — no install ↓](#fastest-proof)** —
 | **New to Claude Code** | [getting-started](docs/getting-started.md) → [workflow](docs/workflow.md) → [SECURITY](docs/SECURITY.md) |
 | **A power user sizing it up** | [SKILL_CATALOG](SKILL_CATALOG.md) → [skills README](.claude/skills/README.md) → [workflow](docs/workflow.md) |
 | **Installing it into your repo** | [Fastest proof ↓](#fastest-proof) → `python install.py --dry-run` → [memory-governance](docs/memory-governance.md) |
-| **Người Việt mới bắt đầu** | [README.vi](docs/README.vi.md) → [Thuật ngữ](docs/README.vi.md#thuật-ngữ-nhanh) → [getting-started](docs/getting-started.md) |
+| **Người Việt mới bắt đầu** | [README.vi](docs/README.vi.md) → [Thuật ngữ](docs/README.vi.md#thuật-ngữ-nhanh) → [getting-started.vi](docs/getting-started.vi.md) |
 
 ## Honest by design
 
