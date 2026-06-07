@@ -41,6 +41,7 @@ All hooks are fail-open (a crash logs and exits clean — a guardrail must never
 | **Reviewing a change already written** | [`awb-review`](../.claude/skills/awb-review/SKILL.md) (spec → quality → adversarial) | Use before committing anything non-trivial |
 | **Choosing between approaches** | [`awb-research`](../.claude/skills/awb-research/SKILL.md) → write the decision + why | Feeds the plan skill if you then build it |
 | **A one-line fix with a known cause** | Just make it | No skill needed — but the gates and the auto-firing guards still apply |
+| **Ending a session / closing the window** | [`awb-session-close`](../.claude/skills/awb-session-close/SKILL.md) (audit → clean on approval) → optionally [`awb-handover`](../.claude/skills/awb-handover/SKILL.md) / [`awb-lessons-capture`](../.claude/skills/awb-lessons-capture/SKILL.md) | Read-only `session_close_audit.py` first; BLOCKs only uncommitted / unpushed work (what would be lost), WARNs on stale branches |
 
 ## Blocking gates (don't skip)
 

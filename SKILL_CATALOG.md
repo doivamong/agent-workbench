@@ -27,7 +27,7 @@ Caveat** says where it lives plus the honest limit that travels with it.
 
 > **The authoritative count of LIVE skills is gated in the README** ("At a glance"), kept
 > honest by `tools/readme_metrics.py --check`. This catalog is a *map*, not a counter — if a number
-> here and the README ever disagree, the README wins. As of this writing the kit ships **18 live
+> here and the README ever disagree, the README wins. As of this writing the kit ships **19 live
 > skills** across all five tiers.
 
 ---
@@ -37,7 +37,7 @@ Caveat** says where it lives plus the honest limit that travels with it.
 The runnable exemplars. Each is a working reference whose *shape* you copy, not its content. Every
 guard-tier skill states what it does **not** do (the honesty contract `skill_lint.py` greps for).
 
-### Workflow (11)
+### Workflow (12)
 
 | Capability | Tier | Status | Lands as / Caveat |
 |---|---|---|---|
@@ -52,6 +52,7 @@ guard-tier skill states what it does **not** do (the honesty contract `skill_lin
 | Mine a finished session for durable lessons — score against a fixed bar, write only approved survivors to live memory | workflow | LIVE | [`awb-lessons-capture`](.claude/skills/awb-lessons-capture/) · an honesty overlay on auto-memory; the honest output can be zero |
 | Wire the kit's guards into a project and prove they run — `install.py --merge-settings` then `--doctor` | workflow | LIVE | [`awb-install-and-verify`](.claude/skills/awb-install-and-verify/) · relays only what `--doctor` proves (PROVEN vs INSTALLED); narrates, does not edit settings by hand. The verifier is also copied in as [`tools/doctor.py`](tools/doctor.py) so you can re-check from inside your own repo |
 | Remove the kit from a project safely — dry-run plan, explicit confirm, KEEP files you edited | workflow | LIVE | [`awb-uninstall`](.claude/skills/awb-uninstall/) · dry-run by default; never deletes a file you modified; refuses to guess with no manifest |
+| Verify a working tree is safe to close at session end — uncommitted / unpushed / unmerged / stale branches, clean on approval | workflow | LIVE | [`awb-session-close`](.claude/skills/awb-session-close/) · read-only [`tools/session_close_audit.py`](tools/session_close_audit.py); BLOCKs only what would be lost (uncommitted/unpushed), never auto-deletes a branch |
 
 ### Guard (4)
 
