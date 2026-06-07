@@ -124,6 +124,14 @@ def test_concurrency_caution_shown_when_unsafe_needs_ship():
     assert "concurrent-session safety" in text
 
 
+def test_report_is_ascii_clean_on_windows_consoles():
+    # The report prints to cp1252 consoles; a stray em-dash mojibakes. Cover both verdict paths
+    # and the branch lines so no printed string carries a non-ASCII char.
+    for st in (_state(safe=True, squash=["docs/onboarding"]),
+               _state(safe=False, unpushed=2, prs=[{"number": 1, "title": "x"}])):
+        sca._format_report(st).encode("ascii")  # raises UnicodeEncodeError if any non-ASCII slips in
+
+
 def test_concurrency_caution_flags_extra_worktrees():
     text = sca._format_report(_state(safe=False, unpushed=1, worktrees=2))
     assert "Worktrees sharing this .git: 2" in text
