@@ -271,6 +271,40 @@ def test_C3b_cli_refuses_public_bind():
         webapp.main(["--host", "8.8.8.8"])        # a public IP → clean SystemExit, no traceback
 
 
+# --------------------------------------------------------------------------- #
+# Audit-log writability — boot-time fail-closed (the chosen T3 model A).
+#
+# _audit() appends a JSON line to .ops/ops.log for every action AND every blocked request,
+# with NO try/except on purpose (an audit log must fail loud, never silently). But a write
+# that raises *inside a request* would (C1) turn a clean 401/403 refusal into a 500, and (C2)
+# could drop a destructive action's audit line AFTER the action already ran. The fix verifies
+# .ops/ writability ONCE, at create_app, and refuses to start if it can't write — so:
+#   * C1 (auth not masked): unreachable at runtime — the server never serves a request against
+#     an unwritable .ops/, so no 401/403 can ever degrade to a 500.
+#   * C2 (destructive audit never silently lost): the destructive path never runs against an
+#     unwritable log, and the boot failure is loud (a raised RuntimeError), never swallowed.
+# --------------------------------------------------------------------------- #
+def test_unwritable_ops_dir_refused_at_startup(tmp_path):
+    """An unwritable .ops/ must fail create_app LOUD, not boot a server that 500s an auth
+    refusal or silently drops a destructive-action audit line. Trigger portably (incl. Windows)
+    by placing a *file* where .ops/ must be a dir, so the mkdir + probe-write fails."""
+    (tmp_path / ".ops").write_text("not a directory", encoding="utf-8")  # blocks .ops/ mkdir
+    with pytest.raises(RuntimeError) as exc:
+        webapp.create_app(ops_root=str(tmp_path))
+    msg = str(exc.value).lower()
+    assert "audit" in msg and "writable" in msg          # an actionable, audit-specific message
+    assert str(tmp_path) in str(exc.value)               # names the offending root
+
+
+def test_writable_ops_dir_builds(tmp_path):
+    """The boot-time assert is not over-eager: a writable ops_root builds normally and the
+    config reflects the injected root (the new param is purely additive)."""
+    app = webapp.create_app(ops_root=str(tmp_path))
+    assert "ADMIN_TOKEN" in app.config                   # built without raising
+    assert app.config["OPS_ROOT"] == str(tmp_path)
+    assert (tmp_path / ".ops").is_dir()                  # the probe created/validated .ops/
+
+
 def test_admin_page_reachability_badge_reflects_real_bind(tmp_path):
     """opt-2 UI honesty: the /admin page shows a badge driven by the REAL bind host — 'reachable
     on LAN' for a 0.0.0.0 bind, 'this machine only' for loopback.
