@@ -106,6 +106,26 @@ It flags a PR that is **STUCK** (auto-merge on, but a required check failed → 
 distinctly from one merely **queued** (waiting on pending checks), and prints the exact recheck
 command for each. It is read-only — it never merges or closes anything.
 
+### Triage a STUCK PR (investigate + propose, don't auto-fix)
+
+The surfacer tells you a PR is stuck and *which* check is red — it stops there by design. Don't leave
+it there: a STUCK PR is a real red check, so treat it as a bug to diagnose, not a queue to retry.
+
+1. **Pull the evidence, don't guess.** Get the failing run and read its log, not just the check name:
+   `gh run list --branch <headRefName>` for the run id, then `gh run view <run-id> --log-failed`.
+2. **Flake vs. real failure.** A timeout / network blip / a check that passes on a clean re-run is a
+   *flake* — propose a re-run, don't change code. A failure that reproduces is real → step 3.
+3. **Root cause, not symptom.** Hand the failure to [`awb-debug`](../.claude/skills/awb-debug/SKILL.md)
+   (reproduce → name the root cause → fix → prove). Don't guess-patch to make CI green.
+4. **Propose, don't auto-act.** Surface the root cause and the fix for a human to approve. The fix
+   lands as a *new* commit/PR that must itself pass the required checks — **never** force-merge or
+   admin-merge past a red required check (that defeats branch protection). `--now` is only for an
+   already-green PR.
+
+This is in-session triage: it fires when you (or the agent, on a ship) run the surfacer and see STUCK.
+It does **not** watch unattended — a check that goes red at 2am with no session open is not caught here
+(that would need a scheduled `--exit-code` alert, deliberately out of scope).
+
 ## When several skills could fire
 
 Precedence (**Workflow > Guard > Feature > Audit**) and "a domain-specific rule beats a general
