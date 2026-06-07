@@ -53,25 +53,43 @@ warning never becomes noise you learn to ignore.
    main via squash/rebase* (`-D`, verified with `git cherry`), and *work-not-provably-in-main*
    (review first). A detached HEAD is flagged inline.
 
-2. **Relay the verdict in plain language** (in this project, Vietnamese). State clearly: safe to
-   close, or the specific blockers that would be lost.
+2. **Completeness checkpoint — BEFORE you relay "safe to close".** Git safety is *proven* by the
+   tool; whether the session's **task is done** is NOT a git signal, so do not mint it as a second
+   verdict in the same definite register. Be **asymmetric**: if the objective was clearly met — or
+   there was no multi-step objective (an exploratory, answered, or trivial session) — add nothing and
+   go to step 3. Otherwise surface the task axis as a **question / a belief to confirm** (never a
+   fabricated "1/3 phases" verdict), across the short open set you actually know from context:
+   *objective state · tests/CI green/red/not-run · a promise made this session kept/open*. Three
+   branches, with **unknown as the fail-safe default**:
+   - **Confirmed done** → go to step 3.
+   - **Unfinished and you'll resume** → *offer* a handover; on yes, run
+     [`awb-handover`](../awb-handover/SKILL.md) as its own skill (its cold-reader HARD GATE stays
+     intact — don't inline a thin version). The handover lands in the gitignored `handovers/` dir,
+     local to this worktree, so it survives the close with **no commit needed**. Then go to step 3.
+   - **Cannot determine** — a vague / changed / drifted goal, multi-session work, or a context
+     compaction wiped the objective this session → do **not** assume done. Say "I can't verify your
+     task is complete from my current context", ask the user, and offer a handover before closing.
 
-3. **Clear the BLOCKers first** — if anything would be lost:
+3. **Relay the git verdict** (in this project, Vietnamese), stated as *proven*: git-safe to close, or
+   the specific blockers that would be lost. The tool prints a one-line scope clause (git-safe ≠
+   task-done) — reference it, don't re-author it.
+
+4. **Clear the BLOCKers first** — if anything would be lost:
    - Uncommitted work you want to keep → ship it (review → `pre-commit run --all-files` → commit →
      push → PR → enqueue auto-merge, per [`docs/workflow.md`](../../../docs/workflow.md)), or
      `git stash` to set aside.
    - Unpushed commits → push, then verify with the run-id / merge-tree check before relying on CI.
 
-4. **Offer the cleanup, never auto-delete.** The tool prints the exact `git branch -d` / `-D`
+5. **Offer the cleanup, never auto-delete.** The tool prints the exact `git branch -d` / `-D`
    commands (a branch whose name carries odd characters is listed for *manual* deletion, never put
    in a runnable line). Present them and get an explicit yes before running — deleting a branch is
    the user's call. Use `-d` for merged branches; `-D` for the squash/rebase-merged ones the tool
    verified with `git cherry`. (The tool already pruned remote-tracking refs in step 1 — no extra
    fetch needed.)
 
-5. **Hand off or capture, if warranted** (not part of the safety check, but the natural next step):
-   - Real work still in flight you'll resume next session → [`awb-handover`](../awb-handover/SKILL.md).
-   - A surprising lesson worth keeping → [`awb-lessons-capture`](../awb-lessons-capture/SKILL.md).
+6. **Capture lessons, if warranted** — a surprising lesson worth keeping →
+   [`awb-lessons-capture`](../awb-lessons-capture/SKILL.md). (Unfinished-work *packaging* is handled
+   in step 2; this is only the lessons pointer.)
 
 ## The squash-merge trap (the one this skill exists to encode)
 
@@ -136,6 +154,11 @@ when you can't split right now.
 - **Squash detection is conservative, not omniscient.** It proves containment with `git cherry`
   (patch-id), so a multi-commit branch folded into one squash stays in *review*, not `-D` — verify
   and delete by hand. It will never *recommend* a force-delete it can't prove.
+- **It measures git safety, not task-completeness — and asks, it does not assert.** "Safe to close"
+  is git-only and *proven*; whether your *work* is done has no git signal. The completeness
+  checkpoint (step 2) surfaces that as a question and **fails safe to "ask"** when it can't tell
+  (e.g. after a compaction wiped the objective) — never to "done". Unfinished work is *packaged* by
+  [`awb-handover`](../awb-handover/SKILL.md), not here; this skill only routes to it.
 - **`gh` may be absent.** Then the open-PR check degrades to "unknown" rather than failing; verify
   PRs another way before trusting "nothing unmerged".
 - **It does not *detect* a second session — it reminds.** A reliable in-tree detector isn't
