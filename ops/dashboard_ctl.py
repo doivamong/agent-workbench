@@ -35,6 +35,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.request
@@ -380,7 +381,7 @@ def _terminate(pid: int, timeout: float = 10.0) -> tuple[bool, str | None]:
             err = (proc.stderr or proc.stdout or "").strip()
             if "access is denied" in err.lower():
                 reason = ("taskkill was denied (Access is denied): the process runs at a higher "
-                          "integrity level — it was launched elevated. Run restart_all.bat / "
+                          "integrity level - it was launched elevated. Run restart_all.bat / "
                           "dashboard_ctl as Administrator to restart it.")
             elif err:
                 reason = f"taskkill failed: {err}"
@@ -520,10 +521,15 @@ def restart(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = A
     # used to exit 0 on a silent no-op; surface it so restart_all.bat reports the failure.
     sres = start_res.get("result")
     if sres == "already-running":
+        # Factual CAUSE only — de-jargoned and prescribing no action. The recovery steps live in
+        # the human view (render_human's Try block, which knows whether restart_all.ps1 is driving
+        # it and so does not tell the user to run --force the wrapper is already running for them).
+        # The machine-facing hint stays in --json. Earlier this string commanded "re-run with
+        # --force", which is stale via the .bat: the wrapper auto-runs an elevated stop --force.
         hint = stop_res.get("hint") or (
-            "the port is still held by a process this controller did not start — likely a "
-            "stale pidfile or a dashboard launched elevated. Stop that process, or re-run with "
-            "--force (and as Administrator if it is elevated); the running server was NOT replaced.")
+            "the port is still in use by a process this tool did not start (a leftover from a "
+            "previous run, or a dashboard started as Administrator); the dashboard you already "
+            "had is still running - nothing was lost.")
         out = {"action": "restart", "result": "not-restarted", "stop": stop_res,
                "start": start_res, "hint": hint}
     elif sres == "started-unverified":
@@ -534,6 +540,240 @@ def restart(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, app: Path = A
     if force_res is not None:
         out["force"] = force_res
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Human-readable rendering (the default, non --json view)
+# --------------------------------------------------------------------------- #
+# The dict the commands return is for programs (and --json); a person double-clicking
+# restart_all.bat should see a clean, aligned summary — not a raw repr with nested {'...': ...},
+# bare True/None, and quote noise. This was reviewed by a UX council; the design rules it settled:
+#   * a fixed-width ASCII status token ([ OK ] / [FAIL] / [WARN] / [STOP]) so success vs failure
+#     differ by SHAPE at a glance, not just by one word;
+#   * the URL a person actually opens leads the block, labelled 'Open', with a LAN address too
+#     when bound to 0.0.0.0 (loopback alone under-serves the phone-on-the-LAN use case);
+#   * failures answer "what happened" (Why) and "what to do" (Try) as separate, scannable blocks;
+#   * a constant label gutter so the value column does not jump between `restart` and `status`;
+#   * ASCII-only (parity with restart_all.ps1) so it stays legible in any console code page.
+# Dev-honest tone: real terms (pid, healthy — an HTTP-2xx probe, not just "alive") are kept; only
+# pure internals (__pycache__) are softened and network literals are glossed.
+_HEADLINE = {
+    "restarted": "restarted",
+    "started": "started",
+    "started-unverified": "started, but health unverified",
+    "already-running": "already running",
+    "stopped": "stopped",
+    "not-running": "not running",
+    "not-restarted": "NOT restarted (old copy still running)",
+    "stop-failed": "stop FAILED",
+    "refused-public-bind": "refused (public bind)",
+}
+
+# A constant left gutter (>= the widest common label) so the value column lands in the same place
+# across every command — running `restart` then `status` no longer shifts the columns sideways.
+_LABEL_W = 9
+
+# Env flag set by restart_all.ps1 so the human Try block knows a wrapper is driving us and is
+# already freeing the port — we then must NOT tell the user to do the --force step by hand.
+_WRAPPER_ENV = "AWB_RESTART_WRAPPER"
+
+
+def _status_token(result: dict) -> str:
+    """A fixed 6-char ASCII verdict marker so the eye reads OK/FAIL before parsing the sentence."""
+    res = result.get("result")
+    if res == "refused-public-bind":
+        return "[STOP]"
+    if result.get("action") == "status":
+        return "[ OK ]" if result.get("healthy") else ("[WARN]" if result.get("listening") else "[FAIL]")
+    if res in ("restarted", "started", "stopped", "not-running", "already-running"):
+        return "[ OK ]"
+    if res == "started-unverified":
+        return "[WARN]"
+    return "[FAIL]"  # not-restarted, stop-failed
+
+
+def _headline_text(result: dict) -> str:
+    """The verdict phrase after the token (status is composed from its three live signals)."""
+    if result.get("action") == "status":
+        return ("healthy" if result.get("healthy")
+                else "running (not healthy)" if result.get("listening") else "not running")
+    return _HEADLINE.get(result.get("result"), str(result.get("result")))
+
+
+def _is_wildcard(host: str) -> bool:
+    """True for an all-interfaces bind (0.0.0.0 / ::), where loopback alone under-serves a LAN user."""
+    try:
+        return ipaddress.ip_address((host or "").strip().strip("[]")).is_unspecified
+    except ValueError:
+        return False
+
+
+def _access_phrase(host: str) -> str:
+    """Plain-language gloss of a bind host: who can actually reach the dashboard."""
+    if _is_wildcard(host):
+        return "this PC + your local network"
+    if (host or "").strip().strip("[]") in ("127.0.0.1", "::1", "localhost"):
+        return "this PC only"
+    return host or ""
+
+
+def _lan_ip() -> str | None:
+    """This machine's primary LAN IPv4, or None. Uses a UDP socket to a non-routable documentation
+    address (RFC 5737) — no packet is sent; the OS just picks the default-route interface, so this
+    works offline and embeds no real/public IP. Returns None when there is no usable route."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("192.0.2.1", 80))  # TEST-NET-1; unreachable, only selects the egress iface
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+    except OSError:
+        return None
+    return ip if ip and not ip.startswith("127.") else None
+
+
+def _open_rows(host: str, loopback_url: str) -> list[tuple[str, str]]:
+    """The 'Open' row(s): the clickable URL the user wants most. On a wildcard bind, add the LAN
+    address (the whole point of 0.0.0.0) alongside the this-PC loopback link."""
+    if not loopback_url:
+        return []
+    if not _is_wildcard(host):
+        return [("Open", loopback_url)]
+    rows = [("Open", f"{loopback_url}  (this PC)")]
+    lan = _lan_ip()
+    if lan:
+        port = loopback_url.rsplit(":", 1)[-1]
+        rows.append(("Open", f"http://{lan}:{port}  (other devices on your network)"))
+    return rows
+
+
+def _pid_line(d: dict) -> str:
+    """One readable line for a stop/start sub-result: 'pid N  healthy' when we have a PID,
+    else the sub-result word ('already-running', 'not-running', ...)."""
+    pid = d.get("pid")
+    if pid:
+        return f"pid {pid}  healthy" if d.get("healthy") is True else f"pid {pid}"
+    return str(d.get("result", ""))
+
+
+def _rows_for(result: dict) -> list[tuple[str, str]]:
+    """The (label, value) pairs to show under the headline, per command. Empty values are
+    dropped by the printer, so a command only shows the fields it actually has."""
+    if result.get("result") == "refused-public-bind":
+        return [("bind host", result.get("bind_host", ""))]  # routed through the shared path now
+    action = result.get("action", "")
+    if action == "status":
+        pid = result.get("pid")
+        if result.get("healthy"):  # all-green: lead with the URL, drop rows that restate "it's up"
+            rows = _open_rows(result.get("bind_host", ""), result.get("url", ""))
+            rows.append(("pid", f"{pid} (alive)" if pid else "none recorded"))
+            rows.append(("access", _access_phrase(result.get("bind_host", ""))))
+            return rows
+        return [  # not healthy: the three signals are the diagnostic value — show them split
+            ("pid", f"{pid} ({'alive' if result.get('pid_alive') else 'not alive'})"
+                    if pid else "none recorded"),
+            ("listening", "yes" if result.get("listening") else "no"),
+            ("healthy", "yes" if result.get("healthy") else "no"),
+            ("access", _access_phrase(result.get("bind_host", ""))),
+        ]
+    if action == "start":
+        rows = _open_rows(result.get("bind_host", ""), result.get("url", ""))
+        if result.get("pid"):
+            rows.append(("started", _pid_line(result)))
+        if result.get("bind_host"):
+            rows.append(("access", _access_phrase(result["bind_host"])))
+        if result.get("log"):
+            rows.append(("log", result["log"]))
+        return rows
+    if action == "stop":
+        return [("pid", str(result["pid"]))] if result.get("pid") else []
+    if action == "restart":
+        stop_res, start_res = result.get("stop") or {}, result.get("start") or {}
+        res = result.get("result")
+        ok = res in ("restarted", "started-unverified")
+        # On success the URL leads; on failure we deliberately omit it — a bare URL next to
+        # "NOT restarted" reads as "it worked" (the old server is what answers there).
+        rows = _open_rows(start_res.get("bind_host", ""), start_res.get("url", "")) if ok else []
+        rows.append(("stop", _pid_line(stop_res)))
+        if result.get("pycache_cleared"):  # softened: drop the raw __pycache__ token, keep the count
+            rows.append(("cache", f"{result['pycache_cleared']} stale cache dir(s) cleared"))
+        force = result.get("force")
+        if force:
+            killed = ", ".join(str(p) for p in force.get("killed", [])) or "none"
+            rows.append(("force", f"killed {killed}; "
+                                  f"port {'freed' if force.get('freed') else 'still held'}"))
+        rows.append(("start", _pid_line(start_res)))
+        if ok and start_res.get("bind_host"):
+            rows.append(("access", _access_phrase(start_res["bind_host"])))
+        if res in ("not-restarted", "started-unverified"):  # the log is where a stuck user looks
+            rows.append(("log", str(LOGFILE)))
+        return rows
+    return []
+
+
+def _guidance(result: dict) -> tuple[str | None, list[str]]:
+    """Return (why, try_lines) for a failure: a plain-language CAUSE and the actionable next steps.
+    The Try steps for a blocked restart depend on whether restart_all.ps1 is driving us — under the
+    wrapper the port is being freed automatically, so we must not send the user chasing --force."""
+    res = result.get("result")
+    if res == "refused-public-bind":
+        return result.get("reason", ""), [
+            "bind to a safe address instead:",
+            "  127.0.0.1  - this PC only (the default)",
+            "  0.0.0.0    - reachable from other devices on your home network",
+        ]
+    if res in ("not-restarted", "stop-failed"):
+        why = result.get("hint") or "the dashboard could not be restarted."
+        # Keep every line under ~78 cols so it never soft-wraps to column 0 on a narrow console.
+        if os.environ.get(_WRAPPER_ENV):
+            return why, [
+                "this tool is freeing the port automatically - approve the",
+                "Windows admin (UAC) prompt if it appears. If you click No, the",
+                "old server keeps the port; just run restart_all.bat again.",
+            ]
+        return why, [
+            "1. run restart_all.bat again, approving the admin (UAC) prompt.",
+            "2. still stuck? in Task Manager > Details, End the process on",
+            "   port 5151, then run restart_all.bat again.",
+        ]
+    if res == "started-unverified":
+        return ("the dashboard started but did not answer the health check in time; it may "
+                "still be coming up."), [
+            "open the log (path above) to see why, then re-check with:",
+            "dashboard_ctl status.",
+        ]
+    return None, []
+
+
+def _print_wrapped(label: str, text: str) -> None:
+    """Print a labelled prose line wrapped to a narrow width with a hanging indent, so a long
+    sentence keeps its 4-space group on a narrow console instead of resetting to column 0."""
+    prefix = f"    {label}:  "
+    print(textwrap.fill(text, width=78, initial_indent=prefix,
+                        subsequent_indent=" " * len(prefix)))
+
+
+def render_human(result: dict) -> None:
+    """Print a compact, aligned, ASCII summary of a command result — the default (non --json) view."""
+    print(f"  {_status_token(result)}  {result.get('action', '?')}: {_headline_text(result)}")
+
+    rows = [(k, v) for k, v in _rows_for(result) if v != ""]
+    if rows:
+        print()
+        width = max([_LABEL_W] + [len(k) for k, _ in rows])
+        for k, v in rows:
+            print(f"    {k.ljust(width)}  {v}")
+
+    why, try_lines = _guidance(result)
+    if why:
+        print()
+        _print_wrapped("Why", why)
+    if try_lines:
+        print()
+        print(f"    Try:  {try_lines[0]}")
+        for line in try_lines[1:]:
+            print(f"          {line}")
 
 
 # --------------------------------------------------------------------------- #
@@ -576,8 +816,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False))
     else:
-        for k, v in result.items():
-            print(f"  {k}: {v}")
+        render_human(result)
     # Exit non-zero when the outcome is a failure the caller should notice.
     failed = result.get("result") in {"stop-failed", "started-unverified", "not-restarted",
                                       "refused-public-bind"} or (

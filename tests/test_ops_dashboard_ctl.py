@@ -338,6 +338,98 @@ def test_default_host_env_override():
     assert default.stdout.strip() == "127.0.0.1"  # ships localhost-only
 
 
+# --- Human-readable rendering (the default, non --json output) ----------------------------
+
+def test_render_human_restart_has_no_raw_dict_repr(capsys):
+    # The bug being fixed: the old printer dumped nested {'...': ...} reprs, bare True/None and
+    # quote noise. The clean view must surface the facts (pids, url, cache) with NONE of that.
+    result = {
+        "action": "restart", "result": "restarted",
+        "stop": {"action": "stop", "result": "stopped", "pid": 1234},
+        "start": {"action": "start", "result": "started", "pid": 5678, "healthy": True,
+                  "bind_host": "127.0.0.1", "url": "http://127.0.0.1:5151"},
+        "pycache_cleared": 3,
+    }
+    dc.render_human(result)
+    out = capsys.readouterr().out
+    for noise in ("{'", "': ", "True", "None", "action:"):
+        assert noise not in out, f"leaked raw-dict noise: {noise!r}"
+    assert "[ OK ]  restart: restarted" in out      # status token differentiates success by shape
+    assert "pid 1234" in out and "pid 5678  healthy" in out
+    assert "Open" in out and "http://127.0.0.1:5151" in out   # the URL leads, labelled for action
+    assert "3 stale cache dir(s) cleared" in out     # __pycache__ jargon softened
+    assert "__pycache__" not in out
+
+
+def test_render_human_not_restarted_splits_why_and_try_standalone(capsys, monkeypatch):
+    # A failure must lead with reassurance (old copy still running), then a scannable Why/Try.
+    # Standalone (no wrapper env) → numbered manual steps, and a log path to look at.
+    monkeypatch.delenv("AWB_RESTART_WRAPPER", raising=False)
+    dc.render_human({
+        "action": "restart", "result": "not-restarted",
+        "stop": {"action": "stop", "result": "not-running"},
+        "start": {"action": "start", "result": "already-running",
+                  "url": "http://127.0.0.1:5151"},
+        "hint": "the port is still in use by a process this tool did not start",
+    })
+    out = capsys.readouterr().out
+    assert "[FAIL]  restart: NOT restarted (old copy still running)" in out
+    assert "Why:" in out and "Try:" in out
+    assert "Task Manager" in out                     # concrete manual recovery for a .bat user
+    assert "log" in out                              # somewhere to look when stuck
+    # On failure the URL must NOT appear as an "Open" row — it would read as "it worked".
+    assert "Open" not in out
+
+
+def test_render_human_not_restarted_under_wrapper_defers_to_auto_force(capsys, monkeypatch):
+    # When restart_all.ps1 drives us, the wrapper is already freeing the port — the Try text must
+    # NOT tell the user to run --force by hand (the stale-advice bug the council caught).
+    monkeypatch.setenv("AWB_RESTART_WRAPPER", "1")
+    dc.render_human({"action": "restart", "result": "not-restarted",
+                     "stop": {"result": "not-running"}, "start": {"result": "already-running"},
+                     "hint": "the port is still in use"})
+    out = capsys.readouterr().out
+    assert "freeing the port automatically" in out
+    assert "--force" not in out
+
+
+def test_render_human_status_healthy_is_plain_and_leads_with_url(capsys):
+    dc.render_human({
+        "action": "status", "pid": 42, "pid_alive": True, "listening": True,
+        "healthy": True, "bind_host": "127.0.0.1", "url": "http://127.0.0.1:5151",
+    })
+    out = capsys.readouterr().out
+    assert "[ OK ]  status: healthy" in out
+    assert "Open" in out and "42 (alive)" in out
+    assert "this PC only" in out                     # bind host glossed to who-can-reach
+    assert "{" not in out and "True" not in out
+
+
+def test_render_human_status_wildcard_shows_lan_url(capsys, monkeypatch):
+    # A 0.0.0.0 bind is for reaching the dashboard from another device — so show the LAN address,
+    # not only loopback (which only works on the host itself).
+    monkeypatch.setattr(dc, "_lan_ip", lambda: "192.168.1.50")
+    dc.render_human({
+        "action": "status", "pid": 7, "pid_alive": True, "listening": True,
+        "healthy": True, "bind_host": "0.0.0.0", "url": "http://127.0.0.1:5151",
+    })
+    out = capsys.readouterr().out
+    assert "http://192.168.1.50:5151" in out
+    assert "other devices on your network" in out
+    assert "this PC + your local network" in out
+
+
+def test_render_human_refused_gives_a_safe_next_step(capsys):
+    # The refused-bind screen must not be a dead end: tell the user which safe hosts to use.
+    dc.render_human({"action": "restart", "result": "refused-public-bind",
+                     "bind_host": "8.8.8.8",
+                     "reason": "refusing a public/Internet-routable bind (8.8.8.8): cleartext HTTP."})
+    out = capsys.readouterr().out
+    assert "[STOP]  restart: refused (public bind)" in out
+    assert "Why:" in out and "Try:" in out
+    assert "127.0.0.1" in out and "0.0.0.0" in out   # the recoverable choice
+
+
 def test_start_refuses_public_bind_without_spawning(free_port):
     """opt-2: start() refuses a public/Internet-routable host BEFORE spawning a server, so the
     operator gets a clean reason instead of a process exposing cleartext HTTP."""
