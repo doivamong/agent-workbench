@@ -209,6 +209,11 @@
       "lines": 67,
       "bytes": 3576
     },
+    ".claude/skills/awb-uninstall/SKILL.md": {
+      "category": ".claude/skills",
+      "lines": 80,
+      "bytes": 4999
+    },
     ".claude/skills/awb-using-skills/SKILL.md": {
       "category": ".claude/skills",
       "lines": 71,
@@ -221,8 +226,8 @@
     },
     ".claude/skills/skill-registry.md": {
       "category": ".claude/skills",
-      "lines": 55,
-      "bytes": 5752
+      "lines": 56,
+      "bytes": 6078
     },
     "scripts/secrets_guard.py": {
       "category": "scripts",
