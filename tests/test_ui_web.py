@@ -117,6 +117,16 @@ def test_static_chart_js_is_vendored_and_served(tmp_path):
     assert "sourceMappingURL" not in body     # stripped → no devtools map fetch
 
 
+def test_memory_panel_shows_audit_summary(tmp_path):
+    # The dashboard surfaces memory_audit's hygiene totals (the web mirror of the report's
+    # enriched panel). The fixture's fact-a.md has no frontmatter -> audit finds problems, so
+    # the summary line (which points at memory_audit) must render in the memory panel.
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    html = _render(proj)
+    assert "memory_audit" in html
+    assert "cảnh báo" in html         # VI default render of mem_audit_summary
+
+
 def test_honest_when_telemetry_not_wired(tmp_path):
     proj = _make_project(tmp_path, {"awb-review": "guard", "awb-tdd": "workflow"}, wired=False)
     html = _render(proj)

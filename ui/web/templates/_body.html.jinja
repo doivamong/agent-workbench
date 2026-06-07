@@ -190,6 +190,8 @@
       <span class="meter__fill" style="width:{{ mem_pct }}%"></span>
     </div>
     <p class="section-foot">{{ t.mem_foot_main.format(facts=ctx.mem.facts, dangling=ctx.mem.dangling) }}{% if mem_pct >= 75 %}{{ t.mem_foot_over }}{% endif %}.</p>
+    {# Fuller hygiene line — only when memory_audit actually ran (key present); absent => budget-only, no fabricated 0 (measurement-honesty) #}
+    {% if ctx.mem.warns is defined %}<p class="section-foot">{{ t.mem_audit_summary.format(errors=ctx.mem.errors, warns=ctx.mem.warns) }}</p>{% endif %}
     {% else %}
     <div class="empty" style="padding:var(--sp-5)">
       <span class="empty__title">{{ t.empty_mem_title }}</span>
