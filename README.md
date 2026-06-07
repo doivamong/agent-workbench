@@ -107,9 +107,9 @@ For the full setup, jump to the [Quickstart](#quickstart-5-minutes) below, or fo
 > path-scoped rules, fail-open hooks, a carried-forward memory, and greppable invariant
 > checks — so the agent re-derives them every session instead of you re-explaining them.
 
-> **The result.** A copy-pasteable kit that installs into any project in one command and
-> starts blocking dangerous shell commands, refining vague prompts, and gating commits
-> immediately. Core is **stdlib-only**, the demos run in seconds, and CI is green.
+> **The result.** A copy-pasteable kit that installs into any project in one command
+> (`--merge-settings`) and starts blocking dangerous shell commands, refining vague prompts, and
+> gating commits immediately. Core is **stdlib-only**, the demos run in seconds, and CI is green.
 
 ---
 

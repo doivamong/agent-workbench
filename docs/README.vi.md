@@ -1,4 +1,4 @@
-<!-- en-sha256: 5bf4752de91142103c4383136117e904f1b3c0480c1d38fc5960a450f07bf05a leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: 7675c77f40707987466d2ae14e77e22b02e7bf7942fb3880f51ea3ef491916f9 leak-scan: ignore[high_entropy_hex] -->
 <div align="center">
 
 # Agent Workbench — Bản tiếng Việt
@@ -26,8 +26,9 @@
 > các phép kiểm tra bất biến grep được. Nhờ vậy agent **tự dựng lại** chúng mỗi phiên, thay vì bạn
 > phải giải thích lại từ đầu.
 
-> **Kết quả.** Một bộ kit copy-dán được, cài vào dự án bất kỳ bằng một lệnh và bắt đầu chặn lệnh
-> shell nguy hiểm, refine prompt mơ hồ, và gate commit ngay lập tức. Lõi **chỉ dùng stdlib**, các
+> **Kết quả.** Một bộ kit copy-dán được, cài vào dự án bất kỳ bằng một lệnh (`--merge-settings`)
+> và bắt đầu chặn lệnh shell nguy hiểm, refine prompt mơ hồ, và gate commit ngay lập tức. Lõi
+> **chỉ dùng stdlib**, các
 > demo chạy trong vài giây, CI xanh.
 
 <details>
