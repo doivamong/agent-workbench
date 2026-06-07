@@ -305,7 +305,7 @@ what's transferable and what was intentionally left behind:
 | Tests | **783**, green in CI (incl. adversarial evasion cases for the command guard) |
 | Runnable demos | **29** (`examples/`) |
 | Skills | **18** (11 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
-| Standalone tools | **21** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `sync_manifest`, `skill_usage_report`, `readme_metrics`, `doctor`) |
+| Standalone tools | **21** (`invariants`, `affected_tests`, `leak_scan`, `license_scan`, `secrets_guard`, `memory_audit`, `memory_snapshot`, `memory_recall_doctor`, `memory_budget`, `memory_sync`, `memory_eval`, `skill_lint`, `check_context_budget`, `check_requirements_diff`, `precommit_present`, `pre_push_check`, `automerge_status`, `sync_manifest`, `skill_usage_report`, `readme_metrics`, `doctor`) |
 
 <!-- END GENERATED:metrics -->
 
