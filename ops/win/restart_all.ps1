@@ -22,6 +22,10 @@
 # ASCII-only on purpose: this runs under Windows PowerShell 5.1, which mis-decodes a non-ASCII
 # (no-BOM) script and fails to parse it -- so no em-dashes / arrows / smart quotes here.
 $ErrorActionPreference = "Stop"
+# Tell dashboard_ctl.py that a wrapper is driving it. Its human "Try:" guidance then says "the port
+# is being freed automatically - approve the UAC prompt" instead of telling the user to run --force
+# by hand, which THIS script is already doing for them below (the stale advice this flag retires).
+$env:AWB_RESTART_WRAPPER = "1"
 $Repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $Ctl  = Join-Path $Repo "ops\dashboard_ctl.py"
 
