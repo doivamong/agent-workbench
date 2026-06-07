@@ -196,6 +196,44 @@ def test_memory_health_prefers_live_dir_over_template(tmp_path):
     assert mh["dangling"] == 0   # live has no [[ghost]] dangling link
 
 
+def test_memory_health_includes_audit_summary(tmp_path):
+    # memory_health enriches with memory_audit's error/warn totals so the panel can show the
+    # fuller hygiene picture (orphans, near-dups, frontmatter errors), not just dangling links.
+    # The fixture's fact-a.md has no frontmatter -> at least one audit ERROR, and its filename
+    # is not in the index -> an orphan WARN. (Reused from memory_audit, not re-derived.)
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    # Add a well-formed fact that is NOT referenced in the index -> an orphan WARN (no error).
+    # (fact-a.md, missing frontmatter, only yields an ERROR — audit `continue`s past the orphan
+    # check — so a separate clean fact is needed to prove `warns` counts real findings.)
+    (proj / "memory" / "orphan-fact.md").write_text(
+        "---\nname: orphan-fact\ndescription: valid but unindexed\n"
+        "metadata:\n  type: reference\n---\nbody\n", encoding="utf-8")
+    mh = ksr.memory_health(proj)
+    assert mh["errors"] >= 1     # fact-a.md is missing its frontmatter block
+    assert mh["warns"] >= 1      # orphan-fact.md is well-formed but not referenced in the index
+
+
+def test_memory_panel_renders_audit_summary(tmp_path):
+    # The enriched panel must surface the audit summary line (default VI render).
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    frags = ksr.build(ksr.gather(proj, 14, None))
+    assert "memory_audit" in frags["memory"]     # the hygiene summary points at the tool
+    assert "cảnh báo" in frags["memory"]          # VI "warnings" from mem_audit_summary
+
+
+def test_memory_panel_omits_audit_summary_when_unmeasured(tmp_path):
+    # Measurement-honesty: when memory_audit did NOT run (no errors/warns keys), the panel must
+    # NOT fabricate a "0 errors" summary — it stays budget-only. Bites a regression where the
+    # audit line renders unconditionally and prints zeros for an un-measured corpus.
+    proj = _make_project(tmp_path, {"awb-review": "guard"}, memory=True)
+    ctx = ksr.gather(proj, 14, None)
+    ctx["mem"].pop("errors", None)
+    ctx["mem"].pop("warns", None)
+    frags = ksr.build(ctx)
+    assert "memory_audit" not in frags["memory"]
+    assert "cảnh báo" not in frags["memory"]
+
+
 def test_run_gates_skips_absent_tools(tmp_path):
     proj = _make_project(tmp_path, {"awb-review": "guard"})
     res = ksr.run_readonly_gates(proj)

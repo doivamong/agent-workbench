@@ -56,6 +56,10 @@ try:
     from memory_budget import INDEX_MAX_BYTES  # type: ignore
 except Exception:
     INDEX_MAX_BYTES = 25_600  # documented fallback; see tools/memory_budget.py
+try:
+    import memory_audit  # type: ignore — the hygiene tripwire; reused, never re-derived
+except Exception:
+    memory_audit = None  # opt-in tool absent → the panel degrades to budget-only, never a fake 0
 
 # The EN/VI string catalog lives one level up in the stdlib core (ui/i18n.py). BOTH this report
 # and the opt-in ui/web dashboard read from it, so their shared vocabulary (tier labels, the
@@ -230,8 +234,20 @@ def memory_health(proj: Path) -> dict:
                    if p.name not in ("MEMORY.md", "README.md"))
     targets = set(facts)
     dangling = sorted({m for m in re.findall(r"\[\[([^\]]+)\]\]", raw) if m not in targets})
-    return {"present": True, "used": used, "budget": INDEX_MAX_BYTES,
-            "facts": len(facts), "dangling": len(dangling)}
+    health = {"present": True, "used": used, "budget": INDEX_MAX_BYTES,
+              "facts": len(facts), "dangling": len(dangling)}
+    # Enrich with the fuller hygiene summary (orphans, near-dups, frontmatter errors) the panel
+    # would otherwise miss — it sees only `dangling`. Reused from memory_audit, not re-derived.
+    # Absent keys (tool not installed, or a scan error) mean the panel shows budget-only rather
+    # than inventing zeros — an un-measured count is not a clean 0 (measurement-honesty).
+    if memory_audit is not None:
+        try:
+            findings = memory_audit.audit(mem_dir)
+            health["errors"] = sum(1 for sev, _, _ in findings if sev == "error")
+            health["warns"] = sum(1 for sev, _, _ in findings if sev == "warn")
+        except Exception:
+            pass
+    return health
 
 
 def git_meta(proj: Path) -> tuple[str, str]:
@@ -555,6 +571,10 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
         free_kb = _fmt_num(max(mem["budget"] - mem["used"], 0) / 1024, lang)
         sev = "warn" if mem_pct >= 75 else "ok"
         dang = mem["dangling"]
+        # The fuller hygiene line — only when memory_audit actually ran (keys present). Absent =>
+        # the panel stays budget-only rather than printing a fabricated "0 errors" (measurement-honesty).
+        audit_foot = (f'<p class="section-foot">{t["mem_audit_summary"].format(errors=mem["errors"], warns=mem["warns"])}</p>'
+                      if "warns" in mem else "")
         mbadge = f'<span class="badge badge--{sev}"><span class="kit-num">{mem_pct}%</span>&nbsp;{t["mem_badge_used"]}</span>'
         body = ('<div class="mem-grid"><div>'
             '<div class="row row--between row--baseline" style="margin-bottom:var(--sp-2)">'
@@ -564,7 +584,8 @@ def build(ctx: dict, lang: str = i18n.DEFAULT_LANG) -> dict[str, str]:
             f'<div class="meter meter--{sev}" aria-label="{t["mem_meter_aria"].format(pct=mem_pct)}">'
             f'<span class="meter__fill" style="width:{mem_pct}%"></span></div>'
             f'<p class="section-foot">{t["mem_free"].format(free=free_kb)}'
-            f'{t["mem_over"] if mem_pct>=75 else "."}</p></div>'
+            f'{t["mem_over"] if mem_pct>=75 else "."}</p>'
+            + audit_foot + '</div>'
             '<div class="mem-stats">'
             f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_facts"]}</span><span class="kit-num kit-num--lg">{mem["facts"]}</span></div>'
             f'<div class="mem-stat surface-2 panel--tight"><span class="kpi__label">{t["mem_stat_dangling"]}</span><span class="kit-num kit-num--lg {"kit-num--accent" if dang else ""}">{dang}</span></div>'
