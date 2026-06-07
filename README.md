@@ -370,10 +370,9 @@ python uninstall.py /path/to/your/project                       # dry run — sh
 python uninstall.py /path/to/your/project --yes                 # reverse the install
 ```
 
-The installer records what it copied in a git-ignored `.claude/installer-manifest.json`, so
-`uninstall.py` removes exactly that and **keeps any file you edited** (it never deletes your
-changes, and fails loud rather than guessing if the manifest is missing). On a fresh repo,
-`install` then `uninstall --yes` leaves `git status` clean.
+`uninstall.py` is dry-run by default and **keeps any file you edited** — the full safety model
+(and a troubleshooting guide) lives in
+**[getting-started](docs/getting-started.md#7-uninstall)**, the single source for install/uninstall.
 
 With `--merge-settings` the installer's hooks are active immediately — every hook in the table
 above except the maintainer-only `sync_guard` and the opt-in `skill_usage_logger`; without it you
