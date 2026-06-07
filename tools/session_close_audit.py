@@ -102,7 +102,7 @@ def build_verdict(
         blockers.append(f"{unpushed} commit(s) on {where} not on any remote")
 
     if open_prs:
-        warnings.append(f"{len(open_prs)} open PR(s) — already on the server (run automerge_status.py to check they merge)")
+        warnings.append(f"{len(open_prs)} open PR(s) - already on the server (run automerge_status.py to check they merge)")
     if branches["real_work"]:
         warnings.append(f"{len(branches['real_work'])} local branch(es) with work not in main — review before deleting")
     junk = branches["deletable_safe"] + branches["deletable_squash"]
@@ -249,11 +249,11 @@ def _format_report(state: dict) -> str:
         out.append(f"     squash-merged, already in main (delete with -D): {' '.join(squash)}")
         out.append(f"       git branch -D {' '.join(squash)}")
     if real:
-        out.append(f"     work NOT in main — review before deleting: {' '.join(real)}")
+        out.append(f"     work NOT in main - review before deleting: {' '.join(real)}")
 
     out.append("")
     if verdict["safe"]:
-        out.append("VERDICT: SAFE TO CLOSE — nothing committed-but-unpushed or uncommitted would be lost.")
+        out.append("VERDICT: SAFE TO CLOSE - nothing committed-but-unpushed or uncommitted would be lost.")
     else:
         out.append("VERDICT: NOT SAFE TO CLOSE YET - these would be lost on close:")
         for b in verdict["blockers"]:
