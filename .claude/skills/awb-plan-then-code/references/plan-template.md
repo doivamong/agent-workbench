@@ -13,10 +13,13 @@ One sentence: what will be true after this change that isn't true now.
 - path/to/file_b — <what changes and why>
 
 ## Approach
-2-4 bullets on how. Note anything you deliberately decided NOT to do (scope guard).
+2-4 bullets on how.
 
-## How I'll know it worked (acceptance)
-- [ ] Observable check 1 (a test name, a command output, a UI state)
+## Out of scope (decided NOT to do)
+- <thing you deliberately are NOT changing — this is what the review step grades the diff against>
+
+## How I'll prove it worked (runnable checks)
+- [ ] A check you can run and SHOW the output of (e.g. `pytest tests/test_x.py` and its PASS line), not "works correctly"
 - [ ] Observable check 2
 
 ## Risks / unknowns
@@ -28,4 +31,5 @@ One sentence: what will be true after this change that isn't true now.
 - If "Files to change" has more than ~6 entries, consider splitting into phases.
 - Every acceptance item must be **observable** — "works correctly" is not observable;
   "`pytest tests/test_x.py` passes" is.
-- The "decided NOT to do" line is your defense against silent scope creep.
+- The "Out of scope" section is your defense against silent scope creep — it is what the
+  review step grades the diff against.
