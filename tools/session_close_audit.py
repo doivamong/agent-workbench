@@ -357,6 +357,8 @@ def _format_report(state: dict) -> str:
             out.append(f"  - {b}")
     for w in verdict["warnings"]:
         out.append(f"  (cleanup) {w}")
+    out.append("  (scope) Git safety only - this does NOT check whether your TASK is done; "
+               "unfinished work -> awb-handover.")
 
     has_write = (not verdict["safe"]) or branches["deletable_safe"] or branches["deletable_squash"]
     if has_write:
