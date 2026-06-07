@@ -132,6 +132,43 @@ def _audit(action: str, result: str, **fields) -> None:
         fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+def assert_ops_writable(root: Path) -> None:
+    """Fail fast and LOUD at app construction if the ``.ops/`` audit directory under ``root``
+    cannot be written. Called by ``app.create_app``.
+
+    ``_audit`` appends a JSON line to ``.ops/ops.log`` for every action AND every blocked
+    request, with **no try/except on purpose** — an audit log must fail loud, never silently.
+    The hazard is *where* such a failure would land if ``.ops/`` were unwritable at request
+    time: the ``before_request`` guard audits **before** it ``abort()``s, so a raising write
+    would turn a clean 401/403 refusal into a 500 (masking the auth outcome); and the
+    destructive-action audits (``action_restart``, ``restore_apply``) run **after** the side
+    effect, so a raising write there would drop the record of an action that already
+    happened. Verifying writability **once, here**, closes both: if ``.ops/`` can't be written
+    the server never starts, so no request is ever served against an unwritable audit log.
+    Raising is deliberate — the caller lets it propagate (it is the loud failure, not a
+    swallowed one).
+
+    The probe is the **exact** operation ``_audit`` performs — ``mkdir(.ops/)`` then an
+    append-open of ``ops.log`` — not a throwaway temp file. Appending nothing leaves the log
+    untouched, never churns a create/delete cycle (which on Windows races a Defender scan of
+    the just-created file → a spurious WinError 32 lock), and re-opening an existing file is
+    idempotent across the many ``create_app`` calls a test suite makes."""
+    ops_dir = root / ".ops"
+    try:
+        ops_dir.mkdir(parents=True, exist_ok=True)
+        with (ops_dir / "ops.log").open("a", encoding="utf-8"):
+            pass  # open the real audit target in append mode; write nothing
+    except OSError as exc:
+        raise RuntimeError(
+            f"the /admin audit log directory is not writable: {ops_dir} ({exc}). "
+            f"Every admin action and every blocked request is audited to .ops/ops.log; the "
+            f"dashboard refuses to start with an unwritable audit log, so an auth refusal can "
+            f"never silently become a 500 and a destructive action's audit line can never be "
+            f"silently lost. Fix the permissions on {root} (or point OPS_ROOT at a writable "
+            f"location) and restart."
+        ) from exc
+
+
 # --------------------------------------------------------------------------- #
 # Password hashing (Phase A auth) — re-exported from the shared stdlib module so the
 # offline set_password.py CLI and this web route hash identically. See passwords.py for

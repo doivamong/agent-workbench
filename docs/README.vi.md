@@ -1,4 +1,4 @@
-<!-- en-sha256: 65aded15f1e320cac653d4c379a8ba6f8bea1ce6505519311d90c031a6202de7 leak-scan: ignore[high_entropy_hex] -->
+<!-- en-sha256: 293ff003a668546a681e051e655dfbe92c849aad4ff14535b8d734d65725de1b leak-scan: ignore[high_entropy_hex] -->
 <div align="center">
 
 # Agent Workbench — Bản tiếng Việt
@@ -269,7 +269,7 @@ chuyển đi được và cái gì cố ý để lại:
 | Tín hiệu | Giá trị |
 |---|---|
 | Phụ thuộc của lõi tái dùng | **0** (chỉ stdlib) |
-| Tests | **783**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
+| Tests | **785**, xanh trong CI (gồm cả ca né đối kháng cho command guard) |
 | Demo chạy được | **29** (`examples/`) |
 | Skills | **18** (11 workflow + 4 guards + 1 meta + 1 feature + 1 audit) |
 | Tool độc lập | **21** (20 trong `tools/` + `secrets_guard` ở `scripts/`) |
@@ -297,7 +297,7 @@ python examples/sync_manifest_demo.py     # gate lệch file-set (thêm/bớt fi
 python examples/install_doctor_demo.py    # chứng minh hook đã wired thực sự chạy (--doctor)
 
 # Chứng minh các tool thực sự hoạt động:
-python -m pytest -q                 # 783 tests
+python -m pytest -q                 # 785 tests
 ```
 
 ## Cài vào dự án của bạn
@@ -409,7 +409,7 @@ kiểu **"đây là cách tốt hơn" chính là toàn bộ ý nghĩa.**
 
 <div align="center">
 
-**Agent Workbench** · lõi chỉ stdlib · 783 tests · MIT
+**Agent Workbench** · lõi chỉ stdlib · 785 tests · MIT
 
 🐍 Python · 🤖 Claude Code / AI agents · 🔒 guardrail fail-open
 

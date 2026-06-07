@@ -205,7 +205,8 @@ def _resolve_admin_password_hash() -> str:
 
 
 def create_app(*, host: str = "127.0.0.1", port: int = 5151,
-               debug: bool = False, admin_password_hash: str | None = None) -> "Flask":
+               debug: bool = False, admin_password_hash: str | None = None,
+               ops_root: str | Path | None = None) -> "Flask":
     """Build the Flask app. ``/`` and the read-only fragments are always present, and so is
     the ``/admin`` action surface — but **login is the gate** (full Approach A).
 
@@ -277,10 +278,16 @@ def create_app(*, host: str = "127.0.0.1", port: int = 5151,
     # touched when an admin action actually runs. With no password the blueprint's before_request
     # makes every action inert — login is the gate, and there is no login without a password.
     import admin as _admin  # noqa: PLC0415 — local import keeps module import lightweight
+    # Fail CLOSED if the .ops/ audit log can't be written: _audit() is fail-loud by design, so
+    # an unwritable .ops/ at request time would mask a 401/403 as a 500 and could drop a
+    # destructive action's audit line. Verifying once here means the server never serves against
+    # an unwritable audit log. ops_root defaults to the repo root (tests inject a temp root).
+    resolved_ops_root = Path(ops_root) if ops_root is not None else _REPO_ROOT
+    _admin.assert_ops_writable(resolved_ops_root)
     app.config["ADMIN_TOKEN"] = secrets.token_urlsafe(32)
     app.config["HOST"] = host
     app.config["PORT"] = int(port)
-    app.config["OPS_ROOT"] = str(_REPO_ROOT)
+    app.config["OPS_ROOT"] = str(resolved_ops_root)
     # Phase A auth: a configured password hash enables login; empty string = inert admin.
     # secret_key signs the session cookie (per-process, so a restart invalidates old sessions).
     # Cookie hardening: HttpOnly + SameSite=Strict. Secure stays off — this is an HTTP-over-LAN
