@@ -24,27 +24,34 @@ to clean?"** — then does the cleanup only after you say yes.
 
 ## The risk model (why some findings stop you and others only nudge)
 
-Everything turns on one question: **would closing the window LOSE this?**
+Everything turns on one question: **would closing the window LOSE this, or leave it mid-operation?**
 
-- **BLOCK** — uncommitted changes, or commits not on any remote. They live only in this working
-  tree; close and they are at risk. Verdict: *not safe to close yet*.
-- **WARN** — open PRs, and stale local branches. These are already on the server, so closing loses
-  nothing — they are hygiene, surfaced with the exact cleanup command.
+- **BLOCK** — uncommitted changes; commits not on any remote (or an *unmeasurable* unpushed count —
+  unknown is not "safe"); an in-progress **rebase / merge / cherry-pick**; **detached-HEAD** commits
+  (reflog-only). These are local-only or mid-flight; close and they are at risk. Verdict: *not safe
+  to close yet*.
+- **WARN** — a **stash**, open PRs, and stale local branches. These persist on disk / are already on
+  the server, so closing loses nothing immediately — they are hygiene (a stash is the classic
+  *forgotten* one), surfaced with the exact command.
 
 This is the whole point of the skill: scream only at real loss, stay quiet about the rest, so the
 warning never becomes noise you learn to ignore.
 
 ## Process
 
-1. **Audit (read-only).** Run the tool — it mutates nothing, it only reads git and `gh`:
+1. **Audit.** Run the tool. It is read-only **to your work** — it never commits, pushes, merges, or
+   deletes — but it *does* run `git fetch --prune` once (a network call) so the branch state is
+   real; pass `--no-fetch` offline.
 
    ```bash
-   python tools/session_close_audit.py
+   python tools/session_close_audit.py          # or --no-fetch offline
    ```
 
-   It reports four categories and a verdict: (1) uncommitted, (2) unpushed, (3) open PRs,
-   (4) stale local branches — split into *delete-safe* (`-d`), *squash-merged, already in main*
-   (`-D`), and *work-not-in-main* (review first).
+   It reports six categories and a verdict: (1) uncommitted, (2) unpushed (or *unknown* if it can't
+   compare against the remote), (3) **stash**, (4) **in-progress op** (rebase/merge/cherry-pick),
+   (5) open PRs, (6) stale local branches — split into *delete-safe* (`-d`), *changes already in
+   main via squash/rebase* (`-D`, verified with `git cherry`), and *work-not-provably-in-main*
+   (review first). A detached HEAD is flagged inline.
 
 2. **Relay the verdict in plain language** (in this project, Vietnamese). State clearly: safe to
    close, or the specific blockers that would be lost.
@@ -56,9 +63,11 @@ warning never becomes noise you learn to ignore.
    - Unpushed commits → push, then verify with the run-id / merge-tree check before relying on CI.
 
 4. **Offer the cleanup, never auto-delete.** The tool prints the exact `git branch -d` / `-D`
-   commands. Present them and get an explicit yes before running — deleting a branch is the user's
-   call. Use `-d` for merged branches; `-D` only for the squash-merged ones the tool confirmed are
-   already in main. Finish with `git fetch --prune origin`.
+   commands (a branch whose name carries odd characters is listed for *manual* deletion, never put
+   in a runnable line). Present them and get an explicit yes before running — deleting a branch is
+   the user's call. Use `-d` for merged branches; `-D` for the squash/rebase-merged ones the tool
+   verified with `git cherry`. (The tool already pruned remote-tracking refs in step 1 — no extra
+   fetch needed.)
 
 5. **Hand off or capture, if warranted** (not part of the safety check, but the natural next step):
    - Real work still in flight you'll resume next session → [`awb-handover`](../awb-handover/SKILL.md).
@@ -66,13 +75,18 @@ warning never becomes noise you learn to ignore.
 
 ## The squash-merge trap (the one this skill exists to encode)
 
-A naive `git branch --merged` misses it: GitHub's squash gives the merge a **new** commit hash, so
-the branch's original tip is never an ancestor of `main`, and `--no-merged` lists it as if it held
-unmerged work — exactly the kind of "leftover" that makes you afraid to close. The tool cross-checks
-the branch's commit **subject** against `origin/main`'s history (ignoring a trailing ` (#123)`): a
-match + a gone remote means the work IS in main and the branch is safe to delete with `-D`, not real
-work. Don't delete a `--no-merged` branch on the `--merged` check alone; trust the tool's
-classification, which already did this.
+A naive `git branch --merged` misses it: a squash gives the merge a **new** commit hash, so the
+branch's tip is never an ancestor of `main`, and `--no-merged` lists it as if it held unmerged work
+— exactly the "leftover" that makes you afraid to close. The tool does **not** guess from the commit
+*subject* (two unrelated commits can share a subject like `wip` or `update README` — matching on
+that would force-delete real work). It asks **`git cherry origin/main <branch>`**: only when *every*
+patch on the branch is already present upstream does it mark the branch `-D`-deletable.
+
+**Honest limit you must relay:** `git cherry` is patch-id based, so a branch of **several** commits
+combined into **one** squashed commit will *not* show as contained — it stays in *review*, not in
+the `-D` bucket. That is deliberate (fail safe). When the tool says "review before deleting", it has
+not proven the work is unmerged — verify (e.g. `git log origin/main --grep`), then delete by hand.
+Never `-D` a `--no-merged` branch on the `--merged` check alone.
 
 ## Concurrent sessions — the one case that makes the cleanup/ship steps unsafe
 
@@ -115,8 +129,13 @@ when you can't split right now.
 
 ## Honest limits
 
-- **Read-only by design.** The tool never commits, pushes, merges, or deletes — it reports and
-  prints commands. The destructive steps are yours to approve and run.
+- **Read-only *to your work*, not zero-write.** The tool never commits, pushes, merges, or deletes
+  — it reports and prints commands for you to run. It *does* run `git fetch --prune` once (a network
+  call that refreshes remote-tracking refs) so the branch state is real; use `--no-fetch` to skip it
+  offline. The destructive steps are yours to approve and run.
+- **Squash detection is conservative, not omniscient.** It proves containment with `git cherry`
+  (patch-id), so a multi-commit branch folded into one squash stays in *review*, not `-D` — verify
+  and delete by hand. It will never *recommend* a force-delete it can't prove.
 - **`gh` may be absent.** Then the open-PR check degrades to "unknown" rather than failing; verify
   PRs another way before trusting "nothing unmerged".
 - **It does not *detect* a second session — it reminds.** A reliable in-tree detector isn't
