@@ -39,7 +39,11 @@ rationalization the table fights.
 1. **Scout** — read the code you'll touch and its neighbours; don't propose changes to code you
    haven't read. Stop when you can name every file the change touches and why. If you can't yet
    name the files or approach, this is a *spike*, not a plan-then-code change — build a throwaway
-   slice to learn the shape, then run this skill on the real change.
+   slice to learn the shape, then run this skill on the real change. **If Scout reveals the change
+   is high-stakes** — many modules, hard to reverse, or the right approach is genuinely uncertain
+   across angles — STOP and offer to escalate to [`awb-cook`](../awb-cook/SKILL.md) (multi-angle
+   planning + checkpoint control), naming it to the user; don't silently absorb a cook-shaped
+   change into one plan. Offer at most once; if declined, proceed here.
 2. **Plan** — what files change, what each does, and the runnable check that will prove it
    worked (a test, a build exit code, an output diff). Keep it to a screen.
 3. **GATE: agree the plan before any code.** *With a user:* get an explicit yes — a real gate (a

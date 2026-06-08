@@ -4,9 +4,9 @@ description: >
   WHAT: an advanced build workflow that adds three things to a plain plan-then-code flow —
   graduated oversight modes (how often it stops to ask you), multi-perspective planning (several
   independent plans, merged), and explicit orchestration of the guard skills at the right steps.
-  USE WHEN: a larger or higher-stakes change where you want to dial the human-checkpoint frequency
-  and get more than one planning angle ("cook this", "run the full workflow", "build X end to end
-  with checkpoints", "plan this from a few angles first").
+  USE WHEN: a larger / higher-stakes / multi-module change where a single plan would hide blind
+  spots, or you want to dial the human-checkpoint frequency and plan from several independent
+  angles ("cook this", "run the full workflow").
   DO NOT TRIGGER: a routine single-file change (use awb-plan-then-code); a one-line fix; a pure
   question; work where you do not want sub-agent fan-out. It enforces nothing — it is a bypassable
   exemplar, not a gate.
