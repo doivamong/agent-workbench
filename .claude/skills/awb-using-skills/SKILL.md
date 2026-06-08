@@ -68,3 +68,17 @@ This is a **routing nudge, not a router** — a model-invoked, bypassable skill 
 agent picks correctly, and it does **not** itself enforce, lint, or run anything. The injected map
 is only as good as `skill-registry.md`: if a row is missing or stale, the route is wrong — fix the
 registry, which the `skill_lint.py` gate keeps in sync with the skill folders.
+
+**Deferred (recorded, not built).** A per-prompt skill-recommend `UserPromptSubmit` hook — a
+"recommend a skill to the user every turn" mechanism — was weighed and deferred: a hook only
+injects text, so it cannot *force* a model-driven route; it stacks noise on the
+`prompt-refiner-inject.py` nudge; and before Scout it cannot know a change's blast radius. Revisit
+**only on a recorded incident** — a real session where a clearly-applicable skill failed to
+*auto*-fire, traced to weak description signal (never surfaced as a candidate, not "invoked but
+mis-chosen", which a nudge cannot fix). `skill_usage_logger.py` **cannot** back this trigger: it
+reads only the user's prompt, never the model's auto-route; the only real instrument would be a
+`PostToolUse` hook on the `Skill` tool, deliberately not added. A before/after **routing eval** is
+deferred for the same reason — a stdlib-only version scores token overlap, not the model's semantic
+routing, and would *mis*-score a retune that moved descriptions toward natural language — so a
+description edit ships as a stated, unfalsifiable-by-current-tooling hypothesis (the description is
+the primary model-driven trigger).
