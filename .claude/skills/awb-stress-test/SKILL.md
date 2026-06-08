@@ -72,8 +72,9 @@ this is a generic starting point, not a fixed law.
 | **Performance & resources** | What's the hot path? Any N+1 / quadratic blow-up, unbounded memory, or chatty I/O? Is any caching or concurrency *correct*, not just present? |
 | **Operability & UX** | When it fails, is the failure visible and recoverable? Are error states clear? Can an operator observe it? Is the interface understandable? |
 | **Skeptic (devil's advocate)** | What load-bearing assumption could be false? Is there a markedly simpler way? Is this even needed yet (YAGNI)? |
+| **Consistency & coverage** | *(when a written plan/spec exists)* Does every requirement map to at least one task — any orphans on either side? Does one concept keep one name, or does terminology drift across the spec, plan, and tasks? |
 
-**Process:** run the five lenses independently → **debate** (let each lens challenge the others'
+**Process:** run each applicable lens independently → **debate** (let each lens challenge the others'
 conclusions, and run the *pre-mortem* prompt — *assume this shipped and failed in production; which
 lens saw it coming?* — so a risk one lens dismissed gets a second hearing) → list the points most
 lenses **agree** on → list the **conflicts** (lenses that pull opposite ways) and the trade-off each
@@ -143,7 +144,7 @@ for your own system, and never let a clean stress-test substitute for running th
 ## Banned behaviours
 
 - Letting the first lens's conclusion colour the rest — analyse each independently, then merge.
-- "All five lenses checked" with no skipped-with-reason line — silent full coverage is rarely honest.
+- "All lenses checked" with no skipped-with-reason line — silent full coverage is rarely honest.
 - Vague scenarios ("handle errors") instead of concrete, testable ones.
 - A GO verdict that never names a single conflict or risk — that's a rubber stamp, not a stress-test.
 - Treating the output as proof rather than a list of things to *go verify*.

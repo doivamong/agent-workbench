@@ -25,7 +25,9 @@ The cheapest place to fix a misunderstanding is *before* the work starts. This s
 2. **Spot the ambiguity — and don't trust the premises.** What's missing that changes what you'd
    build — scope, target files, expected output, constraints, the definition of done? If the
    request asserts "X already does Y" or names a file, grep/read to **verify the claim** first — a
-   confident wrong premise is the most expensive ambiguity.
+   confident wrong premise is the most expensive ambiguity. Scan the requirement-level dimensions
+   too — data shape, terminology consistency, and whether the acceptance check is actually
+   testable — and when several are unclear, surface the highest **impact × uncertainty** one first.
 3. **Decide the path by clarity (a 4-tier scale):**
    - *Crystal* → restate it in one line and proceed (no friction).
    - *One missing piece* → ask exactly one focused question, then proceed.
@@ -34,7 +36,9 @@ The cheapest place to fix a misunderstanding is *before* the work starts. This s
    - *Claims-heavy or high-stakes* → **grill mode**: interview one focused question at a time,
      verifying each load-bearing claim against the code, until the spec is airtight.
 4. **Restate, don't expand.** The rewrite must preserve the original intent — never quietly add
-   scope the user didn't ask for. Shorter and sharper, not longer.
+   scope the user didn't ask for. Shorter and sharper, not longer. An ambiguity you choose to
+   proceed *past* becomes a **stated assumption**, never a silent default — surface it on the
+   `Assumptions` line so a wrong guess is visible and correctable, not discovered after the build.
 
 ## Output shape
 
@@ -43,6 +47,7 @@ Intent: <fix | feature | review | research | question>
 Restated: <one sentence, the crisp version>
 Acceptance: <observable check(s) that mean "done">
 Open question (if any): <the single thing you need answered>
+Assumptions (correct me): <what I'm taking as given to proceed — stated, not baked in silently>
 → Proceed? (or the user corrects)
 ```
 
