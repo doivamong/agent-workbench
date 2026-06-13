@@ -48,6 +48,7 @@ Restated: <one sentence, the crisp version>
 Acceptance: <observable check(s) that mean "done">
 Open question (if any): <the single thing you need answered>
 Assumptions (correct me): <what I'm taking as given to proceed — stated, not baked in silently>
+Out of scope: <what this deliberately will NOT touch — names the boundary so creep is visible>
 → Proceed? (or the user corrects)
 ```
 
@@ -58,6 +59,7 @@ Assumptions (correct me): <what I'm taking as given to proceed — stated, not b
 | "I get the gist, I'll just start" | The gist is where wrong assumptions hide. One sentence of restatement catches them — a 10-second question beats a 10-minute wrong build. |
 | "I'll infer the missing scope" | Inferring scope the user didn't state is how scope creep and rework begin. State it and confirm. |
 | "The request says it works that way, so it does" | Premises are claims, not facts. Grep before you build on one. |
+| "They said 'sounds good', so we're aligned" | A vague yes — "sounds good", "whatever you think", silence — confirms a vibe, not the scope. Alignment means they engaged the restate / acceptance / out-of-scope; if they didn't, the spec is still open — ask the one question that forces a real choice. |
 
 ## Note
 

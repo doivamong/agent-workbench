@@ -54,6 +54,11 @@ Looser oversight trades safety for speed; reserve **auto** for reversible, fully
    [`awb-config-guard`](../awb-config-guard/SKILL.md); before commit →
    [`awb-review`](../awb-review/SKILL.md).
 6. **Verify with evidence** — run the tests/demo and read the output; never report done on a guess.
+   When you fan out a verification or adversarial pass to a sub-agent, hand it the **artifact and the
+   contract it must meet** — never your own conclusion: a verifier given your claim tends to
+   rubber-stamp it (and sub-agents inherit your framing). Watch for **doubt-theater** — if across two
+   or more passes the reviewer keeps raising points yet none change the decision, you are validating,
+   not verifying; stop and escalate the call rather than loop a third time.
 7. **HARD GATE (interactive): confirm before commit.** In fast/auto, commit per the mode and report.
 
 ## Honesty / limits
@@ -62,5 +67,7 @@ Cook enforces nothing — it *orchestrates* other skills; only a human or a real
 binding. The multi-perspective merge improves a plan, it does not prove it correct. The
 graduated-oversight and multi-perspective-planning patterns are re-authored from
 [`github/spec-kit`](https://github.com/github/spec-kit) (MIT) and
-[`anthropics/claude-plugins-official`](https://github.com/anthropics/claude-plugins-official) (MIT) —
+[`anthropics/claude-plugins-official`](https://github.com/anthropics/claude-plugins-official) (MIT);
+the artifact-not-claim adversarial-verify framing is re-authored from
+[`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) (MIT) doubt-driven-development —
 see [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md).

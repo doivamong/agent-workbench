@@ -54,7 +54,9 @@ few dozen lines that don't touch auth, payments, or data integrity). Everything 
 ## Output
 
 Report findings ranked by severity (blocking / important / nit) **and tagged with a confidence**
-(high / medium / low), each with a `file:line` and a concrete fix. Mark a low-confidence finding
+(high / medium / low), each with a `file:line` and a concrete fix. Severity sets what gates the
+merge: **blocking** must be fixed, **important** should be, **nit** is optional author's-discretion —
+say so, so a polish suggestion isn't mistaken for a merge blocker. Mark a low-confidence finding
 *"verify"*, not *"fix"* — the adversarial pass throws plausible-but-wrong hits; labelling them
 honestly keeps real issues from drowning in speculation. Don't soften a real problem to be polite.
 

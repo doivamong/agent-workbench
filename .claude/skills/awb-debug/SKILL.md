@@ -40,6 +40,21 @@ understand, then change.
    trust edge. Do this only where it's cheap and targeted — don't bolt defensive checks onto
    every layer (that just hides the next bug). If prevention isn't cheap here, say so and move on.
 
+## When it won't reproduce on demand
+
+Step 1 needs a reliable trigger. When the bug won't reproduce, classify *why* before guessing — each
+class has its own probe:
+
+- **Timing / concurrency** — order- or race-dependent. Probe the suspected window (logging or a
+  forced delay), stress-loop the path, look for shared state touched without a lock.
+- **Environment** — passes here, fails in CI/prod (or the reverse). Diff the environments (versions,
+  env vars, OS, cwd, clock, locale) and reproduce *in* the failing one, not a proxy — AWB's
+  cold-vs-warm and CI-only-failure traps live here.
+- **State / data** — only fires with specific accumulated state or input. Capture the exact
+  state/input, bisect the data, reset to a known point and replay.
+- **Genuinely intermittent** — none of the above isolates it. Don't fix blind: add always-on logging
+  at the divergence boundary and wait for the next occurrence *with evidence*.
+
 ## Anti-rationalization
 
 | You'll think | Reality |
