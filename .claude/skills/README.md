@@ -113,6 +113,7 @@ When a command grows past ~80 lines or needs sub-files, migrate it to a skill.
 | [`awb-lessons-capture/SKILL.md`](awb-lessons-capture/SKILL.md) | A **workflow** skill: mine a finished session for durable lessons, write only the approved ones to live memory |
 | [`awb-config-guard/SKILL.md`](awb-config-guard/SKILL.md) | A **guard** skill: catch the two silent config-access traps (wrong context; nested key → silent `None`) |
 | [`awb-optimize/SKILL.md`](awb-optimize/SKILL.md) | A **feature** skill: baseline → measure → fix the top bottleneck → re-measure → before/after table |
+| [`awb-verify-docs/SKILL.md`](awb-verify-docs/SKILL.md) | A **feature** skill: ground framework/library code in the official docs for the installed version — cite or mark UNVERIFIED |
 | [`awb-dead-code-audit/SKILL.md`](awb-dead-code-audit/SKILL.md) | An **audit** skill: find genuinely dead code behind a false-positive gate — never auto-deletes |
 | [`awb-install-and-verify/SKILL.md`](awb-install-and-verify/SKILL.md) | A **workflow** skill: wire the kit's guards into a project and prove they run (`install.py --merge-settings` → `--doctor`), narrating only what `--doctor` proves |
 | [`awb-session-close/SKILL.md`](awb-session-close/SKILL.md) | A **workflow** skill: audit a working tree at session end (uncommitted / unpushed / unmerged / stale branches) and clean it on approval — read-only `session_close_audit.py`, BLOCKs only what would be lost |

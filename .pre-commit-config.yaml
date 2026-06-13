@@ -43,7 +43,7 @@ repos:
       # already over budget — a local-only red gate that blocked every commit. Local == CI: count only.
       - id: context-budget
         name: context budget (cap skill bloat)
-        entry: python tools/check_context_budget.py --max-skills 19
+        entry: python tools/check_context_budget.py --max-skills 20
         language: system
         pass_filenames: false
         always_run: true
