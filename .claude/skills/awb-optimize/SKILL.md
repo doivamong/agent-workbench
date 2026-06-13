@@ -51,9 +51,14 @@ underlying pattern.
 - **No "while I'm here" rewrite** — optimizing isn't a licence to refactor untouched code.
 - **No micro-optimization the profiler didn't point to** — it trades readability for noise.
 - **No keeping a change that didn't beat the noise** — revert it.
+- **No code-read passed off as a measurement** — reading the source can *predict* where the time
+  goes, but it cannot produce a latency or memory *number*. If you have no baseline run, label every
+  figure **predicted (not measured)** and say which run would confirm it — never present an estimate
+  as a result.
 
 ## Honesty / limits
 
 This skill ships no measurement engine and guarantees no speedup — it enforces discipline around
 whatever profiler you use. Numbers are only as good as the input: optimizing against
-unrepresentative data can make production slower. "It feels faster" is not a metric.
+unrepresentative data can make production slower. "It feels faster" is not a metric — and neither is
+a number you reasoned out from reading the code: a static read predicts, only a run measures.
