@@ -57,6 +57,8 @@ from pathlib import Path
 from flask import (Blueprint, abort, current_app, redirect, render_template,
                    request, session)
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
 if str(HERE) not in sys.path:
@@ -311,7 +313,7 @@ def _tree_dirty(root: Path) -> bool:
         return False
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     r = subprocess.run(["git", "status", "--porcelain"], cwd=str(root),
-                       env=env, capture_output=True, text=True)
+                       env=env, capture_output=True, text=True, creationflags=_NO_WINDOW)
     return bool(r.stdout.strip())
 
 
@@ -354,7 +356,8 @@ def _run_engine(script: Path, cli_args: list[str]) -> tuple[int, dict | None, st
     swallowed (guard #9)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     proc = subprocess.run([sys.executable, str(script), *cli_args],
-                          cwd=str(REPO_ROOT), env=env, capture_output=True, text=True)
+                          cwd=str(REPO_ROOT), env=env, capture_output=True, text=True,
+                          creationflags=_NO_WINDOW)
     data: dict | None = None
     out = (proc.stdout or "").strip()
     if out:

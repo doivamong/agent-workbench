@@ -36,6 +36,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 TASK_NAME = "AWB Dashboard (logon)"
 _SCRIPT = Path(__file__).resolve().parent / "dashboard_ctl.py"
 
@@ -73,7 +75,8 @@ def enable(dry: bool = False) -> dict:
         return {"action": "enable", "result": "manual", "systemd_unit": systemd_unit()}
     if dry:
         return {"action": "enable", "result": "dry-run", "command": " ".join(schtasks_create_args())}
-    r = subprocess.run(schtasks_create_args(), capture_output=True, text=True)
+    r = subprocess.run(schtasks_create_args(), capture_output=True, text=True,
+                       creationflags=_NO_WINDOW)
     ok = r.returncode == 0
     return {"action": "enable", "result": "enabled" if ok else "failed",
             "detail": (r.stdout or r.stderr).strip() or ("ok" if ok else "access denied"),
@@ -89,7 +92,7 @@ def disable(dry: bool = False) -> dict:
     args = ["schtasks", "/Delete", "/TN", TASK_NAME, "/F"]
     if dry:
         return {"action": "disable", "result": "dry-run", "command": " ".join(args)}
-    r = subprocess.run(args, capture_output=True, text=True)
+    r = subprocess.run(args, capture_output=True, text=True, creationflags=_NO_WINDOW)
     ok = r.returncode == 0
     return {"action": "disable", "result": "removed" if ok else "not-found",
             "detail": (r.stdout or r.stderr).strip()}
@@ -99,7 +102,8 @@ def status() -> dict:
     if sys.platform != "win32":
         return {"action": "status", "platform": "posix",
                 "hint": "check: systemctl --user status awb-dashboard.service"}
-    r = subprocess.run(["schtasks", "/Query", "/TN", TASK_NAME], capture_output=True, text=True)
+    r = subprocess.run(["schtasks", "/Query", "/TN", TASK_NAME], capture_output=True, text=True,
+                       creationflags=_NO_WINDOW)
     return {"action": "status", "task": TASK_NAME, "registered": r.returncode == 0,
             "runs": run_command()}
 

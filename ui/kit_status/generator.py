@@ -42,6 +42,8 @@ from string import Template
 if hasattr(sys.stdout, "reconfigure"):  # legacy Windows console safety
     sys.stdout.reconfigure(encoding="utf-8")
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "template.html"
 
@@ -98,7 +100,7 @@ def _kpi_display(value, unit: str = "", extra: str = "") -> str:
 def _run(cmd: list[str], cwd: Path) -> str | None:
     try:
         out = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
-                             encoding="utf-8", timeout=30)
+                             encoding="utf-8", timeout=30, creationflags=_NO_WINDOW)
         return out.stdout if out.returncode == 0 else None
     except Exception:
         return None
@@ -280,7 +282,8 @@ def run_readonly_gates(proj: Path) -> dict[str, bool]:
             i = cmd.index("--allow")
             del cmd[i:i + 2]
         try:
-            r = subprocess.run(cmd, cwd=str(proj), capture_output=True, timeout=120)
+            r = subprocess.run(cmd, cwd=str(proj), capture_output=True, timeout=120,
+                               creationflags=_NO_WINDOW)
             results[name] = r.returncode == 0
         except Exception:
             pass  # a gate we cannot run is omitted, never shown as a false fail

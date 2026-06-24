@@ -37,6 +37,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPS_DIR = REPO_ROOT / ".ops"
 REL_DIR = OPS_DIR / "releases"
@@ -73,7 +75,8 @@ def version() -> str:
     """git describe (tags/commit, marked --dirty), else a timestamp."""
     try:
         r = subprocess.run(["git", "describe", "--tags", "--always", "--dirty"],
-                           cwd=str(REPO_ROOT), capture_output=True, text=True)
+                           cwd=str(REPO_ROOT), capture_output=True, text=True,
+                           creationflags=_NO_WINDOW)
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.strip()
     except OSError:

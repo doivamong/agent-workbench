@@ -43,6 +43,8 @@ import re
 import subprocess
 import sys
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 # Branch names safe to embed verbatim in a printed shell command (no spaces / shell metachars).
 _SAFE_BRANCH = re.compile(r"^[A-Za-z0-9._/-]+$")
 # Control chars to strip from externally-controlled text (gh PR titles) before echoing it.
@@ -64,7 +66,8 @@ def _git(args: list[str]) -> str:
     branch name / path degrades to a replacement char instead of crashing (fail-soft contract).
     Raises CalledProcessError on git's own non-zero exit - callers handle that."""
     return subprocess.check_output(
-        ["git", *args], encoding="utf-8", errors="replace", stderr=subprocess.DEVNULL
+        ["git", *args], encoding="utf-8", errors="replace", stderr=subprocess.DEVNULL,
+        creationflags=_NO_WINDOW
     ).strip()
 
 
@@ -263,6 +266,7 @@ def gather_open_prs():
         out = subprocess.check_output(
             ["gh", "pr", "list", "--state", "open", "--json", "number,title,url,headRefName,autoMergeRequest"],
             encoding="utf-8", errors="replace", stderr=subprocess.DEVNULL,
+            creationflags=_NO_WINDOW,
         )
         data = json.loads(out)
     except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError):
@@ -414,7 +418,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.no_fetch:
         try:
-            subprocess.run(["git", "fetch", "--prune", "--quiet"], check=False, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "fetch", "--prune", "--quiet"], check=False,
+                           stderr=subprocess.DEVNULL, creationflags=_NO_WINDOW)
         except FileNotFoundError:
             pass
 

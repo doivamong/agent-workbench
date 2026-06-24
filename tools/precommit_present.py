@@ -26,6 +26,8 @@ Everything after ``--`` (or all args if ``--`` is omitted) is the gate command.
 import subprocess
 import sys
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 # Exit code for an internal wrapper failure — distinct, non-zero, so it is never confused
 # with the gate's own codes and never mistaken for success (fail CLOSED).
 WRAPPER_ERROR = 3
@@ -56,7 +58,7 @@ def main(argv: list[str]) -> int:
         return WRAPPER_ERROR
 
     try:
-        rc = subprocess.call(cmd)
+        rc = subprocess.call(cmd, creationflags=_NO_WINDOW)
     except Exception as exc:  # noqa: BLE001 — any launch failure must fail CLOSED, not open
         sys.stderr.write(
             f"precommit_present: could not run the gate {cmd!r}: {exc}\n"

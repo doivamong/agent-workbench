@@ -41,6 +41,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # (metric key, regex). The number is group 2, flanked by group 1 (prefix) and group 3 (suffix) so
@@ -79,7 +81,7 @@ TARGETS: list[tuple[str, list[tuple[str, re.Pattern[str]]]]] = [
 
 def count_tests(root: Path = ROOT) -> int:
     proc = subprocess.run([sys.executable, "-m", "pytest", "--co", "-q", "tests"],
-                          cwd=root, capture_output=True, text=True)
+                          cwd=root, capture_output=True, text=True, creationflags=_NO_WINDOW)
     m = re.search(r"(\d+)\s+tests?\s+collected", proc.stdout)
     if not m:
         raise RuntimeError(f"could not parse the pytest collection summary:\n{proc.stdout[-500:]}")

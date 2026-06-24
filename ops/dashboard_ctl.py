@@ -47,6 +47,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APP = REPO_ROOT / "ui" / "web" / "app.py"
 OPS_DIR = REPO_ROOT / ".ops"
@@ -376,7 +378,7 @@ def _terminate(pid: int, timeout: float = 10.0) -> tuple[bool, str | None]:
     reason: str | None = None
     if sys.platform == "win32":
         proc = subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, creationflags=_NO_WINDOW)
         if proc.returncode != 0:
             err = (proc.stderr or proc.stdout or "").strip()
             if "access is denied" in err.lower():
@@ -423,7 +425,8 @@ def _pids_on_port(port: int) -> set[int]:
     pids: set[int] = set()
     try:
         if sys.platform == "win32":
-            out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True).stdout
+            out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True,
+                                 creationflags=_NO_WINDOW).stdout
             for line in out.splitlines():
                 parts = line.split()
                 # Columns: Proto  Local  Foreign  State  PID
@@ -435,7 +438,7 @@ def _pids_on_port(port: int) -> set[int]:
                             pass
         else:
             out = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
-                                 capture_output=True, text=True).stdout
+                                 capture_output=True, text=True, creationflags=_NO_WINDOW).stdout
             for tok in out.split():
                 try:
                     pids.add(int(tok))

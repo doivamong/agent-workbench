@@ -40,6 +40,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPS_DIR = REPO_ROOT / ".ops"
 SNAP_DIR = OPS_DIR / "snapshots"
@@ -56,7 +58,8 @@ def _sha256(data: bytes) -> str:
 def is_git_repo(root: Path) -> bool:
     try:
         r = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"],
-                           cwd=str(root), capture_output=True, text=True)
+                           cwd=str(root), capture_output=True, text=True,
+                           creationflags=_NO_WINDOW)
         return r.returncode == 0 and r.stdout.strip() == "true"
     except (OSError, FileNotFoundError):
         return False
@@ -65,7 +68,8 @@ def is_git_repo(root: Path) -> bool:
 def _git_commit(root: Path) -> str | None:
     try:
         r = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
-                           cwd=str(root), capture_output=True, text=True)
+                           cwd=str(root), capture_output=True, text=True,
+                           creationflags=_NO_WINDOW)
         return r.stdout.strip() if r.returncode == 0 else None
     except OSError:
         return None
@@ -77,7 +81,7 @@ def repo_files(root: Path = REPO_ROOT) -> tuple[list[str], bool]:
     if is_git_repo(root):
         r = subprocess.run(
             ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-            cwd=str(root), capture_output=True, text=True)
+            cwd=str(root), capture_output=True, text=True, creationflags=_NO_WINDOW)
         if r.returncode == 0:
             files = [p for p in r.stdout.split("\0") if p]
             return sorted(set(files)), True

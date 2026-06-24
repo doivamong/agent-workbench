@@ -27,6 +27,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 # Outgoing files under these prefixes must never reach the public repo.
 _PRIVATE_PREFIXES = (".porting/", "handovers/", "plans/", ".ops/")
 
@@ -42,7 +44,8 @@ def _git(args: list[str], repo: Path) -> str:
     """Run a read-only git command in ``repo``; raise CheckError on failure (fail closed)."""
     try:
         return subprocess.check_output(
-            ["git", "-C", str(repo), *args], encoding="utf-8", stderr=subprocess.STDOUT
+            ["git", "-C", str(repo), *args], encoding="utf-8", stderr=subprocess.STDOUT,
+            creationflags=_NO_WINDOW
         ).strip()
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         raise CheckError(f"git {' '.join(args)} failed: {exc}") from exc
@@ -73,7 +76,7 @@ def _run_leak_scan(repo: Path) -> tuple[int, str]:
     scanner = Path(__file__).resolve().parent / "leak_scan.py"
     proc = subprocess.run(
         [sys.executable, str(scanner), str(repo), *_LEAK_FLAGS],
-        capture_output=True, text=True,
+        capture_output=True, text=True, creationflags=_NO_WINDOW,
     )
     return proc.returncode, (proc.stdout + proc.stderr).strip()
 
@@ -95,7 +98,8 @@ def check_outgoing_clean(repo: Path, base: str) -> tuple[bool, str]:
         if f in bad:
             continue
         try:
-            if subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", f]).returncode == 0:
+            if subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", f],
+                              creationflags=_NO_WINDOW).returncode == 0:
                 bad.append(f)
         except FileNotFoundError as exc:
             raise CheckError(f"git check-ignore unavailable: {exc}") from exc

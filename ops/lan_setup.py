@@ -44,6 +44,8 @@ if sys.stdout is not None and hasattr(sys.stdout, "reconfigure"):
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import ops.dashboard_ctl as dctl  # noqa: E402
 
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: ẩn cửa sổ console; non-Windows: 0 (no-op)
+
 ENV_VAR = "AWB_DASHBOARD_HOST"
 LAN_VALUE = "0.0.0.0"
 LOCAL_VALUE = "127.0.0.1"
@@ -90,7 +92,8 @@ def _set_env(value: str, dry: bool) -> str:
     if dry:
         return f"would set {ENV_VAR}={value}"
     if sys.platform == "win32":
-        r = subprocess.run(["setx", ENV_VAR, value], capture_output=True, text=True)
+        r = subprocess.run(["setx", ENV_VAR, value], capture_output=True, text=True,
+                           creationflags=_NO_WINDOW)
         return (f"set {ENV_VAR}={value} (new shells only — re-open the terminal / log out-in)"
                 if r.returncode == 0 else f"setx failed: {r.stderr.strip() or r.stdout.strip()}")
     return f"add to your shell profile (not auto-edited):  export {ENV_VAR}={value}"
@@ -151,7 +154,7 @@ def open_firewall(port: int = DEFAULT_PORT, dry: bool = False) -> dict:
             f"'AWB dashboard {port} LAN' -Direction Inbound -Protocol TCP -LocalPort {port} "
             "-Action Allow -Profile Private -RemoteAddress LocalSubnet | Out-Null }")
     r = subprocess.run(["powershell", "-NoProfile", "-Command", rule],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, creationflags=_NO_WINDOW)
     ok = r.returncode == 0
     return {"action": "firewall", "result": "opened" if ok else "failed",
             "detail": (r.stderr or r.stdout).strip() or ("ok" if ok else "needs administrator"),
